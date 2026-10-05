@@ -5,6 +5,9 @@
   "license": "MIT",
   "author": "Thomas Kalka",
   "type": "module",
+  "bin": {
+    "tbl-md": "src/cli.ts"
+  },
   "keywords": ["markdown", "table", "gfm", "tbl", "lint"],
   "scripts": {
     "test": "bun test",
