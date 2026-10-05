@@ -58,7 +58,7 @@ The renderer writes the canonical form, so that a parse followed by a render giv
 - `key:` with no space for a cell whose first line is empty,
 - no indentation, and no empty line directly before or after `--`,
 - the escapes of rule 10 where they are necessary,
-- a fence of three backticks, or one backtick more than the longest line of only backticks in the block, if that line has three or more.
+- a fence of three backticks, or one backtick more than the longest closing fence line in the block. A closing fence line is a line that CommonMark reads as a closing fence: up to three spaces, three or more backticks, and then only spaces and tabs.
 
 ## Conversion to and from GFM
 

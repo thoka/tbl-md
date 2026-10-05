@@ -24,7 +24,7 @@ A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cel
 
 ## Status
 
-Work in progress. The parser exists (section Library). The renderer, the GFM conversion, and the CLI do not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
+Work in progress. The parser and the renderer exist (section Library). The GFM conversion and the CLI do not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
 
 ## What it will give
 
@@ -92,7 +92,47 @@ code: `orphan-line`
 when: A line comes before the first key line of a data record.
 ```
 
-`src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, their escaped forms, and `unescapeLine`.
+`render(table)` writes the canonical text of a table, by the section Canonical form of `docs/format.md`. The text has the lines joined with `\n` and no final newline. `renderBlock(table)` writes the whole block: the opening fence with the info string `tbl`, the text, and the closing fence, also with no final newline. The fence has three backticks, or more if a line of the text would close it.
+
+```ts
+import { parse, render, renderBlock } from "./src/index.ts";
+
+render({ columns: [{ key: "a", title: "A" }], rows: [{ cells: { a: "x\nb: y" } }] });
+// "a: A\n--\na: x\nb\\: y"
+renderBlock({ columns: [{ key: "a", title: "A" }], rows: [] });
+// "```tbl\na: A\n```"
+```
+
+Two laws hold for each valid table `T`, and the property test `test/laws.test.ts` checks them on random tables:
+
+- `parse(render(T))` gives `T` back.
+- `render(parse(render(T)).table)` is `render(T)`.
+
+`validate(table)` lists the problems that stop a render with no loss, as plain English messages. An empty list means that the table is valid. `render` and `renderBlock` throw an `Error` with the first problem. Columns and rows count from 1. These are the problems:
+
+```tbl
+problem: Problem
+--
+problem: The table has no columns.
+--
+problem: A column key does not have the form `[a-z0-9_-]+`.
+--
+problem: Two columns have the same key.
+--
+problem: A title has a line break or a CR.
+--
+problem: A cell key is no column key.
+--
+problem: A row ID does not have the form `[A-Za-z0-9_-]+`.
+--
+problem: A cell text ends with a line break.
+--
+problem: A cell text has a CR.
+```
+
+An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))` has no entry for it.
+
+`src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, their escaped forms, `escapeLine`, and `unescapeLine`.
 
 ## Development
 
@@ -108,6 +148,7 @@ mise run test
 
 - `typescript`: the type check.
 - `@types/bun`: the types of `bun:test`.
+- `fast-check`: the property test of the round-trip laws on random tables. It is the established property test library for TypeScript.
 
 ## Research
 
