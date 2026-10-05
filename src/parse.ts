@@ -1,4 +1,5 @@
 // The parser of a tbl block (docs/format.md, rules 2 to 10 and 12).
+// A line ends with LF, CRLF, or CR, as in CommonMark.
 // It reads the text inside the fence. The fence and its info string are not part of the text.
 import { keyLine, separatorLine, unescapeLine } from "./syntax.ts";
 
@@ -73,7 +74,7 @@ export function parse(text: string): ParseResult {
 /** Splits the block at the separator lines, and drops the empty lines at the start and the end of each record (rule 7). */
 function splitRecords(text: string): Record_[] {
   const records: Record_[] = [{ lines: [] }];
-  text.split(/\r?\n/).forEach((line, i) => {
+  text.split(/\r\n|\r|\n/).forEach((line, i) => {
     const separator = separatorLine.exec(line);
     if (separator) {
       const record: Record_ = { lines: [] };

@@ -306,6 +306,15 @@ describe("rule 12: line ends", () => {
     expect(parse(lf.replaceAll("\n", "\r\n"))).toEqual(parse(lf));
   });
 
+  test("a lone CR is a line end, as in CommonMark", () => {
+    const lf = lines("a: A", "b: B", "--", "a: 1", "two", "-- {#r}", "b: 2", "");
+    expect(parse(lf.replaceAll("\n", "\r"))).toEqual(parse(lf));
+  });
+
+  test("a mix of LF, CRLF, and CR works", () => {
+    expect(table("a: A\r--\na: 1\r\nx\ry").rows).toEqual([{ cells: { a: "1\nx\ny" } }]);
+  });
+
   test("a mix of LF and CRLF works", () => {
     expect(table("a: A\r\n--\na: 1\r\nx").rows).toEqual([{ cells: { a: "1\nx" } }]);
   });

@@ -47,7 +47,7 @@ p: $1
 
     The parser removes one backslash from each line of these forms. The renderer adds one backslash to each content line of these forms, also to a line that has backslashes already. Thus `hint\\: text` is the text `hint\: text`, and each text survives the round trip. A line of other forms keeps each backslash.
 11. Cell text is inline Markdown.
-12. A line ends with LF or CRLF. The parser reads both. The renderer writes LF, and a rewrite of a file keeps the line end of that file.
+12. A line ends with LF, CRLF, or CR, as in CommonMark. A title or a cell holds no CR. The parser reads all three line ends. The renderer writes LF, and a rewrite of a file keeps the line end of that file.
 
 ## Canonical form
 
