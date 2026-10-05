@@ -6,13 +6,13 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 2026-10-05, background session `tbl-md` in `~/dv/tbl-md`.
 
-State: steps 0 to 3 are done and merged into `main` (130 tests, green). `parse`, `render`, `findTables`, and `lint` exist. No converter or CLI exists yet. The repository has no remote, so `.handover.toml` has `local_only = true`.
+State: steps 0 to 4 are done and merged into `main` (176 tests, green). `parse`, `render`, `findTables`, `lint`, `toGfm`, `fromGfm`, and `keysFromTitles` exist. No file conversion or CLI exists yet. The repository has no remote, so `.handover.toml` has `local_only = true`.
 
-Next step: step 4, convert one table. Plan and review it first, then a subagent implements it in `.worktrees/4-gfm` on `feature/4-gfm`.
+Next step: step 5, convert a file. Plan and review it first, then a subagent implements it in `.worktrees/5-convert` on `feature/5-convert`.
 
 Open tasks of the user: none. The outward step (GitHub repository and npm) goes to the user as one brief after step 8.
 
-New context: no. The context is short, and step 4 has the same topic.
+New context: no. The context is short, and step 5 has the same topic.
 
 ## Rules for each step
 
@@ -20,7 +20,6 @@ Each step plans and reviews first, then implements in its own branch `feature/<s
 
 ## Open steps
 
-- Step 4: convert one table. `toGfm(table)` and `fromGfm(source, node)` in `src/gfm.ts`, by the section "Conversion to and from GFM" of `docs/format.md`: the keys from the titles, `<br>`, pipes, the ID marker, the escape rule, and the errors for content that would get lost. The cell text in GFM comes from the source by position, not from the mdast nodes, so that the inline Markdown stays byte for byte. Tests: a round trip from tbl to GFM and back gives the same table, also in the property test. A second test parses the GFM cell and the tbl cell as inline Markdown and compares the mdast, so the meaning stays the same, except for the listed cases. A first measurement finds how micromark splits `\\|` in a cell, before the code fixes the pipe rule.
 - Step 5: convert a file. `convert(source, { to: "tbl" | "gfm" })` in `src/convert.ts` replaces only the byte ranges of the tables. Each other byte stays the same. A table in a list item or a block quote keeps the line prefix of its first line, and the line end of the file stays. If one table fails, the file does not change, and the result lists the errors. Tests cover each case of step 3.
 - Step 6: CLI. `src/cli.ts` with `tbl-md convert [--to gfm] <files>` and `tbl-md lint <files>`. A message has the form `file:line:column: message`. Exit code 0 means no problem, 1 means a problem, and 2 means a usage error. The CLI uses only `node:` modules, no Bun API. The pre-commit hook of this project runs `tbl-md lint` on the staged Markdown files, and the setup test `test/docs.test.ts` goes, because the lint replaces it. The README gets a section CLI.
 - Step 7: package. A build writes ESM JavaScript and type declarations to `dist/`, and `package.json` gets `exports`, `bin`, `files`, `engines`, and `repository`. Node joins `mise.toml`. A test packs the package with `npm pack`, installs the tarball in a temp folder, and runs the CLI and an import with Node. The README gets the install line and the public usage.
