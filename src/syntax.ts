@@ -28,3 +28,14 @@ export function unescapeLine(line: string): string {
   if (escapedSeparatorLine.test(line)) return line.slice(1);
   return line;
 }
+
+/**
+ * Adds one backslash to a line of the key form or the separator form, escaped or not (rule 10).
+ * A line of another form comes back unchanged. Thus `unescapeLine(escapeLine(line))` is `line`.
+ */
+export function escapeLine(line: string): string {
+  const key = keyLine.exec(line) ?? escapedKeyLine.exec(line);
+  if (key) return key[1]! + "\\" + line.slice(key[1]!.length);
+  if (separatorLine.test(line) || escapedSeparatorLine.test(line)) return "\\" + line;
+  return line;
+}
