@@ -2,17 +2,15 @@
 
 tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has the goal, and `docs/format.md` has the format. This plan lists the open steps. Finished steps are in `docs/HISTORY.md`.
 
-## Hand-off
+P26-10-05, background session `tbl-md` in `~/dv/tbl-md`.
 
-2026-10-05, background session `tbl-md` in `~/dv/tbl-md` (first session, started by the markgraf session).
+State: steps 0 and 1 are done and merged into `main` (49 tests, green). `parse(text)` in `src/parse.ts` reads a `tbl` block, and `src/syntax.ts` has the line forms that the renderer reuses. No renderer, converter, or CLI exists yet. The repository has no remote, so `.handover.toml` has `local_only = true`.
 
-State: step 0 is done. The project has its rules, its goal, the format specification with the review of its details (`docs/review-queue.md`), the plan, and the stack (Bun, mise, lefthook, `mise run test`). No code exists yet. The repository has no remote, so `.handover.toml` has `local_only = true`.
-
-Next step: step 1, the parser. Plan and review it first, as the step text below says, then implement it in `feature/1-parse`.
+Next step: step 2, the renderer. Plan and review it first, then a subagent implements it in `.worktrees/2-render` on `feature/2-render`.
 
 Open tasks of the user: none. The outward step (GitHub repository and npm) goes to the user as one brief after step 8.
 
-New context: no. The context is short, and step 1 has the same topic.
+New context: no. The context is short, and step 2 has the same topic.
 
 ## Rules for each step
 
@@ -20,7 +18,6 @@ Each step plans and reviews first, then implements in its own branch `feature/<s
 
 ## Open steps
 
-- Step 1: parse. `parse(text)` in `src/parse.ts` reads the lines inside a `tbl` fence and gives a table (`columns` with key and title, `rows` with an optional ID and the cells by key) or a list of errors, each with its line in the block. It covers rules 2 to 10 and 12 of `docs/format.md`. A test covers each rule and each error. The README gets a section Library with `parse`.
 - Step 2: render. `render(table)` in `src/render.ts` writes the canonical form, with the escapes and the fence length. Tests: a parse followed by a render gives the same text for each canonical example, and a render followed by a parse gives the same table. A property test with `fast-check` (a new dev library, with its line in README Libraries) checks both laws on random tables, also with lines of the escape forms.
 - Step 3: find blocks and lint. `src/markdown.ts` reads a Markdown file with `mdast-util-from-markdown` and the GFM table extension, and lists the `tbl` blocks and the GFM tables with their positions. `lint(source)` gives the problems: each GFM table, and each error of a `tbl` block at its line in the file. Tests cover a block in a list item, in a block quote, a tilde fence, a table in another code block (no problem), and CRLF.
 - Step 4: convert one table. `toGfm(table)` and `fromGfm(source, node)` in `src/gfm.ts`, by the section "Conversion to and from GFM" of `docs/format.md`: the keys from the titles, `<br>`, pipes, the ID marker, the escape rule, and the errors for content that would get lost. The cell text in GFM comes from the source by position, not from the mdast nodes, so that the inline Markdown stays byte for byte. Tests: a round trip from tbl to GFM and back gives the same table, also in the property test. A second test parses the GFM cell and the tbl cell as inline Markdown and compares the mdast, so the meaning stays the same, except for the listed cases. A first measurement finds how micromark splits `\\|` in a cell, before the code fixes the pipe rule.
