@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 5: convert a file
+
+- Step 5: convert a file. `convert(source, { to: "tbl" | "gfm" })` in `src/convert.ts` replaces only the byte ranges of the tables. Each other byte stays the same. A table in a list item or a block quote keeps the line prefix of its first line, and the line end of the file stays. If one table fails, the file does not change, and the result lists the errors. Tests cover each case of step 3. Done on 2026-10-05. Status: `convert` in `src/convert.ts` and `locate` in `src/parse.ts`. A self-check parses the output again, and a tbl block with a text line directly after it fails in the conversion to GFM, because GFM would read the line as a row. The property test embeds random tables in random frames. Four safety-net messages have no test (`docs/review-queue.md`).
+
 ## Step 4: convert one table
 
 - Step 4: convert one table. `toGfm(table)` and `fromGfm(source, node)` in `src/gfm.ts`, by the section "Conversion to and from GFM" of `docs/format.md`: the keys from the titles, `<br>`, pipes, the ID marker, the escape rule, and the errors for content that would get lost. The cell text in GFM comes from the source by position, not from the mdast nodes, so that the inline Markdown stays byte for byte. Tests: a round trip from tbl to GFM and back gives the same table, also in the property test. A second test parses the GFM cell and the tbl cell as inline Markdown and compares the mdast, so the meaning stays the same, except for the listed cases. A first measurement finds how micromark splits `\\|` in a cell, before the code fixes the pipe rule. Done on 2026-10-05. Status: `src/gfm.ts`. The measurement of micromark is in `docs/format.md` ("How micromark splits a GFM row"). A pipe after an odd number of backslashes and a cell line that ends with a backslash before a line break fail in `toGfm` with an error, by one rule: one backslash more. The README section Known gaps lists the rest.
