@@ -24,7 +24,7 @@ A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cel
 
 ## Status
 
-Work in progress. The parser, the renderer, the lint of a Markdown text, the conversion of one table to and from GFM, and the conversion of all tables in a Markdown text exist (section Library). The CLI does not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
+Work in progress. The library (section Library) and the CLI `tbl-md` with `lint` and `convert` (section CLI) exist. The CLI runs from this checkout with Bun. The package is not on npm yet, and it has no build for Node. The plan is in `docs/PLAN.md`.
 
 ## What it will give
 
@@ -273,6 +273,71 @@ Two laws hold, and the property test `test/laws.test.ts` checks them on random t
 - A conversion to GFM and back to tbl gives the same text. The frame outside the tables stays byte for byte.
 - A conversion to tbl and back to GFM gives the same text, if the GFM tables are canonical.
 
+## CLI
+
+The CLI is `src/cli.ts`. In this checkout, run it with `mise run tbl-md <command> ...` or `bun src/cli.ts <command> ...`.
+
+```sh
+tbl-md lint <files...>
+tbl-md convert [--to tbl|gfm] <files...>
+```
+
+`tbl-md lint` reads each file and prints each problem of `lint`, in the order of the files and then by line. Each problem is one line:
+
+```text
+docs/a.md:12:1: This is a GFM pipe table. Write it as a tbl block, for example with `tbl-md convert`. (gfm-table)
+```
+
+The form is `<file>:<line>:<column>: <message> (<code>)`. The codes are the problem codes of `lint` (section Library). The lint does not change a file.
+
+`tbl-md convert` converts the tables of each file in place with `convert`. `--to tbl` is the default: each GFM table becomes a `tbl` block. `--to gfm` converts each `tbl` block to a GFM table. For each file, the CLI does one of three things:
+
+- The file has tables to convert. The CLI writes the file and prints `<file>: converted <n> table` (or `tables`).
+- The file has no table to convert. The CLI prints nothing and does not write the file.
+- The conversion fails. The CLI prints each error as `<file>:<line>:<column>: <message>` and does not write the file. It goes on with the next file.
+
+The file name `-` reads stdin. `lint -` names the file `-` in its messages. `convert -` writes the text to stdout, also when it has no table to convert, and it prints its messages to stderr. If the conversion fails, it writes nothing to stdout. The name `-` can come only once.
+
+A file that starts with a UTF-8 BOM keeps its BOM. The lines and the columns do not count it. A conversion keeps the line ends of the file.
+
+The CLI reads all files before it changes one. If a file cannot be read, the run stops with a usage error, and no file changes.
+
+These are the other options:
+
+- `-h`, `--help`: print the usage to stdout.
+- `--version`: print the version of the package.
+- `--`: each argument after it is a file name, also if it starts with `-`.
+
+These are the exit codes:
+
+```tbl
+code: Exit code
+when: When
+--
+code: 0
+when: No file has a problem. For `convert`: each file converted, or it had no table to convert. Also `--help` and `--version`.
+--
+code: 1
+when: For `lint`: a file has a problem. For `convert`: the conversion of a file failed.
+--
+code: 2
+when: A usage error: no command, an unknown command, an unknown option, a bad value of `--to`, `--to` for `lint`, no files, `-` more than once, or a file that cannot be read. The CLI prints one line to stderr that names the problem.
+```
+
+### The pre-commit hook
+
+The pre-commit hook of this project runs `tbl-md lint` on the staged Markdown files (`lefthook.yml`). `mise run pre-commit` runs the hook on the staged files, as git does. The lint reads the file in the working tree, not the staged text.
+
+When the package is on npm, another project can run the lint in its hook. This is an example for lefthook:
+
+```yaml
+pre-commit:
+  jobs:
+    - name: tbl-md lint
+      glob: "*.md"
+      run: npx tbl-md lint {staged_files}
+```
+
 ## Known gaps
 
 - A line break inside a code span becomes `<br>` in GFM, and in a code span `<br>` is text, not a line break. The round trip keeps the text, but a GFM viewer shows `<br>` in the code.
@@ -281,6 +346,9 @@ Two laws hold, and the property test `test/laws.test.ts` checks them on random t
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
 - A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
 - The keys of a GFM table come from its titles. The keys of a tbl block do not survive a round trip through GFM if they differ from `keysFromTitles` of the titles.
+- The CLI runs only with Bun until the build of step 7. Node cannot run `src/cli.ts` as it is.
+- The pre-commit hook lints the file in the working tree. If a file has unstaged changes, the lint can differ from the staged text.
+- The CLI reads each file as UTF-8. It does not report a file with bytes that are not UTF-8.
 
 ## Development
 
