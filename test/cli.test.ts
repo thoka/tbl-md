@@ -212,6 +212,12 @@ describe("usage errors exit 2 with one line on stderr", () => {
     expect(run.err).toContain("it is a folder");
   });
 
+  test("-- ends the options, so a later --help is a file name", async () => {
+    const run = await cli(["lint", "--", "--help"]);
+    expect(run.code).toBe(2);
+    expect(run.err).toContain('Cannot read the file "--help": no such file.');
+  });
+
   test("- with no stdin is a usage error", async () => {
     const run = await cli(["lint", "-"]);
     expect(run.code).toBe(2);
