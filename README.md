@@ -24,7 +24,31 @@ A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cel
 
 ## Status
 
-Work in progress. The library (section Library) and the CLI `tbl-md` with `lint` and `convert` (section CLI) exist. The CLI runs from this checkout with Bun. The package is not on npm yet, and it has no build for Node. The plan is in `docs/PLAN.md`.
+Work in progress. The library (section Library) and the CLI `tbl-md` with `lint` and `convert` (section CLI) exist. The build makes a package for Node 22 or later and for Bun. The package is not published yet, so the install lines below work only after the first release. The plan is in `docs/PLAN.md`.
+
+## Install
+
+```sh
+npm install tbl-md
+```
+
+Run the CLI with no install:
+
+```sh
+npx tbl-md lint README.md
+bunx tbl-md lint README.md
+```
+
+The package is ESM only. It needs Node 22 or later, or Bun. Import the library by its package name:
+
+```ts
+import { convert, lint, parse, render } from "tbl-md";
+
+const result = convert("| A |\n| --- |\n| x |\n", { to: "tbl" });
+if (result.ok) console.log(result.output);
+```
+
+The package has type declarations for TypeScript. The format specification is in the package too, at `docs/format.md`.
 
 ## What it will give
 
@@ -47,7 +71,7 @@ what: Fails on a GFM pipe table and on an invalid `tbl` block, with the file and
 `parse(text)` reads the text inside a `tbl` fence. The text starts at the first line after the opening fence and ends before the closing fence. The fence and its info string are not part of the text.
 
 ```ts
-import { parse } from "./src/index.ts";
+import { parse } from "tbl-md";
 
 const result = parse("model: Model\nprice: Price\n--\nm: Opus\np: $15");
 if (result.ok) {
@@ -95,7 +119,7 @@ when: A line comes before the first key line of a data record.
 `render(table)` writes the canonical text of a table, by the section Canonical form of `docs/format.md`. The text has the lines joined with `\n` and no final newline. `renderBlock(table)` writes the whole block: the opening fence with the info string `tbl`, the text, and the closing fence, also with no final newline. The fence has three backticks, or more if a line of the text would close it.
 
 ```ts
-import { parse, render, renderBlock } from "./src/index.ts";
+import { parse, render, renderBlock } from "tbl-md";
 
 render({ columns: [{ key: "a", title: "A" }], rows: [{ cells: { a: "x\nb: y" } }] });
 // "a: A\n--\na: x\nb\\: y"
@@ -135,7 +159,7 @@ An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))
 `locate(text)` gives the lines of the key lines of a valid `tbl` block, so that an error about a cell or a title can name its line. All lines are block lines from 1, as in the errors of `parse`. `headerLines` maps each header key to its line. `rows` has one entry for each data record: `line` is the line of its `--`, and `cells` maps the full header key of each key line to its line, also for a prefix key. For a block with parse errors, `locate` gives `null`.
 
 ```ts
-import { locate } from "./src/index.ts";
+import { locate } from "tbl-md";
 
 locate("model: Model\nnote: Note\n--\nn: a\nm: Opus");
 // { headerLines: { model: 1, note: 2 }, rows: [{ line: 3, cells: { note: 4, model: 5 } }] }
@@ -150,7 +174,7 @@ Each entry has a `kind` (`"tbl"` or `"gfm"`), the mdast `node`, the source offse
 `lint(source)` lists the problems of a Markdown text, sorted by line and then by column. A problem has a `line` and a `column` in the file, a `code`, and a `message`. An error of a `tbl` block has its line in the file, and the column of the fence, because the block content starts there in a list item or a block quote.
 
 ```ts
-import { lint } from "./src/index.ts";
+import { lint } from "tbl-md";
 
 lint("> ```tbl\n> a: A\n> --\n> b: x\n> ```\n");
 // [{ line: 4, column: 3, code: "unknown-key", message: 'The key "b" matches no header key. ...' }]
@@ -175,7 +199,7 @@ when: A `tbl` block has this error. The problem is at the line of the error in t
 `toGfm(table)` writes one table as a GFM pipe table, by the section "Conversion to and from GFM" of `docs/format.md`. `fromGfm(source, found)` reads one GFM table of a Markdown source back as a table. `found` is a `"gfm"` entry of `findTables(source)`. `fromGfm` reads each cell text from the source by the offsets of its mdast cell, so the inline Markdown stays byte for byte. The keys come from the titles by `keysFromTitles(titles)`.
 
 ```ts
-import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm } from "./src/index.ts";
+import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm } from "tbl-md";
 
 toGfm({ columns: [{ key: "a", title: "A" }], rows: [{ id: "r1", cells: { a: "x|y\nz" } }] });
 // { ok: true, text: "| A |\n| --- |\n| x\\|y<br>z {#r1} |" }
@@ -250,7 +274,7 @@ A fourth property test checks the meaning: the mdast of each GFM cell, with no p
 `convert(source, { to })` converts all tables of a Markdown text, in memory, by the section "Conversion of a file" of `docs/format.md`. With `to: "tbl"`, each GFM table becomes a `tbl` block (`fromGfm`, then `renderBlock`). With `to: "gfm"`, each `tbl` block becomes a GFM table (`parse`, then `toGfm`). Tables of the target kind stay as they are, also an invalid `tbl` block.
 
 ```ts
-import { convert } from "./src/index.ts";
+import { convert } from "tbl-md";
 
 convert("Intro\n\n> | A |\n> | --- |\n> | x<br>y |\n", { to: "tbl" });
 // { ok: true, count: 1, output: "Intro\n\n> ```tbl\n> a: A\n> --\n> a: x\n> y\n> ```\n" }
@@ -275,7 +299,7 @@ Two laws hold, and the property test `test/laws.test.ts` checks them on random t
 
 ## CLI
 
-The CLI is `src/cli.ts`. In this checkout, run it with `mise run tbl-md <command> ...` or `bun src/cli.ts <command> ...`.
+The package installs the CLI as `tbl-md`. Its source is `src/cli.ts`. In this checkout, run it with `mise run tbl-md <command> ...` or `bun src/cli.ts <command> ...`.
 
 ```sh
 tbl-md lint <files...>
@@ -346,7 +370,9 @@ pre-commit:
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
 - A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
 - The keys of a GFM table come from its titles. The keys of a tbl block do not survive a round trip through GFM if they differ from `keysFromTitles` of the titles.
-- The CLI runs only with Bun until the build of step 7. Node cannot run `src/cli.ts` as it is.
+- The package is not published yet. `npm install tbl-md` and `npx tbl-md` work only after the first release.
+- The package test needs the npm registry, because npm installs the mdast libraries of the tarball. With no network, `mise run test` fails.
+- The package has no CommonJS entry. Its `exports` has only the condition `import`, so `require("tbl-md")` fails. A CommonJS module loads it with `import("tbl-md")`.
 - The pre-commit hook lints the file in the working tree. If a file has unstaged changes, the lint can differ from the staged text.
 - The CLI reads each file as UTF-8. It does not report a file with bytes that are not UTF-8.
 
@@ -360,15 +386,37 @@ mise run hooks-install
 mise run test
 ```
 
+These are the tasks of `mise.toml`:
+
+```tbl
+task: Task
+what: What it does
+--
+task: `mise run test`
+what: Runs the type check and all tests, also the package test.
+--
+task: `mise run build`
+what: Builds the package: ESM JavaScript and type declarations from `src/` to `dist/`, by `tsconfig.build.json`.
+--
+task: `mise run test-package`
+what: Runs only the package test, `test/package.test.ts`. It packs the package with `npm pack`, installs the tarball in a temp project, and runs the CLI and the library with Node 24, Node 22, and Bun. It also checks the files of the tarball and type checks a consumer file against the type declarations.
+--
+task: `mise run tbl-md <command>`
+what: Runs the CLI from the source with Bun.
+```
+
+`npm pack` runs the build first (the script `prepack`), so a tarball always has a new build.
+
 ## Libraries
 
-- `typescript`: the type check.
+- `typescript`: the type check and the build.
+- `@types/node`: the types of the `node:` modules, at the oldest Node that the package supports (22).
 - `@types/bun`: the types of `bun:test`.
 - `fast-check`: the property test of the round-trip laws on random tables. It is the established property test library for TypeScript.
 - `mdast-util-from-markdown`: parses a Markdown text into an mdast tree with source positions, so that the lint finds each table at its line.
 - `micromark-extension-gfm-table`: the GFM table syntax for the parser, so that the lint finds GFM pipe tables. It is the only GFM extension that the parse uses.
 - `mdast-util-gfm-table`: turns the GFM table tokens into `table` nodes of the mdast tree.
-- `@types/mdast`: the types of the mdast nodes.
+- `@types/mdast`: the types of the mdast nodes. It is a runtime dependency, because the type declarations of the package use these types, for example the `node` of `findTables`.
 
 ## Research
 
