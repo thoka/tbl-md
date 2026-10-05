@@ -2,7 +2,9 @@
 
 tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has the goal, and `docs/format.md` has the format. This plan lists the open steps. Finished steps are in `docs/HISTORY.md`.
 
-P26-10-05, background session `tbl-md` in `~/dv/tbl-md`.
+## Hand-off
+
+2026-10-05, background session `tbl-md` in `~/dv/tbl-md`.
 
 State: steps 0 to 7 are done, and step 8 is done up to the user step. `main` has the library, the CLI, the package (259 tests, green), the research `docs/research/npm-release.md`, and the release workflow `.github/workflows/release.yml` with `release-please-config.json`. The repository has no remote yet, so `.handover.toml` has `local_only = true`. Nothing is published.
 
