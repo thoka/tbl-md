@@ -1,5 +1,17 @@
 # Git hooks for every writer: humans and agents.
 # Install: mise run hooks-install
+pre-commit:
+  # Run the jobs in order, and stop at the first failure.
+  piped: true
+  jobs:
+    - name: install
+      # Install the dependencies from bun.lock, as mise run test does, so that the lint finds its libraries
+      # in a new checkout.
+      run: mise exec -- bun install --frozen-lockfile --silent
+    - name: tbl-md lint
+      # Fails on a GFM pipe table and on an invalid tbl block in a staged Markdown file (AGENTS.md).
+      glob: "*.md"
+      run: mise exec -- bun src/cli.ts lint {staged_files}
 pre-push:
   jobs:
     - name: test

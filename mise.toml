@@ -11,6 +11,14 @@ description = "Type check and run all tests"
 depends = ["install"]
 run = ["bun run typecheck", "bun test"]
 
+[tasks.tbl-md]
+description = "Run the tbl-md CLI, for example: mise run tbl-md lint README.md"
+run = "bun src/cli.ts"
+
 [tasks.hooks-install]
-description = "Install the git hooks of lefthook.yml (pre-push: mise run test)"
+description = "Install the git hooks of lefthook.yml (pre-commit: tbl-md lint, pre-push: mise run test)"
 run = "lefthook install"
+
+[tasks.pre-commit]
+description = "Run the pre-commit hook on the staged files, as git does"
+run = "lefthook run pre-commit"
