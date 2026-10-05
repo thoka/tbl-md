@@ -113,6 +113,47 @@ mdast: inline code `x\\|y`
 
 Thus GFM splits at a pipe after an even number of backslashes. In text, the backslashes before a pipe are escapes. In a code span, micromark removes one backslash before a pipe and keeps the others. Thus one backslash more before a pipe after an even number of backslashes keeps the meaning in text and in a code span.
 
+## Conversion of a file
+
+A conversion of a file converts each table of the other kind, and it keeps each other byte of the file. Thus a conversion to tbl converts each GFM table and keeps each `tbl` block, also an invalid one. A table inside another code block or an HTML block is no table, so it stays as it is.
+
+- The new text replaces only the source of the table, from its first character to its last character.
+- The first line of the new text starts where the table started. Each other line starts with the continuation prefix. The continuation prefix is the text from the start of the first line to the table, with each character other than `>`, a space, or a tab replaced by a space. Thus `- ` gives two spaces, `> ` gives `> `, and `> 1. ` gives `>    `. An empty line gets the continuation prefix with no spaces and tabs at its end, so that no line ends with a space.
+- The new text uses the line end of the file: the first line end of the file, CRLF, LF, or CR. A file with no line end gets LF.
+- A conversion to GFM fails for a `tbl` block with text after `tbl` in the info string, and for a block with parse errors. Each error is at its line in the file. An error of a cell is at the key line of the cell, also if that line has a prefix key. An error of a title is at the header key line of the title. The column of these errors is the column of the fence.
+- A conversion to tbl fails at the cell of each error of the GFM table.
+- After the conversion, the converter reads the new text again. Each new table must be at the same place in the list of tables, with the new kind, and it must read back as the same table. A new GFM table reads back with the keys of its titles. Each other table must keep its kind and its text. If the check fails for a table, the conversion fails with an error at the first line of that table.
+- If one table fails, the whole conversion fails, and the file does not change. The errors come sorted by line and then by column.
+
+### Where a new GFM table can stand
+
+A GFM table has no end marker. It ends at an empty line or at the start of another block. A tbl block ends at its closing fence. Thus a conversion to GFM can change how Markdown reads the lines around the table. This measurement of `micromark-extension-gfm-table` 2.1 (2026-10-05) shows the cases:
+
+```tbl
+case: The tbl block is directly
+result: Result of the conversion to GFM
+--
+case: after a paragraph line
+result: It converts. A GFM table can interrupt a paragraph, so the line stays a paragraph.
+--
+case: before a paragraph line
+result: It fails. GFM reads the line as a row of the table.
+--
+case: before a line of the same list item or block quote
+result: It fails. GFM reads the line as a row of the table.
+--
+case: before a lazy line after a list item or a block quote
+result: It converts. A table row is never a lazy line, so the line stays outside the table.
+--
+case: before a heading, a list item, or a fence
+result: It converts. Another block ends the table.
+--
+case: before another tbl block or a GFM table
+result: It fails. GFM reads the lines of the next table as rows. Only the first table gets an error.
+```
+
+The error tells the writer to add an empty line after the `tbl` block. A conversion to tbl has no such case, because a fence ends at its closing fence line.
+
 ## How the rule applies
 
 - Agents write new tables as `tbl` blocks.

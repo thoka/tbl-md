@@ -24,7 +24,7 @@ A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cel
 
 ## Status
 
-Work in progress. The parser, the renderer, the lint of a Markdown text, and the conversion of one table to and from GFM exist (section Library). The conversion of a whole file and the CLI do not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
+Work in progress. The parser, the renderer, the lint of a Markdown text, the conversion of one table to and from GFM, and the conversion of all tables in a Markdown text exist (section Library). The CLI does not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
 
 ## What it will give
 
@@ -132,6 +132,15 @@ problem: A cell text has a CR.
 
 An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))` has no entry for it.
 
+`locate(text)` gives the lines of the key lines of a valid `tbl` block, so that an error about a cell or a title can name its line. All lines are block lines from 1, as in the errors of `parse`. `headerLines` maps each header key to its line. `rows` has one entry for each data record: `line` is the line of its `--`, and `cells` maps the full header key of each key line to its line, also for a prefix key. For a block with parse errors, `locate` gives `null`.
+
+```ts
+import { locate } from "./src/index.ts";
+
+locate("model: Model\nnote: Note\n--\nn: a\nm: Opus");
+// { headerLines: { model: 1, note: 2 }, rows: [{ line: 3, cells: { note: 4, model: 5 } }] }
+```
+
 `src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, their escaped forms, `escapeLine`, and `unescapeLine`.
 
 `findTables(source)` reads a Markdown text and lists its `tbl` blocks and its GFM tables in document order. It parses CommonMark with only the GFM table extension, and it walks the whole tree, also into list items and block quotes. A `tbl` block is a fenced code block with the language `tbl`, with backticks or tildes. An indented code block, a code block with another language (also `tbl-x` or `TBL`), and the text inside another code block or an HTML block are not `tbl` blocks.
@@ -238,12 +247,39 @@ Three laws hold for each valid table `T` whose keys are `keysFromTitles` of its 
 
 A fourth property test checks the meaning: the mdast of each GFM cell, with no positions, equals the mdast of the paragraph that the tbl cell text gives when each line break is `<br>`. It skips a literal `<br>` and a first cell with an ID or with the marker form, because their text changes on purpose.
 
+`convert(source, { to })` converts all tables of a Markdown text, in memory, by the section "Conversion of a file" of `docs/format.md`. With `to: "tbl"`, each GFM table becomes a `tbl` block (`fromGfm`, then `renderBlock`). With `to: "gfm"`, each `tbl` block becomes a GFM table (`parse`, then `toGfm`). Tables of the target kind stay as they are, also an invalid `tbl` block.
+
+```ts
+import { convert } from "./src/index.ts";
+
+convert("Intro\n\n> | A |\n> | --- |\n> | x<br>y |\n", { to: "tbl" });
+// { ok: true, count: 1, output: "Intro\n\n> ```tbl\n> a: A\n> --\n> a: x\n> y\n> ```\n" }
+
+convert("```tbl\na: A\n--\nb: x\n```\n", { to: "gfm" });
+// { ok: false, errors: [{ line: 4, column: 1, message: 'The key "b" matches no header key. ...' }] }
+```
+
+The result has `ok: true`, the new text `output`, and `count`, the number of converted tables. Or it has `ok: false` and `errors`, sorted by line and then by column. Each error has the `line` and the `column` in the file, both from 1, and a `message`. With an error, the result has no output, so the caller writes nothing. These rules keep the file:
+
+- Only the source of each converted table changes. Each other byte stays the same.
+- The first line of the new text starts where the table started. Each other line gets the continuation prefix: the text before the table on its first line, with each character other than `>`, a space, or a tab replaced by a space. Thus `- ` gives two spaces, `> ` gives `> `, and `> 1. ` gives `>    `. An empty line gets this prefix with no spaces at its end.
+- The new text uses the first line end of the file: CRLF, LF, or CR.
+- An error of a `tbl` block is at its line in the file, as in `lint`. An error of a cell from `toGfm` is at the key line of the cell, and an error of a title is at its header key line. `convert` finds these lines with `locate`.
+
+After the conversion, `convert` reads the new text again with `findTables`. This is the self-check. Each new table must be at the same place in the list of tables, with the new kind, and it must read back as the same table. A new GFM table reads back with the keys of its titles. If the check fails, the conversion fails with an error at the first line of the table. The main case is a `tbl` block with a text line directly after it: GFM would read that line as a row of the table, so the error tells the writer to add an empty line. A `tbl` block directly after a paragraph line converts, because a GFM table can interrupt a paragraph.
+
+Two laws hold, and the property test `test/laws.test.ts` checks them on random tables in random Markdown with paragraphs, list items, and block quotes, and with each line end. The tables have the keys of their titles:
+
+- A conversion to GFM and back to tbl gives the same text. The frame outside the tables stays byte for byte.
+- A conversion to tbl and back to GFM gives the same text, if the GFM tables are canonical.
+
 ## Known gaps
 
 - A line break inside a code span becomes `<br>` in GFM, and in a code span `<br>` is text, not a line break. The round trip keeps the text, but a GFM viewer shows `<br>` in the code.
 - A literal `<br>` in a tbl cell is an HTML line break in a Markdown view. In GFM, it becomes `\<br>`, which shows the text `<br>`. A `\<br>` in a tbl cell shows the text `<br>`. In GFM, it becomes `\\<br>`, which shows `\` and a line break. The round trip keeps the text, but the view changes.
 - A tbl cell with a pipe after an odd number of backslashes, for example `a\|b`, does not convert to GFM. Write `a|b`.
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
+- A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
 - The keys of a GFM table come from its titles. The keys of a tbl block do not survive a round trip through GFM if they differ from `keysFromTitles` of the titles.
 
 ## Development
