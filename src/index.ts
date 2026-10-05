@@ -11,3 +11,7 @@ export {
   separatorLine,
   unescapeLine,
 } from "./syntax.ts";
+export { findTables } from "./markdown.ts";
+export type { Found, FoundGfm, FoundTbl } from "./markdown.ts";
+export { lint } from "./lint.ts";
+export type { Problem, ProblemCode } from "./lint.ts";
