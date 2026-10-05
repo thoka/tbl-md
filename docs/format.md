@@ -32,14 +32,14 @@ p: $1
 4. A line that is exactly `--` starts the next record. A row ID marker can follow after one space: `-- {#a1b2c3d4}`. An ID has the form `[A-Za-z0-9_-]+`. Each other line that starts with `--` is text.
 5. In a data record, a line `key: text` starts a cell. The key can be any unique prefix of a header key. An exact key wins over a longer key with the same prefix.
 6. Each other line continues the cell above. Leading spaces of a continuation line are content. An empty line inside a cell is content.
-7. Empty lines at the start of the block, directly after `--`, directly before `--`, and before the end of the block are not content. Thus a cell never ends with an empty line.
+7. Empty lines at the start of the block, directly after `--`, directly before `--`, directly before a key line, and before the end of the block are not content. Thus a cell never ends with an empty line. An empty line has no characters. A line of only spaces is content.
 8. Keys can come in any order in a record. A missing key is an empty cell. A record with no cells is a row of empty cells.
 9. Each error names the line. These are errors:
    - a key line whose key matches no header key,
    - an ambiguous prefix (the error lists the possible keys),
    - a duplicate key in a record,
    - a continuation line before the first key of a record,
-   - a block with no header key,
+   - a block with no header key, that is an empty block or a block that starts with `--` (a header of only lines that are no key lines gives an error for each of these lines instead),
    - text after `tbl` in the info string.
 10. Escapes exist only at the start of a line, and all follow one rule: one backslash more than the text has. Two forms take an escape:
     - The key form: a key, one or more backslashes, a colon, and then a space or the end of the line. Example: `hint\: text` is the text `hint: text`.
