@@ -12,7 +12,13 @@
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
+    "@types/mdast": "^4.0.4",
     "fast-check": "^4.10.2",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "mdast-util-from-markdown": "^2.1.0",
+    "mdast-util-gfm-table": "^2.0.0",
+    "micromark-extension-gfm-table": "^2.1.2"
   }
 }
