@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 6: CLI
+
+- Step 6: CLI. `src/cli.ts` with `tbl-md convert [--to gfm] <files>` and `tbl-md lint <files>`. A message has the form `file:line:column: message`. Exit code 0 means no problem, 1 means a problem, and 2 means a usage error. The CLI uses only `node:` modules, no Bun API. The pre-commit hook of this project runs `tbl-md lint` on the staged Markdown files, and the setup test `test/docs.test.ts` goes, because the lint replaces it. The README gets a section CLI. Done on 2026-10-05. Status: `src/cli.ts` with `main(argv, io)`, `-` for stdin, BOM kept, all files read before any write. The pre-commit hook installs the dependencies and runs the lint. `test/docs.test.ts` now runs the library lint over the docs. Known gaps: the hook lints the working tree, not the staged text.
+
 ## Step 5: convert a file
 
 - Step 5: convert a file. `convert(source, { to: "tbl" | "gfm" })` in `src/convert.ts` replaces only the byte ranges of the tables. Each other byte stays the same. A table in a list item or a block quote keeps the line prefix of its first line, and the line end of the file stays. If one table fails, the file does not change, and the result lists the errors. Tests cover each case of step 3. Done on 2026-10-05. Status: `convert` in `src/convert.ts` and `locate` in `src/parse.ts`. A self-check parses the output again, and a tbl block with a text line directly after it fails in the conversion to GFM, because GFM would read the line as a row. The property test embeds random tables in random frames. Four safety-net messages have no test (`docs/review-queue.md`).
