@@ -1,0 +1,16 @@
+[tools]
+bun = "1.4.2"
+lefthook = "2.1.16"
+
+[tasks.install]
+description = "Install the dependencies from bun.lock"
+run = "bun install --frozen-lockfile"
+
+[tasks.test]
+description = "Type check and run all tests"
+depends = ["install"]
+run = ["bun run typecheck", "bun test"]
+
+[tasks.hooks-install]
+description = "Install the git hooks of lefthook.yml (pre-push: mise run test)"
+run = "lefthook install"

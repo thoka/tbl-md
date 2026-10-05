@@ -1,0 +1,17 @@
+{
+  "name": "tbl-md",
+  "version": "0.0.0",
+  "description": "A readable table format for Markdown: key-based tables in a fenced tbl block, with lossless conversion to and from GFM tables",
+  "license": "MIT",
+  "author": "Thomas Kalka",
+  "type": "module",
+  "keywords": ["markdown", "table", "gfm", "tbl", "lint"],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}
