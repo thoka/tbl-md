@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 7: package
+
+- Step 7: package. A build writes ESM JavaScript and type declarations to `dist/`, and `package.json` gets `exports`, `bin`, `files`, `engines`, and `repository`. Node joins `mise.toml`. A test packs the package with `npm pack`, installs the tarball in a temp folder, and runs the CLI and an import with Node. The README gets the install line and the public usage. Done on 2026-10-05. Status: `tsconfig.build.json` (NodeNext, `rewriteRelativeImportExtensions`), a tarball of 25 kB with 22 files. The package test takes about 2.6 seconds, so `mise run test` includes it, and it needs the npm registry. `@types/mdast` is a runtime dependency, because the type declarations import it. ESM only.
+
 ## Step 6: CLI
 
 - Step 6: CLI. `src/cli.ts` with `tbl-md convert [--to gfm] <files>` and `tbl-md lint <files>`. A message has the form `file:line:column: message`. Exit code 0 means no problem, 1 means a problem, and 2 means a usage error. The CLI uses only `node:` modules, no Bun API. The pre-commit hook of this project runs `tbl-md lint` on the staged Markdown files, and the setup test `test/docs.test.ts` goes, because the lint replaces it. The README gets a section CLI. Done on 2026-10-05. Status: `src/cli.ts` with `main(argv, io)`, `-` for stdin, BOM kept, all files read before any write. The pre-commit hook installs the dependencies and runs the lint. `test/docs.test.ts` now runs the library lint over the docs. Known gaps: the hook lints the working tree, not the staged text.
