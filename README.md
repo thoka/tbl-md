@@ -24,7 +24,7 @@ A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cel
 
 ## Status
 
-Work in progress. The parser, the renderer, and the lint of a Markdown text exist (section Library). The GFM conversion and the CLI do not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
+Work in progress. The parser, the renderer, the lint of a Markdown text, and the conversion of one table to and from GFM exist (section Library). The conversion of a whole file and the CLI do not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
 
 ## What it will give
 
@@ -162,6 +162,89 @@ when: The info string has text after `tbl` (rule 1 of `docs/format.md`). The pro
 code: each error code of `parse`
 when: A `tbl` block has this error. The problem is at the line of the error in the file.
 ```
+
+`toGfm(table)` writes one table as a GFM pipe table, by the section "Conversion to and from GFM" of `docs/format.md`. `fromGfm(source, found)` reads one GFM table of a Markdown source back as a table. `found` is a `"gfm"` entry of `findTables(source)`. `fromGfm` reads each cell text from the source by the offsets of its mdast cell, so the inline Markdown stays byte for byte. The keys come from the titles by `keysFromTitles(titles)`.
+
+```ts
+import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm } from "./src/index.ts";
+
+toGfm({ columns: [{ key: "a", title: "A" }], rows: [{ id: "r1", cells: { a: "x|y\nz" } }] });
+// { ok: true, text: "| A |\n| --- |\n| x\\|y<br>z {#r1} |" }
+
+const source = "| Price ($) | Note |\n| :-- | --- |\n| 1 | a<br>b |\n";
+fromGfm(source, findTables(source)[0] as FoundGfm);
+// { ok: true, table: { columns: [{ key: "price", title: "Price ($)" }, { key: "note", title: "Note" }],
+//   rows: [{ cells: { price: "1", note: "a\nb" } }] } }
+
+keysFromTitles(["a", "a", "a-2", ""]);
+// ["a", "a-3", "a-2", "c4"]
+```
+
+The GFM text has the lines joined with `\n` and no final newline. Each row has a cell for each column, and an empty cell is `|  |`. These are the mappings:
+
+```tbl
+tbl: In the tbl cell
+gfm: In the GFM cell
+--
+tbl: a line break
+gfm: `<br>`
+--
+tbl: `<br>`, or `<br>` after backslashes
+gfm: one backslash more: `\<br>`, `\\<br>`
+--
+tbl: `|`, or `|` after an even number of backslashes
+gfm: one backslash more: `\|`, `\\\|`
+--
+tbl: the row ID `r1`
+gfm: ` {#r1}` at the end of the first cell, or `{#r1}` in an empty first cell
+--
+tbl: a first cell with no ID that ends with `{#x}`, at the start or after a space
+gfm: one backslash more before the `{`: `\{#x}`
+```
+
+A title keeps `<br>` as it is. GFM column alignment is dropped. Both functions collect all errors. An error of `toGfm` has an optional `row` (from 1), an optional `key`, and a `message`. An error of a title has no `row`. An error of `fromGfm` has the `line` and the `column` of the cell in the source, and a `message`. These are the errors:
+
+```tbl
+fn: Function
+when: When
+--
+fn: `toGfm`
+when: `validate` finds a problem. The error has only the message of `validate`.
+--
+fn: `toGfm`
+when: A title or a cell starts or ends with a space or a tab. GFM removes it.
+--
+fn: `toGfm`
+when: A title or a cell has a pipe after an odd number of backslashes. One backslash more would give an even number, and GFM would split the cell there.
+--
+fn: `toGfm`
+when: A cell line ends with a backslash and has a next line. The backslash would escape the `<br>` of the line break.
+--
+fn: `fromGfm`
+when: A cell ends with `<br>`. A tbl cell never ends with a line break.
+--
+fn: `fromGfm`
+when: A row has more cells than the header. GFM drops the extra cells.
+--
+fn: `fromGfm`
+when: The text before the ID marker of a first cell ends with a space or a tab. The cell could not convert back.
+```
+
+Three laws hold for each valid table `T` whose keys are `keysFromTitles` of its titles and that `toGfm` accepts. The property test `test/laws.test.ts` checks them on random tables:
+
+- `fromGfm(toGfm(T))` gives `T` back.
+- `toGfm` of that table gives the same GFM text again.
+- The GFM text is one GFM table with the width of the header and the rows of `T`.
+
+A fourth property test checks the meaning: the mdast of each GFM cell, with no positions, equals the mdast of the paragraph that the tbl cell text gives when each line break is `<br>`. It skips a literal `<br>` and a first cell with an ID or with the marker form, because their text changes on purpose.
+
+## Known gaps
+
+- A line break inside a code span becomes `<br>` in GFM, and in a code span `<br>` is text, not a line break. The round trip keeps the text, but a GFM viewer shows `<br>` in the code.
+- A literal `<br>` in a tbl cell is an HTML line break in a Markdown view. In GFM, it becomes `\<br>`, which shows the text `<br>`. A `\<br>` in a tbl cell shows the text `<br>`. In GFM, it becomes `\\<br>`, which shows `\` and a line break. The round trip keeps the text, but the view changes.
+- A tbl cell with a pipe after an odd number of backslashes, for example `a\|b`, does not convert to GFM. Write `a|b`.
+- `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
+- The keys of a GFM table come from its titles. The keys of a tbl block do not survive a round trip through GFM if they differ from `keysFromTitles` of the titles.
 
 ## Development
 
