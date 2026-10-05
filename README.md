@@ -24,7 +24,7 @@ A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cel
 
 ## Status
 
-Work in progress. The parser and the renderer exist (section Library). The GFM conversion and the CLI do not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
+Work in progress. The parser, the renderer, and the lint of a Markdown text exist (section Library). The GFM conversion and the CLI do not exist yet, and the package is not on npm. The plan is in `docs/PLAN.md`.
 
 ## What it will give
 
@@ -134,6 +134,35 @@ An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))
 
 `src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, their escaped forms, `escapeLine`, and `unescapeLine`.
 
+`findTables(source)` reads a Markdown text and lists its `tbl` blocks and its GFM tables in document order. It parses CommonMark with only the GFM table extension, and it walks the whole tree, also into list items and block quotes. A `tbl` block is a fenced code block with the language `tbl`, with backticks or tildes. An indented code block, a code block with another language (also `tbl-x` or `TBL`), and the text inside another code block or an HTML block are not `tbl` blocks.
+
+Each entry has a `kind` (`"tbl"` or `"gfm"`), the mdast `node`, the source offsets `start` and `end` of the node, and the `line` and `column` of its start, both from 1. Thus `source.slice(start, end)` is the exact source of the node. A `tbl` entry also has `contentLine`, the file line of the first line inside the fence, `text`, the text inside the fence, and `meta`, the text after `tbl` in the info string, or `null`.
+
+`lint(source)` lists the problems of a Markdown text, sorted by line and then by column. A problem has a `line` and a `column` in the file, a `code`, and a `message`. An error of a `tbl` block has its line in the file, and the column of the fence, because the block content starts there in a list item or a block quote.
+
+```ts
+import { lint } from "./src/index.ts";
+
+lint("> ```tbl\n> a: A\n> --\n> b: x\n> ```\n");
+// [{ line: 4, column: 3, code: "unknown-key", message: 'The key "b" matches no header key. ...' }]
+```
+
+These are the problem codes:
+
+```tbl
+code: Code
+when: When
+--
+code: `gfm-table`
+when: The text has a GFM pipe table. The message tells the reader to write it as a `tbl` block.
+--
+code: `info-text`
+when: The info string has text after `tbl` (rule 1 of `docs/format.md`). The problem is at the fence line.
+--
+code: each error code of `parse`
+when: A `tbl` block has this error. The problem is at the line of the error in the file.
+```
+
 ## Development
 
 The tools come from `mise.toml`.
@@ -149,6 +178,10 @@ mise run test
 - `typescript`: the type check.
 - `@types/bun`: the types of `bun:test`.
 - `fast-check`: the property test of the round-trip laws on random tables. It is the established property test library for TypeScript.
+- `mdast-util-from-markdown`: parses a Markdown text into an mdast tree with source positions, so that the lint finds each table at its line.
+- `micromark-extension-gfm-table`: the GFM table syntax for the parser, so that the lint finds GFM pipe tables. It is the only GFM extension that the parse uses.
+- `mdast-util-gfm-table`: turns the GFM table tokens into `table` nodes of the mdast tree.
+- `@types/mdast`: the types of the mdast nodes.
 
 ## Research
 

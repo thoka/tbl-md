@@ -26,7 +26,7 @@ p: $1
 
 ## Rules
 
-1. The info string of the fence is exactly `tbl`. Text after `tbl` in the info string is reserved for a later version, and the parser reports it as an error. A fence of backticks and a fence of tildes are both valid.
+1. The info string of the fence is exactly `tbl`. Text after `tbl` in the info string is reserved for a later version, and the parser reports it as an error. A fence of backticks and a fence of tildes are both valid. As in CommonMark, the spaces before and after the info string do not count, so `tbl   ` is valid. The language is case-sensitive, so a fence with `TBL` or `tbl-x` is no `tbl` block. An indented code block is no `tbl` block, because it has no info string.
 2. The first record is always the header. Each line maps a key to a column title: `key: Title`. The order of the header lines is the column order. A header has one key at least. A title has one line, and it can be empty. Two equal keys in the header are an error. A line in the header that is not a key line is an error.
 3. A key has the form `[a-z0-9_-]+`. Keys are case-sensitive. A key line is a key, a colon, and then a space or the end of the line. Thus a line such as `https://example.com` is no key line. The text of a key line starts after the colon and one space. More spaces are content.
 4. A line that is exactly `--` starts the next record. A row ID marker can follow after one space: `-- {#a1b2c3d4}`. An ID has the form `[A-Za-z0-9_-]+`. Each other line that starts with `--` is text.
