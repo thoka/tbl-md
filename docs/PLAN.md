@@ -2,17 +2,17 @@
 
 tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has the goal, and `docs/format.md` has the format. This plan lists the open steps. Finished steps are in `docs/HISTORY.md`.
 
-## Hand-off
+P26-10-05, background session `tbl-md` in `~/dv/tbl-md`.
 
-2026-10-05, background session `tbl-md` in `~/dv/tbl-md`.
+State: steps 0 to 7 are done, and step 8 is done up to the user step. `main` has the library, the CLI, the package (259 tests, green), the research `docs/research/npm-release.md`, and the release workflow `.github/workflows/release.yml` with `release-please-config.json`. The repository has no remote yet, so `.handover.toml` has `local_only = true`. Nothing is published.
 
-State: steps 0 to 7 are done and merged into `main` (259 tests, green). The package builds to `dist/`, and a test packs it, installs it, and runs it on Node 24, Node 22, and Bun. The research of step 8 runs in `.worktrees/8-research` (`docs/research/npm-release.md`). Nothing is published. The repository has no remote, so `.handover.toml` has `local_only = true`.
+Waiting for the user: the script `~/inbox/tbl-md-publish.sh` creates the public repository `thoka/tbl-md`, pushes `main`, allows Actions to open PRs, publishes the npm placeholder `0.0.0`, and connects the trusted publisher. Its log is `~/.local/state/user-steps/tbl-md-publish.log`, and it notifies this session when it ends.
 
-Next step: step 8: review the research report, merge it, write the release workflow and the config files by its proposal, and send the user one brief for the outward step.
+Next step: read the log. If it ended with exit 0, remove `local_only` from `.handover.toml`, push, and check with `gh pr list -R thoka/tbl-md` that release-please opened the release PR for 0.1.0. Then give the user one brief: merge that PR. After the release, check `npm view tbl-md version` and the provenance, and tell the markgraf session (Markgraf steps 6a and 6b wait for the release). If the log shows a failure, fix it with a new script file, not by a change of the old one.
 
-Open tasks of the user: none. The outward step (GitHub repository and npm) goes to the user as one brief after step 8.
+Open tasks of the user: the script `~/inbox/tbl-md-publish.sh`.
 
-New context: no. The context is short, and step 8 builds on it.
+New context: no. The next step needs the context of step 8.
 
 ## Rules for each step
 
