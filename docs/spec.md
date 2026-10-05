@@ -42,7 +42,7 @@ what: Fails on a GFM pipe table and on an invalid `tbl` block. Each error names 
 
 ## Principles
 
-1. Lossless. A round trip from `tbl` to GFM and back gives the same text. A conversion never drops content silently.
+1. Lossless. A round trip from `tbl` to GFM and back gives the same titles, cells, and row IDs. A GFM table has no keys, so the keys come back from the titles. A round trip from GFM to `tbl` and back gives the same canonical GFM text. A conversion never drops content silently.
 2. Canonical. Each table has one canonical `tbl` text. The parse accepts more forms (prefix keys, any key order), and the render writes one.
 3. Precise errors. Each error names the file, the line, and, where it helps, the column and the possible keys.
 4. Small surface. The library has no runtime dependency outside the mdast and micromark family. The library and the CLI run on Node and on Bun.
