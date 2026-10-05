@@ -6,6 +6,7 @@ import fc from "fast-check";
 import type { Paragraph } from "mdast";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import {
+  convert,
   findTables,
   fromGfm,
   keysFromTitles,
@@ -284,4 +285,92 @@ describe("the laws of the GFM conversion", () => {
     // Most random tables have cells to compare, so the test is not empty.
     expect(compared).toBeGreaterThan(gfmRuns.numRuns);
   });
+});
+
+// Property tests of the conversion of a file: random tables in a random Markdown frame.
+// The frame has paragraphs and containers (list items, block quotes) with empty lines around each block.
+const fileRuns = { numRuns: 300 };
+// A file test parses each text four times, so it gets more time than the default 5 seconds.
+
+/** The first-line prefix and the continuation prefix of a container. */
+const container = fc.constantFrom(
+  ["", ""],
+  ["- ", "  "],
+  ["1. ", "   "],
+  ["  - ", "    "],
+  ["> ", "> "],
+  ["> - ", ">   "],
+  ["> > ", "> > "],
+  ["-\t", " \t"],
+);
+const paragraph = fc
+  .array(fc.constantFrom("Text", "a | b", "*x*", "`c`", "--", "k: v", "1.", "é", " "), { minLength: 1, maxLength: 4 })
+  .map((words) => words.join(" ").trim())
+  .filter((text) => text !== "" && !/^\d+\.$/.test(text) && !/^[-*]/.test(text));
+
+type Part = { kind: "text"; text: string } | { kind: "table"; table: Table; prefix: [string, string] };
+const part: fc.Arbitrary<Part> = fc.oneof(
+  paragraph.map((text): Part => ({ kind: "text", text })),
+  fc.tuple(gfmTableArb, container).map(([table, prefix]): Part => ({ kind: "table", table, prefix: prefix as [string, string] })),
+);
+const eolArb = fc.constantFrom("\n", "\r\n", "\r");
+
+/** Writes the parts as a Markdown text, with an empty line between the blocks. Each table is a tbl block or a GFM table. */
+function frame(parts: Part[], eol: string, as: "tbl" | "gfm"): string {
+  const blocks = parts.map((p) => {
+    if (p.kind === "text") return p.text;
+    const text = as === "tbl" ? renderBlock(p.table) : toGfmText(p.table);
+    const [first, rest] = p.prefix;
+    const bare = rest.replace(/[ \t]+$/, "");
+    return first + text.split("\n").map((l, i) => (i === 0 ? l : l === "" ? bare : rest + l)).join("\n");
+  });
+  return blocks.join("\n\n").replaceAll("\n", eol) + eol;
+}
+
+/** The text outside the tables, as a list of pieces. */
+function frameOf(text: string): string[] {
+  const found = findTables(text);
+  const pieces: string[] = [];
+  let last = 0;
+  for (const f of found) {
+    pieces.push(text.slice(last, f.start));
+    last = f.end;
+  }
+  pieces.push(text.slice(last));
+  return pieces;
+}
+
+describe("the laws of the file conversion", () => {
+  test("tbl to gfm and back gives the same text, and the frame stays", () => {
+    fc.assert(
+      fc.property(fc.array(part, { minLength: 1, maxLength: 5 }), eolArb, (parts, eol) => {
+        const source = frame(parts, eol, "tbl");
+        const there = convert(source, { to: "gfm" });
+        if (!there.ok) throw new Error(JSON.stringify(there.errors));
+        expect(there.output).toBe(frame(parts, eol, "gfm"));
+        expect(there.count).toBe(parts.filter((p) => p.kind === "table").length);
+        expect(frameOf(there.output)).toEqual(frameOf(source));
+        const back = convert(there.output, { to: "tbl" });
+        if (!back.ok) throw new Error(JSON.stringify(back.errors));
+        expect(back.output).toBe(source);
+      }),
+      fileRuns,
+    );
+  }, 30_000);
+
+  test("gfm to tbl and back gives the same text, and the frame stays", () => {
+    fc.assert(
+      fc.property(fc.array(part, { minLength: 1, maxLength: 5 }), eolArb, (parts, eol) => {
+        const source = frame(parts, eol, "gfm");
+        const there = convert(source, { to: "tbl" });
+        if (!there.ok) throw new Error(JSON.stringify(there.errors));
+        expect(there.output).toBe(frame(parts, eol, "tbl"));
+        expect(frameOf(there.output)).toEqual(frameOf(source));
+        const back = convert(there.output, { to: "gfm" });
+        if (!back.ok) throw new Error(JSON.stringify(back.errors));
+        expect(back.output).toBe(source);
+      }),
+      fileRuns,
+    );
+  }, 30_000);
 });
