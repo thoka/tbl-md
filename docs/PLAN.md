@@ -2,7 +2,9 @@
 
 tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has the goal, and `docs/format.md` has the format. This plan lists the open steps. Finished steps are in `docs/HISTORY.md`.
 
-P26-10-05, background session `tbl-md` in `~/dv/tbl-md`.
+## Hand-off
+
+2026-10-05, background session `tbl-md` in `~/dv/tbl-md`.
 
 State: steps 0 and 1 are done and merged into `main` (49 tests, green). `parse(text)` in `src/parse.ts` reads a `tbl` block, and `src/syntax.ts` has the line forms that the renderer reuses. No renderer, converter, or CLI exists yet. The repository has no remote, so `.handover.toml` has `local_only = true`.
 
