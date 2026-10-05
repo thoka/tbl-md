@@ -5,21 +5,44 @@
   "license": "MIT",
   "author": "Thomas Kalka",
   "type": "module",
-  "bin": {
-    "tbl-md": "src/cli.ts"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thoka/tbl-md.git"
+  },
+  "homepage": "https://github.com/thoka/tbl-md#readme",
+  "bugs": {
+    "url": "https://github.com/thoka/tbl-md/issues"
   },
   "keywords": ["markdown", "table", "gfm", "tbl", "lint"],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "tbl-md": "dist/cli.js"
+  },
+  "files": ["dist", "docs/format.md", "README.md", "LICENSE"],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/bun": "^1.4.2",
-    "@types/mdast": "^4.0.4",
+    "@types/node": "^22",
     "fast-check": "^4.10.2",
     "typescript": "^7.0.2"
   },
   "dependencies": {
+    "@types/mdast": "^4.0.4",
     "mdast-util-from-markdown": "^2.1.0",
     "mdast-util-gfm-table": "^2.0.0",
     "micromark-extension-gfm-table": "^2.1.2"

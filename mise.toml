@@ -1,5 +1,6 @@
 [tools]
 bun = "1.4.2"
+node = "24.20.0"
 lefthook = "2.1.16"
 
 [tasks.install]
@@ -7,9 +8,19 @@ description = "Install the dependencies from bun.lock"
 run = "bun install --frozen-lockfile"
 
 [tasks.test]
-description = "Type check and run all tests"
+description = "Type check and run all tests, also the package test"
 depends = ["install"]
 run = ["bun run typecheck", "bun test"]
+
+[tasks.build]
+description = "Build the package: ESM JavaScript and type declarations in dist/"
+depends = ["install"]
+run = "npm run build"
+
+[tasks.test-package]
+description = "Run only the package test: pack the package, install the tarball in a temp project, and run the CLI and the library with Node 24 and Node 22"
+depends = ["install"]
+run = "bun test test/package.test.ts"
 
 [tasks.tbl-md]
 description = "Run the tbl-md CLI, for example: mise run tbl-md lint README.md"
