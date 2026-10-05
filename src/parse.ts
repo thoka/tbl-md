@@ -47,6 +47,8 @@ interface Line {
 
 interface Record_ {
   id?: string;
+  /** 1-based block line of the separator. The header record has none. */
+  separator?: number;
   lines: Line[];
 }
 
@@ -77,7 +79,7 @@ function splitRecords(text: string): Record_[] {
   text.split(/\r\n|\r|\n/).forEach((line, i) => {
     const separator = separatorLine.exec(line);
     if (separator) {
-      const record: Record_ = { lines: [] };
+      const record: Record_ = { lines: [], separator: i + 1 };
       if (separator[2] !== undefined) record.id = separator[2];
       records.push(record);
     } else {
@@ -188,4 +190,37 @@ function trimTrailingEmpty(lines: Line[]): Line[] {
   let end = lines.length;
   while (end > 0 && lines[end - 1]!.text === "") end--;
   return lines.slice(0, end);
+}
+
+/** The block lines of the key lines of a valid tbl block. All lines are 1-based block lines, as in `TblError`. */
+export interface TblLocation {
+  /** The line of each header key line, by key. */
+  headerLines: Record<string, number>;
+  /** One entry per data record: the line of its `--`, and the line of each key line by the full header key. */
+  rows: { line: number; cells: Record<string, number> }[];
+}
+
+/**
+ * Finds the line of each header key and of each cell key line of a tbl block.
+ * A cell key line can have a prefix key, and `cells` maps the full header key to its line.
+ * It returns null if `parse(text)` has errors.
+ */
+export function locate(text: string): TblLocation | null {
+  const parsed = parse(text);
+  if (!parsed.ok) return null;
+  const keys = parsed.table.columns.map((c) => c.key);
+  const [header, ...data] = splitRecords(text);
+  const headerLines: Record<string, number> = {};
+  for (const line of header!.lines) headerLines[keyLine.exec(line.text)![1]!] = line.number;
+  const rows = data.map((record) => {
+    const cells: Record<string, number> = {};
+    for (const line of record.lines) {
+      const match = keyLine.exec(line.text);
+      if (!match) continue;
+      const resolved = resolve(match[1]!, keys);
+      if ("key" in resolved) cells[resolved.key] = line.number;
+    }
+    return { line: record.separator!, cells };
+  });
+  return { headerLines, rows };
 }

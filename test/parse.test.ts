@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parse, unescapeLine, type Table, type TblError } from "../src/index.ts";
+import { locate, parse, unescapeLine, type Table, type TblError } from "../src/index.ts";
 
 function table(text: string): Table {
   const result = parse(text);
@@ -327,5 +327,31 @@ describe("details beyond docs/format.md", () => {
 
   test("a header of only text lines is header-not-key, not no-header", () => {
     expect(errors(lines("text", "--", "a: 1")).map((e) => [e.line, e.code])).toEqual([[1, "header-not-key"]]);
+  });
+});
+
+describe("locate", () => {
+  test("gives the lines of the header keys and of the cell key lines", () => {
+    const text = "model: Model\nnote: Note\n--\nn: a\nb\nm: Opus\n\n-- {#x}\n--\nnote: c";
+    expect(locate(text)).toEqual({
+      headerLines: { model: 1, note: 2 },
+      rows: [
+        { line: 3, cells: { note: 4, model: 6 } },
+        { line: 8, cells: {} },
+        { line: 9, cells: { note: 10 } },
+      ],
+    });
+  });
+
+  test("an escaped line is no key line", () => {
+    expect(locate("a: A\n--\na: x\na\\: y")).toEqual({ headerLines: { a: 1 }, rows: [{ line: 2, cells: { a: 3 } }] });
+  });
+
+  test("reads CRLF and CR lines", () => {
+    expect(locate("a: A\r\n--\ra: y")).toEqual({ headerLines: { a: 1 }, rows: [{ line: 2, cells: { a: 3 } }] });
+  });
+
+  test("gives null for an invalid block", () => {
+    expect(locate("--\na: x")).toBeNull();
   });
 });
