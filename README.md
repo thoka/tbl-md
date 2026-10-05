@@ -407,6 +407,16 @@ what: Runs the CLI from the source with Bun.
 
 `npm pack` runs the build first (the script `prepack`), so a tarball always has a new build.
 
+## Release
+
+A merge of the release PR makes a release. release-please keeps one release PR open on GitHub, and it updates the PR after each push to `main`. When you merge the PR, the workflow `.github/workflows/release.yml` does these steps:
+
+1. It tags the release `vX.Y.Z` and creates the GitHub Release with the changelog.
+2. It builds the package and publishes it to npm with trusted publishing. No npm token is stored, and npm adds provenance.
+3. It moves the branch `stable` to the release tag. The push cannot force, so `stable` only moves forward.
+
+The workflow runs no tests, because the pre-push hook runs them before each push. Before 1.0.0, `feat:` gives a minor version and `fix:` gives a patch version. The research is `docs/research/npm-release.md`.
+
 ## Libraries
 
 - `typescript`: the type check and the build.

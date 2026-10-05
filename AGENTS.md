@@ -21,6 +21,6 @@ The global rules of the user apply. This file adds the rules of this project. Th
 
 - The code in `src/` uses only `node:` modules and its libraries, no Bun API, so that the package runs on Node and on Bun.
 - An error names the line, and in a file also the file. A test covers each error.
-- A change of `docs/format.md` gets an entry in `docs/review-queue.md`. After the first release, a change that makes a valid block invalid, or that changes its content, needs a new major version.
+- A change of `docs/format.md` gets an entry in `docs/review-queue.md`. After the first release, a change that makes a valid block invalid, or that changes its content, needs a new major version. Below 1.0.0, a minor version takes the role of the major version (`bump-minor-pre-major` of release-please).
 - Write each table in the docs as a `tbl` block, never as a GFM pipe table. Check: `tbl-md lint` in the pre-commit hook on the staged Markdown files, and `test/docs.test.ts` on all docs.
 - Do not change `docs/spec.md` without the user.
