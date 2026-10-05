@@ -1,6 +1,6 @@
 {
   "name": "tbl-md",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A readable table format for Markdown: key-based tables in a fenced tbl block, with lossless conversion to and from GFM tables",
   "license": "MIT",
   "author": "Thomas Kalka",
@@ -13,7 +13,13 @@
   "bugs": {
     "url": "https://github.com/thoka/tbl-md/issues"
   },
-  "keywords": ["markdown", "table", "gfm", "tbl", "lint"],
+  "keywords": [
+    "markdown",
+    "table",
+    "gfm",
+    "tbl",
+    "lint"
+  ],
   "sideEffects": false,
   "exports": {
     ".": {
@@ -25,7 +31,12 @@
   "bin": {
     "tbl-md": "dist/cli.js"
   },
-  "files": ["dist", "docs/format.md", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "docs/format.md",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=22"
   },
