@@ -64,14 +64,54 @@ The renderer writes the canonical form, so that a parse followed by a render giv
 
 The conversion goes both ways with no loss of content. If a table cannot convert without loss, the conversion fails with an error at the line, and it changes nothing. It never drops content silently.
 
-- The header titles become the GFM header row. The keys of a GFM table are made from its titles: lower case, each run of other characters than `[a-z0-9]` becomes `-`, with no `-` at the start or the end. A duplicate key gets a suffix `-2`, `-3`, and so on. An empty key becomes `c1`, `c2`, and so on by column.
-- A line break in a cell becomes `<br>`. A literal `<br>` in a cell gets one backslash more, by the rule of rule 10: `<br>` becomes `\<br>`, and `\<br>` becomes `\\<br>`. Only the exact text `<br>` becomes a line break. `<br/>` and `<BR>` stay text.
+- The header titles become the GFM header row. The keys of a GFM table are made from its titles: lower case, each run of other characters than `[a-z0-9]` becomes `-`, with no `-` at the start or the end. An empty key becomes `c1`, `c2`, and so on by column. Then the first column with a key keeps it, and a later column with the same key gets the smallest suffix `-2`, `-3`, and so on that no other column has. Thus the titles `a`, `a`, `a-2` give the keys `a`, `a-3`, `a-2`.
+- The GFM text has the form `| T1 | T2 |`, then `| --- | --- |`, then one line per row, `| c1 | c2 |`. An empty cell is `|  |`. Each row has a cell for each column.
+- A line break in a cell becomes `<br>`. A literal `<br>` in a cell gets one backslash more, by the rule of rule 10: `<br>` becomes `\<br>`, and `\<br>` becomes `\\<br>`. Only the exact text `<br>` with no backslash before it becomes a line break. `<br/>` and `<BR>` stay text.
+- A cell line that ends with a backslash and has a next line cannot convert to GFM, because the backslash would come directly before the `<br>` of the line break. The conversion to GFM fails for it.
 - A title has no line break, so a `<br>` in a title stays as it is in both directions.
-- A pipe becomes `\|`.
-- An ID marker of a row goes to the end of the first cell in GFM, after one space if the cell has text, as in the table views of Markgraf. A first cell that ends with the marker form and is not a marker gets one backslash more before the `{`, by the same rule.
+- A pipe after an even number of backslashes (also none) gets one backslash more: `|` becomes `\|`, and `\\|` becomes `\\\|`. The conversion to tbl removes one backslash before each pipe. A pipe after an odd number of backslashes cannot convert to GFM, because one backslash more gives an even number, and GFM splits the cell there. The conversion to GFM fails for it, and the error tells the writer to write `|` or one backslash more.
+- An ID marker of a row goes to the end of the first cell in GFM, after one space if the cell has text, as in the table views of Markgraf. The marker form is `{#id}` with an ID of the form `[A-Za-z0-9_-]+`, at the start of the cell or after a space, and with zero or more backslashes before the `{`. A first cell of a row with no ID that ends with the marker form gets one backslash more before the `{`, by the same rule. With an ID, the text needs no escape, because the conversion to tbl removes only the last marker. The conversion to tbl fails if the text before the marker ends with a space or a tab, because the text could not convert back.
 - GFM column alignment is dropped.
-- GFM removes the spaces at the start and at the end of a cell. Thus the conversion to GFM fails for a cell that starts or ends with a space.
+- GFM removes the spaces and the tabs at the start and at the end of a cell. Thus the conversion to GFM fails for a title or a cell that starts or ends with a space or a tab.
 - A tbl cell never ends with a line break (rule 7). Thus the conversion to tbl fails for a GFM cell that ends with `<br>`.
+- A GFM row with fewer cells than the header has empty cells. A GFM row with more cells than the header fails the conversion to tbl, because GFM drops the extra cells.
+- The conversion to tbl reads each cell text from the source, so that the inline Markdown stays byte for byte. It removes the pipes of the cell and the spaces and the tabs at its edges.
+
+### How micromark splits a GFM row
+
+The pipe rule rests on this measurement of `micromark-extension-gfm-table` 2.1 (2026-10-05). The cell text is the text between the pipes.
+
+```tbl
+cell: GFM cell text
+split: Split
+mdast: mdast of the cell
+--
+cell: `x\|y`
+split: no
+mdast: text `x|y`
+--
+cell: `x\\|y`
+split: yes, after `x\\`
+mdast: text `x\` and text `y`
+--
+cell: `x\\\|y`
+split: no
+mdast: text `x\|y`
+--
+cell: `` `x\|y` ``
+split: no
+mdast: inline code `x|y`
+--
+cell: `` `x|y` ``
+split: yes, a code span gives no protection
+mdast: text `` `x `` and text `` y` ``
+--
+cell: `` `x\\\|y` ``
+split: no
+mdast: inline code `x\\|y`
+```
+
+Thus GFM splits at a pipe after an even number of backslashes. In text, the backslashes before a pipe are escapes. In a code span, micromark removes one backslash before a pipe and keeps the others. Thus one backslash more before a pipe after an even number of backslashes keeps the meaning in text and in a code span.
 
 ## How the rule applies
 
