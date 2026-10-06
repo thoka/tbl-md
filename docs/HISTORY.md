@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 9b: the last pipe of a row
+
+- Step 9b: fix the last pipe of a row. If a GFM row has spaces or tabs after its last pipe, the conversion to tbl keeps that pipe in the last cell: `| x | y | ` gives the cell `y |`. This changes content with no error and breaks principle 1. Fix it with a hand-written regression test. A `fix:` commit, so that release-please makes 0.1.1 with it. Done on 2026-10-06. Status: root cause: micromark ends the last cell at the end of the line, so the spaces and tabs after the closing pipe belong to it, and `cellSource` looked for the pipe only at the very end. The fix removes them first. `docs/format.md` did not change, because the code now follows its rule.
+
 ## Step 9: corpus research
 
 - Step 9: corpus research. The research agent finds existing corpora of Markdown tables, the test fixtures of established parsers (GFM spec, micromark, markdown-it, commonmark.js), sources of real files with tables, and the established ways to fetch single files from a pinned commit with no token. It writes `docs/research/table-corpus.md`. Done on 2026-10-06. Status: no ready-made corpus fits. The report recommends 30 sources with an open license, pinned by commit and SHA-256, and found the bug of step 9b and the excess cells of step 9c.
