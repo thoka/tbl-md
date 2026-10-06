@@ -1,4 +1,4 @@
-// The pure parts of the markdown-it measurement (tbl-md step 16, docs/research/markdown-it-reference.md):
+// The pure parts of the markdown-it measurement (tbl-md step 16):
 // a markdown-it engine with the settings of Discourse, the row split of the markdown-it table rule with source
 // positions, and the tables of a document as markdown-it and micromark see them. No part here uses the network.
 // The corpus code lives outside src/, so it never ships in the package.

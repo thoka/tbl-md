@@ -5,7 +5,7 @@
 // number of rows, of header cells, or of cells in a row, a different cell text, or a different alignment.
 // It also checks that the cell positions of the re-split (recordTableLines and splitRow) give the token content.
 // With --cases, it renders the hand-written row-split cases with both parsers and prints them as a tbl block.
-// The report is docs/research/markdown-it-reference.md. Not part of mise run test.
+// Not part of mise run test.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { micromark } from "micromark";

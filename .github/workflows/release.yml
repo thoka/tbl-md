@@ -1,5 +1,5 @@
 # Release of tbl-md: release-please, then npm publish with trusted publishing (OIDC), then move stable.
-# The research is docs/research/npm-release.md. The trusted publisher on npm names this file, so do not rename it.
+# The trusted publisher on npm names this file, so do not rename it.
 name: release
 
 on:
