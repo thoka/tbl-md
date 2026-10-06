@@ -19,7 +19,7 @@ This file holds the rules of this project for agents. This project has no `CLAUD
 - `mise run test` runs the type check and all tests. The pre-push hook runs it. If it fails, the step is not complete.
 - Tests live in `test/` and use `bun:test`. Source lives in `src/`.
 - Run `mise run hooks-install` once in each new checkout, so that the hooks of `lefthook.yml` run. `mise run tbl-md <command>` runs the CLI.
-- Add a library only with a one-line reason in the section Libraries of `README.md`. A runtime library must come from the mdast or micromark family (spec principle 4).
+- Add a library only with a one-line reason in the section Libraries of `README.md`. The one runtime library for Markdown is markdown-it (spec principle 4). The mdast and micromark libraries stay until the switch to markdown-it is done.
 
 ## Rules for the code
 
