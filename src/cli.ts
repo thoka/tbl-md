@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// The command line of tbl-md: `tbl-md lint <files...>` and `tbl-md convert [--to tbl|gfm] <files...>`.
+// The command line of tbl-md: `tbl-md lint <files...>` and `tbl-md convert [--to tbl|gfm] [--drop-attributes] <files...>`.
 // It uses only `node:` modules and the library, so that it runs on Node and on Bun.
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { convert } from "./convert.ts";
+import { convert, type ConvertOptions } from "./convert.ts";
 import { lint } from "./lint.ts";
 
 export const USAGE = `Usage: tbl-md <command> [options] <files...>
@@ -18,8 +18,10 @@ Commands:
 The file name - reads stdin. convert then writes the result to stdout.
 
 Options:
-  -h, --help     Print this usage.
-  --version      Print the version.
+  -h, --help         Print this usage.
+  --version          Print the version.
+  --drop-attributes  Only with convert --to gfm. Drop each attribute that GFM cannot hold,
+                     with no error. The align of the columns and the IDs of the rows stay.
 
 Exit codes: 0 no problem, 1 a problem in a file, 2 a usage error.`;
 
@@ -67,6 +69,7 @@ async function run(argv: string[], io: Io): Promise<number> {
         help: { type: "boolean", short: "h" },
         version: { type: "boolean" },
         to: { type: "string" },
+        "drop-attributes": { type: "boolean" },
       },
     });
   } catch (error) {
@@ -88,6 +91,10 @@ async function run(argv: string[], io: Io): Promise<number> {
   if (command === "lint" && values.to !== undefined) throw new UsageError("The option --to is only for convert.");
   const to = values.to ?? "tbl";
   if (to !== "tbl" && to !== "gfm") throw new UsageError(`Bad value "${to}" for --to. Give tbl or gfm.`);
+  const dropAttributes = values["drop-attributes"] === true;
+  if (dropAttributes && (command === "lint" || to === "tbl")) {
+    throw new UsageError("The option --drop-attributes is only for convert --to gfm.");
+  }
   if (files.length === 0) throw new UsageError(`No files. Give one or more Markdown files after ${command}.`);
   if (files.filter((f) => f === "-").length > 1) throw new UsageError("The file name - can come only once.");
 
@@ -95,7 +102,7 @@ async function run(argv: string[], io: Io): Promise<number> {
   const inputs: Input[] = [];
   for (const name of files) inputs.push(await read(name, io));
 
-  return command === "lint" ? runLint(inputs, io) : runConvert(inputs, to, io);
+  return command === "lint" ? runLint(inputs, io) : runConvert(inputs, { to, dropAttributes }, io);
 }
 
 function runLint(inputs: Input[], io: Io): number {
@@ -109,13 +116,13 @@ function runLint(inputs: Input[], io: Io): number {
   return found ? 1 : 0;
 }
 
-function runConvert(inputs: Input[], to: "tbl" | "gfm", io: Io): number {
+function runConvert(inputs: Input[], options: ConvertOptions, io: Io): number {
   let failed = false;
   for (const input of inputs) {
     const stdin = input.name === "-";
     // With stdin, stdout carries the text, so the messages go to stderr.
     const say = stdin ? io.stderr : io.stdout;
-    const result = convert(input.text, { to });
+    const result = convert(input.text, options);
     if (!result.ok) {
       failed = true;
       for (const e of result.errors) say(`${input.name}:${e.line}:${e.column}: ${e.message}\n`);

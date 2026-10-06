@@ -12,6 +12,7 @@ const GFM_AS_TBL = "Intro\n\n```tbl\na: A\n--\na: x\ny\n```\n";
 const BAD_TBL = "# Title\n\n```tbl\na: A\n--\nb: x\n```\n";
 const BAD_GFM = "| A |\n| --- |\n| x<br> |\n";
 const PLAIN = "# No tables\n\nText.\n";
+const ATTR_TBL = "# T\n\n```tbl\na: A\n{.wide align=right}\n-- {#r1 .new}\na: x\n{.c}\n```\n";
 
 interface Run {
   code: number;
@@ -128,6 +129,25 @@ describe("convert", () => {
     expect(readFileSync(a!, "utf8")).toBe(BAD_TBL);
   });
 
+  test("an attribute with no GFM form names its file line, and the file stays", async () => {
+    const [a] = files({ "a.md": ATTR_TBL });
+    const run = await cli(["convert", "--to", "gfm", a!]);
+    expect(run.code).toBe(1);
+    expect(run.out).toBe(
+      `${a}:5:1: Column "a": the attribute \`.wide\` has no GFM form, because GFM keeps only the align of a column. Remove it, or convert with --drop-attributes to drop it.\n` +
+        `${a}:6:1: Row 1: the attribute \`.new\` has no GFM form, because GFM keeps only the ID of a row. Remove it, or convert with --drop-attributes to drop it.\n` +
+        `${a}:8:1: Row 1, cell "a": the attribute \`.c\` has no GFM form, because GFM has no attributes for a cell. Remove it, or convert with --drop-attributes to drop it.\n`,
+    );
+    expect(readFileSync(a!, "utf8")).toBe(ATTR_TBL);
+  });
+
+  test("--drop-attributes drops them, and keeps the align and the row ID", async () => {
+    const [a] = files({ "a.md": ATTR_TBL });
+    const run = await cli(["convert", "--to", "gfm", "--drop-attributes", a!]);
+    expect(run).toEqual({ code: 0, out: `${a}: converted 1 table\n`, err: "" });
+    expect(readFileSync(a!, "utf8")).toBe("# T\n\n| A |\n| ---: |\n| x {#r1} |\n");
+  });
+
   test("a CRLF file keeps CRLF", async () => {
     const crlf = (s: string) => s.replaceAll("\n", "\r\n");
     const [a] = files({ "a.md": crlf(GFM) });
@@ -185,6 +205,10 @@ describe("usage errors exit 2 with one line on stderr", () => {
     ["no files for lint", ["lint"], /No files/],
     ["no files for convert", ["convert", "--to", "gfm"], /No files/],
     ["- two times", ["lint", "-", "-"], /- can come only once/],
+    ["--drop-attributes for lint", ["lint", "--drop-attributes", "a.md"], /--drop-attributes is only for convert --to gfm/],
+    ["--drop-attributes with --to tbl", ["convert", "--to", "tbl", "--drop-attributes", "a.md"], /--drop-attributes is only for convert --to gfm/],
+    ["--drop-attributes with the default --to", ["convert", "--drop-attributes", "a.md"], /--drop-attributes is only for convert --to gfm/],
+    ["--drop-attributes with a value", ["convert", "--to", "gfm", "--drop-attributes=yes", "a.md"], /--drop-attributes/],
   ];
   test.each(cases)("%s", async (_name, args, message) => {
     const run = await cli(args, "");

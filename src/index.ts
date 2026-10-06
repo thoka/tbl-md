@@ -27,6 +27,6 @@ export type { Found, FoundGfm, FoundTbl } from "./markdown.ts";
 export { lint } from "./lint.ts";
 export type { Problem, ProblemCode } from "./lint.ts";
 export { fromGfm, keysFromTitles, toGfm } from "./gfm.ts";
-export type { ConvertError, FromGfmResult, GfmError, ToGfmResult } from "./gfm.ts";
+export type { ConvertError, FromGfmResult, GfmError, ToGfmOptions, ToGfmResult } from "./gfm.ts";
 export { convert } from "./convert.ts";
 export type { ConvertOptions, ConvertResult, FileError } from "./convert.ts";
