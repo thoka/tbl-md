@@ -444,8 +444,11 @@ Principle 1 of `docs/spec.md` says that a switch to tbl-md must be reversible. T
 1. It gets each file of `corpus/sources.json` from `https://raw.githubusercontent.com/<owner>/<repo>/<commit>/<path>`, with no token and no extra header.
 2. It makes sure that the SHA-256 of each file is the SHA-256 in `corpus/sources.json`. On a wrong hash, it stops with an error that names the file. Only `mise run corpus-pin` writes a hash, so a changed file always gives an error.
 3. It splits each fixture file into one Markdown document for each example. A plain Markdown file is one document.
-4. It converts each document with a GFM table to `tbl` and back to GFM with the library, and it compares the mdast before and after. Before the comparison, it removes the positions, pads short rows with empty cells, and removes excess cells, because GFM shows the table so.
-5. It prints the file and the line of each difference, never the content, and a summary of counts for each source.
+4. It converts each document with a GFM table to `tbl` and back to GFM with the library, and it compares the mdast before and after, table by table. Before the comparison, it removes the positions, pads short rows with empty cells, and removes excess cells, because GFM shows the table so. It also compares the text outside the tables.
+5. If a table of a document fails the conversion, that table counts as `error`. The check then removes that table from the document and converts the document again. On each line of the removed table, it keeps the characters before the column of the table, for example the `>` of a block quote or the indent of a list item, and it removes the rest. So the other tables keep their lines and their containers, and one error does not hide them.
+6. It prints the file and the line of each difference, never the content, and a summary of counts for each source.
+
+The summary has the number of documents with a GFM table and the number of GFM tables in them. The other counts are per table, and they add up to the number of tables. A document that differs outside its tables adds one more `different`.
 
 The counts:
 
@@ -454,16 +457,16 @@ count: Count
 meaning: Meaning
 --
 count: same
-meaning: The mdast after the round trip is the same.
+meaning: The mdast of the table after the round trip is the same.
 --
 count: error
-meaning: The conversion to `tbl` fails with an error by `docs/format.md`, for example for an excess cell with text. This is not a failure: tbl-md loses no content in silence. The error stops the conversion of the whole document, so the other tables of that document are not tested.
+meaning: The conversion of the table to `tbl` fails with an error by `docs/format.md`, for example for an excess cell with text. This is not a failure: tbl-md loses no content in silence. The check of the other tables of the document goes on.
 --
 count: alignment
-meaning: The mdast differs only in the column alignment. tbl-md 0.1 drops the alignment. This count is separate, so that it does not hide other differences. Step 13 keeps the alignment and removes this count.
+meaning: The mdast of the table differs only in the column alignment. tbl-md 0.1 drops the alignment. This count is separate, so that it does not hide other differences. Step 13 keeps the alignment and removes this count.
 --
 count: different
-meaning: The mdast differs in another way. The run fails.
+meaning: The mdast of the table differs in another way, or the text outside the tables differs. The run fails.
 ```
 
 A crash also fails the run. Neither `mise run test` nor the pre-push hook runs the corpus test. `test/corpus.test.ts` tests the parts that need no network.

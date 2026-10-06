@@ -21,9 +21,11 @@ import {
   sha256,
   splitDocuments,
   TOTAL_CAP,
+  blankTable,
   verify,
   type Config,
 } from "../corpus/lib.ts";
+import { findTables, type FoundGfm } from "../src/markdown.ts";
 import { tempDir } from "./helpers.ts";
 
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
@@ -268,42 +270,118 @@ describe("normalize", () => {
   });
 });
 
-describe("compareTexts and roundTrip", () => {
+describe("compareTexts", () => {
   test("a change of the layout only is the same", () => {
-    expect(compareTexts("|a|b|\n|-|-|\n|1|2|\n", "| a | b |\n| --- | --- |\n| 1 | 2 |\n")).toEqual({ kind: "same" });
+    expect(compareTexts("|a|b|\n|-|-|\n|1|2|\n", "| a | b |\n| --- | --- |\n| 1 | 2 |\n")).toEqual([{ kind: "same", line: 1 }]);
   });
 
   test("a change of the alignment only counts as alignment", () => {
-    expect(compareTexts("text\n\n| a |\n| :-: |\n| 1 |\n", "text\n\n| a |\n| --- |\n| 1 |\n")).toEqual({ kind: "alignment", line: 3 });
+    expect(compareTexts("text\n\n| a |\n| :-: |\n| 1 |\n", "text\n\n| a |\n| --- |\n| 1 |\n")).toEqual([{ kind: "alignment", line: 3 }]);
   });
 
   test("a change of a cell is different, also next to a change of the alignment", () => {
     const original = "| a | b |\n| --- | :-: |\n| x | y |\n";
-    expect(compareTexts(original, "| a | b |\n| --- | :-: |\n| x | y \\| |\n")).toEqual({
-      kind: "different",
-      line: 3,
-      message: "the tableRow differs after the round trip",
-    });
-    expect(compareTexts(original, "| a | b |\n| --- | --- |\n| x | z |\n")).toMatchObject({ kind: "different", line: 3 });
+    expect(compareTexts(original, "| a | b |\n| --- | :-: |\n| x | y \\| |\n")).toEqual([
+      { kind: "different", line: 3, message: "the tableRow differs after the round trip" },
+    ]);
+    expect(compareTexts(original, "| a | b |\n| --- | --- |\n| x | z |\n")).toEqual([
+      { kind: "different", line: 3, message: "the tableRow differs after the round trip" },
+    ]);
   });
 
-  test("a change outside the tables is different", () => {
-    expect(compareTexts("a\n\n| a |\n| - |\n", "b\n\n| a |\n| - |\n")).toMatchObject({ kind: "different", line: 1 });
+  test("gives one outcome for each table", () => {
+    const original = "| a |\n| - |\n| 1 |\n\n| b |\n| :- |\n| 2 |\n\n| c |\n| - |\n| 3 |\n";
+    const back = "| a |\n| - |\n| 1 |\n\n| b |\n| - |\n| 2 |\n\n| c |\n| - |\n| 4 |\n";
+    expect(compareTexts(original, back)).toEqual([
+      { kind: "same", line: 1 },
+      { kind: "alignment", line: 5 },
+      { kind: "different", line: 11, message: "the tableRow differs after the round trip" },
+    ]);
   });
 
-  test("roundTrip skips a document with no table", () => {
-    expect(roundTrip("# Title\n")).toEqual({ kind: "none" });
+  test("a change outside the tables adds one outcome different", () => {
+    expect(compareTexts("a\n\n| a |\n| - |\n", "b\n\n| a |\n| - |\n")).toEqual([
+      { kind: "same", line: 3 },
+      { kind: "different", line: 1, message: "the text outside the tables differs after the round trip (first at a text)" },
+    ]);
   });
 
-  test("roundTrip reports a conversion error at its line", () => {
-    expect(roundTrip("x\n\n| a |\n| - |\n| 1 | 2 |\n")).toMatchObject({ kind: "error", line: 5 });
+  test("a change of the number of tables makes each table different", () => {
+    expect(compareTexts("| a |\n| - |\n\n| b |\n| - |\n", "| a |\n| - |\n")).toEqual([
+      { kind: "different", line: 1, message: "the document has 1 tables after the round trip, not 2" },
+      { kind: "different", line: 4, message: "the document has 1 tables after the round trip, not 2" },
+    ]);
+  });
+});
+
+describe("blankTable", () => {
+  const gfm = (text: string) => findTables(text).filter((f): f is FoundGfm => f.kind === "gfm");
+
+  test("removes a table and keeps the line count", () => {
+    const text = "x\n\n| a |\n| - |\n| 1 |\n\ny\n";
+    expect(blankTable(text, gfm(text)[0]!)).toBe("x\n\n\n\n\n\ny\n");
   });
 
-  test("roundTrip of a table with alignment counts the alignment, which tbl-md 0.1 drops", () => {
-    expect(roundTrip("| a | b |\n| :- | -: |\n| 1 |\n")).toEqual({ kind: "alignment", line: 1 });
+  test("keeps the markers of a block quote and the indent of a list item", () => {
+    const quote = "> x\n>\n> | a |\n> | - |\n> | 1 |\n";
+    expect(blankTable(quote, gfm(quote)[0]!)).toBe("> x\n>\n>\n>\n>\n");
+    const item = "- x\n\n  | a |\n  | - |\n";
+    expect(blankTable(item, gfm(item)[0]!)).toBe("- x\n\n\n\n");
   });
 
-  test("roundTrip of a plain table is the same, also with short rows and empty excess cells", () => {
-    expect(roundTrip("| a | b |\n| - | - |\n| 1 |\n| 2 | 3 | |\n")).toEqual({ kind: "same" });
+  test("keeps the line ends CRLF", () => {
+    const text = "| a |\r\n| - |\r\n| 1 |\r\n\r\ny\r\n";
+    expect(blankTable(text, gfm(text)[0]!)).toBe("\r\n\r\n\r\n\r\ny\r\n");
+  });
+});
+
+describe("roundTrip", () => {
+  test("gives no outcome for a document with no table", () => {
+    expect(roundTrip("# Title\n")).toEqual([]);
+  });
+
+  test("reports a conversion error at its line", () => {
+    expect(roundTrip("x\n\n| a |\n| - |\n| 1 | 2 |\n")).toMatchObject([{ kind: "error", line: 5 }]);
+  });
+
+  test("counts the alignment, which tbl-md 0.1 drops", () => {
+    expect(roundTrip("| a | b |\n| :- | -: |\n| 1 |\n")).toEqual([{ kind: "alignment", line: 1 }]);
+  });
+
+  test("a plain table is the same, also with short rows and empty excess cells", () => {
+    expect(roundTrip("| a | b |\n| - | - |\n| 1 |\n| 2 | 3 | |\n")).toEqual([{ kind: "same", line: 1 }]);
+  });
+
+  test("one failing table does not hide the other tables of the document", () => {
+    const text = "| a |\n| - |\n| 1 |\n\n| b |\n| - |\n| 1 | 2 |\n\n| c |\n| :- |\n| 3 |\n";
+    expect(roundTrip(text)).toMatchObject([
+      { kind: "same", line: 1 },
+      { kind: "error", line: 7 },
+      { kind: "alignment", line: 9 },
+    ]);
+  });
+
+  test("one failing and two good tables give 1 error and 2 same", () => {
+    const text = "| a |\n| - |\n| 1 | 2 |\n\n| b |\n| - |\n| 1 |\n\n| c |\n| - |\n| 3 |\n";
+    const kinds = roundTrip(text).map((o) => o.kind);
+    expect(kinds.filter((k) => k === "error")).toHaveLength(1);
+    expect(kinds.filter((k) => k === "same")).toHaveLength(2);
+  });
+
+  test("keeps the lines of the other tables, also in a block quote after a failing table", () => {
+    const text = "> | a |\n> | - |\n> | 1 | 2 |\n>\n> | b |\n> | :- |\n> | 3 |\n\n| c |\n| - |\n| 4 |\n";
+    expect(roundTrip(text)).toMatchObject([
+      { kind: "error", line: 3 },
+      { kind: "alignment", line: 5 },
+      { kind: "same", line: 9 },
+    ]);
+  });
+
+  test("reports each failing table once, also with several errors in it", () => {
+    const text = "| a |\n| - |\n| 1 | 2 |\n| 3 | 4 |\n\n| b |\n| - |\n| 1 | 2 |\n";
+    expect(roundTrip(text)).toMatchObject([
+      { kind: "error", line: 3 },
+      { kind: "error", line: 8 },
+    ]);
   });
 });

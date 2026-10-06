@@ -9,7 +9,8 @@ import type { Nodes, Root, Table, TableRow } from "mdast";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
 import { gfmTable } from "micromark-extension-gfm-table";
-import { convert } from "../src/convert.ts";
+import { convert, type FileError } from "../src/convert.ts";
+import { findTables, type FoundGfm } from "../src/markdown.ts";
 
 /** The cap for one file: 512 KiB. */
 export const FILE_CAP = 512 * 1024;
@@ -216,6 +217,8 @@ export function parseTree(text: string): Root {
 export interface NormalizeOptions {
   /** Sets each column alignment to null, to find the differences that are not the alignment. */
   dropAlign?: boolean;
+  /** Puts an empty table node in place of each table, to find the differences outside the tables. */
+  skipTables?: boolean;
 }
 
 /**
@@ -223,7 +226,7 @@ export interface NormalizeOptions {
  * so a short row gets empty cells, and the excess cells go away.
  */
 export function normalize(node: Nodes, options: NormalizeOptions = {}): unknown {
-  if (node.type === "table") return normalizeTable(node, options);
+  if (node.type === "table") return options.skipTables ? { type: "table" } : normalizeTable(node, options);
   const copy: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(node)) {
     if (key === "position" || key === "data") continue;
@@ -246,7 +249,8 @@ function normalizeRow(row: TableRow, width: number, options: NormalizeOptions): 
 
 /**
  * The first node of `a` that differs from `b`. It descends into nodes with the same type and the same number of
- * children. It stops at a table row, or at a table whose alignment or row count differs.
+ * children. It stops at a table row, or at a table whose alignment or row count differs. With `skipTables`, two
+ * tables never differ.
  */
 export function firstDifference(a: Nodes, b: Nodes, options: NormalizeOptions = {}): Nodes {
   if (a.type !== b.type || !("children" in a) || !("children" in b) || a.children.length !== b.children.length) return a;
@@ -269,47 +273,113 @@ export function firstDifference(a: Nodes, b: Nodes, options: NormalizeOptions = 
   return a;
 }
 
-/** The result of one document. `line` is the 1-based line in the document. */
+/**
+ * The result of one table, or of the text outside the tables. `line` is the 1-based line in the document.
+ * Each table of a document gets one outcome. A difference outside the tables gets one more outcome "different".
+ */
 export type Outcome =
-  | { kind: "none" }
-  | { kind: "same" }
+  | { kind: "same"; line: number }
   | { kind: "error"; line: number; message: string }
   | { kind: "alignment"; line: number }
   | { kind: "different"; line: number; message: string };
 
+/** The GFM tables of a tree, in document order. */
+function tablesOf(node: Nodes): Table[] {
+  if (node.type === "table") return [node];
+  return "children" in node ? (node.children as Nodes[]).flatMap(tablesOf) : [];
+}
+
+const lineOf = (node: Nodes) => node.position?.start.line ?? 1;
+
 /**
- * Compares the mdast of the original text with the mdast of the text after the round trip.
+ * Compares the mdast of the original text with the mdast of the text after the round trip, table by table.
  * A difference in the column alignment alone is "alignment", because tbl-md 0.1 drops the alignment (step 13
- * removes this case). Each other difference is "different", also if the alignment differs too.
+ * removes this case). Each other difference of a table is "different", also if the alignment differs too.
+ * A difference outside the tables adds one outcome "different". If the number of tables differs, the tables
+ * cannot pair, so the result is one outcome "different" for each table of the original.
  */
-export function compareTexts(original: string, back: string): Outcome {
+export function compareTexts(original: string, back: string): Outcome[] {
   const a = parseTree(original);
   const b = parseTree(back);
-  if (isDeepStrictEqual(normalize(a), normalize(b))) return { kind: "same" };
-  const lineOf = (node: Nodes) => node.position?.start.line ?? 1;
-  if (isDeepStrictEqual(normalize(a, { dropAlign: true }), normalize(b, { dropAlign: true }))) {
-    return { kind: "alignment", line: lineOf(firstDifference(a, b)) };
+  const before = tablesOf(a);
+  const after = tablesOf(b);
+  if (before.length !== after.length) {
+    const message = `the document has ${after.length} tables after the round trip, not ${before.length}`;
+    return before.map((t) => ({ kind: "different", line: lineOf(t), message }));
   }
+  const outcomes: Outcome[] = before.map((t, i) => compareTables(t, after[i]!));
+  if (!isDeepStrictEqual(normalize(a, { skipTables: true }), normalize(b, { skipTables: true }))) {
+    const node = firstDifference(a, b, { skipTables: true });
+    outcomes.push({ kind: "different", line: lineOf(node), message: `the text outside the tables differs after the round trip (first at a ${node.type})` });
+  }
+  return outcomes;
+}
+
+function compareTables(a: Table, b: Table): Outcome {
+  if (isDeepStrictEqual(normalize(a), normalize(b))) return { kind: "same", line: lineOf(a) };
+  if (isDeepStrictEqual(normalize(a, { dropAlign: true }), normalize(b, { dropAlign: true }))) return { kind: "alignment", line: lineOf(a) };
   const node = firstDifference(a, b, { dropAlign: true });
   return { kind: "different", line: lineOf(node), message: `the ${node.type} differs after the round trip` };
 }
 
-/** True if the text has at least one GFM table. */
-export function hasTable(text: string): boolean {
-  const walk = (node: Nodes): boolean => node.type === "table" || ("children" in node && (node.children as Nodes[]).some(walk));
-  return walk(parseTree(text));
+/** The number of GFM tables in a text. */
+export function countTables(text: string): number {
+  return tablesOf(parseTree(text)).length;
 }
 
-/** Converts a document to tbl and back to GFM, and compares the mdast before and after. */
-export function roundTrip(text: string): Outcome {
-  if (!hasTable(text)) return { kind: "none" };
-  const toTbl = convert(text, { to: "tbl" });
-  if (!toTbl.ok) return { kind: "error", line: toTbl.errors[0]!.line, message: toTbl.errors[0]!.message };
-  const toGfm = convert(toTbl.output, { to: "gfm" });
+/**
+ * Removes one table from the text and keeps the line count and the containers. On each line of the table, it keeps
+ * the characters before the column of the table (the markers of a block quote or the indent of a list item) and
+ * removes the rest. So each other table keeps its line and its container.
+ */
+export function blankTable(text: string, found: FoundGfm): string {
+  const lineStart = text.lastIndexOf("\n", found.start - 1) + 1;
+  const lines = text.slice(lineStart, found.end).split("\n");
+  const keep = found.column - 1;
+  const blanked = lines.map((line) => line.slice(0, keep).replace(/[ \t]+$/, "") + (line.endsWith("\r") ? "\r" : "")).join("\n");
+  return text.slice(0, lineStart) + blanked + text.slice(found.end);
+}
+
+/** The 1-based line of the last character of a table. */
+function endLine(text: string, found: FoundGfm): number {
+  return found.line + (text.slice(found.start, found.end).match(/\n/g)?.length ?? 0);
+}
+
+/**
+ * Converts a document to tbl and back to GFM, and compares the mdast before and after, table by table.
+ * It returns one outcome for each GFM table, and none for a document with no table.
+ * If a table fails the conversion, it counts as "error". The check removes that table from the text (blankTable)
+ * and converts again, so that one error does not hide the other tables of the document.
+ */
+export function roundTrip(text: string): Outcome[] {
+  const errors: Outcome[] = [];
+  let work = text;
+  let tbl: string;
+  for (;;) {
+    const tables = findTables(work).filter((f): f is FoundGfm => f.kind === "gfm");
+    if (tables.length === 0) return errors;
+    const toTbl = convert(work, { to: "tbl" });
+    if (toTbl.ok) {
+      tbl = toTbl.output;
+      break;
+    }
+    // Each error belongs to the table that holds its line, else to the table before it, else to the first table.
+    const failing = new Map<FoundGfm, FileError>();
+    for (const e of toTbl.errors) {
+      const table =
+        tables.find((t) => t.line <= e.line && e.line <= endLine(work, t)) ?? tables.findLast((t) => t.line <= e.line) ?? tables[0]!;
+      if (!failing.has(table)) failing.set(table, e);
+    }
+    for (const [table, e] of failing) errors.push({ kind: "error", line: e.line, message: e.message });
+    // Remove the tables from the end, so that the offsets of the earlier tables stay correct.
+    for (const table of [...failing.keys()].sort((x, y) => y.start - x.start)) work = blankTable(work, table);
+  }
+  const toGfm = convert(tbl, { to: "gfm" });
   if (!toGfm.ok) {
     // The tbl text of a successful conversion must convert back. If not, the switch is not reversible.
     const e = toGfm.errors[0]!;
-    return { kind: "different", line: 1, message: `the conversion back to GFM fails at line ${e.line} of the tbl text: ${e.message}` };
+    const message = `the conversion back to GFM fails at line ${e.line} of the tbl text: ${e.message}`;
+    return [...errors, ...tablesOf(parseTree(work)).map((t): Outcome => ({ kind: "different", line: lineOf(t), message }))];
   }
-  return compareTexts(text, toGfm.output);
+  return [...errors, ...compareTexts(work, toGfm.output)].sort((x, y) => x.line - y.line);
 }
