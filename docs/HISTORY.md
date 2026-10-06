@@ -2,6 +2,37 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 14: lint of unknown attribute keys
+
+- Step 14: lint of unknown attribute keys. The lint warns on an unknown key, unless the configuration of the project lists it. The step decides where that configuration lives. Done on 2026-10-06. Status: `.tbl-md.json` with `attributeKeys`, found upward to the git root, `--config`, `--max-warnings`, the warning `unknown-attribute-key`, and a JSON Schema in `schema/`. Decisions in `docs/review-queue.md`. 553 tests pass.
+
+### Plan of step 14
+
+The design is in `docs/research/lint-configuration.md`, and the decision is in `docs/review-queue.md` (step 14). Branch `feature/14-lint-keys`, worktree `.worktrees/14-lint-keys`.
+
+#### Library (`src/lint.ts`, new `src/config.ts`)
+
+- A problem gets `severity: "error" | "warning"`. Each existing problem is an error. A new warning code `unknown-attribute-key` covers a pair whose key is not `align` and not in the list. Its line and column are those of the key in the block. A column, a row, and a cell count the same.
+- `lint(source, options?)` takes `{ attributeKeys?: string[] }`. Without the option, each key other than `align` is unknown.
+- `src/config.ts` finds and reads `.tbl-md.json`. The file has `$schema` (the loader ignores it) and `attributeKeys`, a list of strings in the key form of rule 14. Each other top-level key, a value of a wrong type, a key that does not have the key form, and invalid JSON are configuration errors. A configuration error names the file, and the line where `JSON.parse` gives a position.
+- The search starts in the folder of the linted file and goes up. It stops at the first folder with `.tbl-md.json`, at the first folder with a `.git` entry (a folder or a file), or at the root. The nearest file wins, with no merge. For stdin, the search starts in the current folder.
+
+#### Command line (`src/cli.ts`)
+
+- The output marks each warning as a warning. The summary counts errors and warnings apart.
+- Exit code 0 if no file has an error and the warnings are not more than `--max-warnings <n>` (no limit by default). Exit code 1 for an error, or for more warnings than the limit. Exit code 2 for a usage error and for a configuration error.
+- `--config <file>` replaces the search. `--config` and `--max-warnings` are usage errors with `convert`.
+- The pre-commit hook of tbl-md in `lefthook.yml` gets `--max-warnings 0`.
+
+#### Schema
+
+- `schema/tbl-md.schema.json`: a JSON Schema (draft 2020-12) of the file, in the package (`files` of `package.json`). A test makes sure that the schema and the loader accept and refuse the same example files.
+
+#### Tests and documentation
+
+- Tests for the warning in each place, for the list, for each configuration error, for the search (nearest file, the stop at `.git`, stdin, `--config`), and for each exit code.
+- `README.md`: the configuration file, the warning, the two options, and the exit codes. `docs/format.md` rule 15 already says that the lint warns. Its words "step 14 of `docs/PLAN.md` decides where that configuration lives" become a pointer to the README.
+
 ## Step 13: attributes in the conversion
 
 - Step 13: attributes in the conversion. `align` maps to the GFM alignment in both directions. Any other attribute makes the conversion to GFM fail, unless `--drop-attributes` is given. The corpus test of step 10 then passes for the alignment. Done on 2026-10-06. Status: `toGfm` writes the alignment and reports each attribute with no GFM form at its line, `fromGfm` reads the alignment, and `convert --to gfm --drop-attributes` drops the rest. Decisions in `docs/review-queue.md`. 480 tests pass.
