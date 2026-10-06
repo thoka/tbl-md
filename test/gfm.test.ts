@@ -17,7 +17,7 @@ function gfm(table: Table): string {
 /** One column "a" with the title "A" and one row with the cell text. */
 const one = (text: string, id?: string): Table => ({
   columns: [{ key: "a", title: "A" }],
-  rows: [id === undefined ? { cells: { a: text } } : { id, cells: { a: text } }],
+  rows: [id === undefined ? { cells: { a: text } } : { attributes: { id, classes: [], pairs: [] }, cells: { a: text } }],
 });
 
 /** toGfm, then fromGfm, of a table with one cell. Returns the GFM cell text and the table. */
@@ -123,7 +123,7 @@ describe("toGfm", () => {
         { key: "a", title: "A" },
         { key: "b", title: "B" },
       ],
-      rows: [{ id: "x1", cells: { a: "text", b: "y" } }],
+      rows: [{ attributes: { id: "x1", classes: [], pairs: [] }, cells: { a: "text", b: "y" } }],
     };
     expect(gfm(table)).toBe("| A | B |\n| --- | --- |\n| text {#x1} | y |");
     roundTrip(table);
@@ -135,7 +135,7 @@ describe("toGfm", () => {
         { key: "a", title: "A" },
         { key: "b", title: "B" },
       ],
-      rows: [{ id: "x1", cells: { b: "y" } }],
+      rows: [{ attributes: { id: "x1", classes: [], pairs: [] }, cells: { b: "y" } }],
     };
     expect(gfm(table)).toBe("| A | B |\n| --- | --- |\n| {#x1} | y |");
     roundTrip(table);
@@ -314,11 +314,11 @@ describe("fromGfm", () => {
 
   test("a table in a block quote and in a list item", () => {
     expect(read("> | a |\n> | --- |\n> | x<br>y |\n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "x\ny" } }] } });
-    expect(read("- item\n\n  | a |\n  | --- |\n  | x {#i} |\n")).toMatchObject({ ok: true, table: { rows: [{ id: "i", cells: { a: "x" } }] } });
+    expect(read("- item\n\n  | a |\n  | --- |\n  | x {#i} |\n")).toMatchObject({ ok: true, table: { rows: [{ attributes: { id: "i" }, cells: { a: "x" } }] } });
   });
 
   test("only the last marker is the ID", () => {
-    expect(read("| a |\n| --- |\n| x {#a} {#b} |")).toMatchObject({ ok: true, table: { rows: [{ id: "b", cells: { a: "x {#a}" } }] } });
+    expect(read("| a |\n| --- |\n| x {#a} {#b} |")).toMatchObject({ ok: true, table: { rows: [{ attributes: { id: "b" }, cells: { a: "x {#a}" } }] } });
   });
 
   test("a cell that ends with <br> fails, with the file line and column", () => {
@@ -458,7 +458,7 @@ describe("fromGfm: spaces and tabs after the last pipe", () => {
   });
 
   test("an ID marker in the only cell", () => {
-    expect(read("| A |\n| --- |\n| x {#i} | \n")).toMatchObject({ ok: true, table: { rows: [{ id: "i", cells: { a: "x" } }] } });
+    expect(read("| A |\n| --- |\n| x {#i} | \n")).toMatchObject({ ok: true, table: { rows: [{ attributes: { id: "i" }, cells: { a: "x" } }] } });
   });
 
   test("the conversion back to GFM gives the canonical text, with no pipe in a cell", () => {

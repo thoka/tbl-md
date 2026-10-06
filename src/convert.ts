@@ -2,7 +2,8 @@
 // It replaces only the source range of each converted table. Each other byte stays the same.
 import { findTables, type Found, type FoundTbl } from "./markdown.ts";
 import { fromGfm, keysFromTitles, toGfm } from "./gfm.ts";
-import { locate, parse, type Table } from "./parse.ts";
+import type { Attributes } from "./attributes.ts";
+import { locate, parse, type Row, type Table } from "./parse.ts";
 import { renderBlock } from "./render.ts";
 
 /** A problem of a conversion, at a 1-based line and column of the file. */
@@ -105,12 +106,14 @@ function tblToGfm(found: FoundTbl, index: number, errors: FileError[]): Replacem
 function withTitleKeys(table: Table): Table {
   const keys = keysFromTitles(table.columns.map((c) => c.title));
   const byOld = new Map(table.columns.map((c, i) => [c.key, keys[i]!]));
+  const rekey = <T>(record: Record<string, T>): Record<string, T> =>
+    Object.fromEntries(Object.entries(record).map(([key, value]) => [byOld.get(key)!, value]));
   return {
-    columns: table.columns.map((c, i) => ({ key: keys[i]!, title: c.title })),
+    columns: table.columns.map((c, i) => ({ ...c, key: keys[i]! })),
     rows: table.rows.map((row) => {
-      const cells: Record<string, string> = {};
-      for (const [key, text] of Object.entries(row.cells)) cells[byOld.get(key)!] = text;
-      return row.id === undefined ? { cells } : { id: row.id, cells };
+      const r: Row = { ...row, cells: rekey(row.cells) };
+      if (row.cellAttributes !== undefined) r.cellAttributes = rekey(row.cellAttributes);
+      return r;
     }),
   };
 }
@@ -184,19 +187,42 @@ function selfCheck(source: string, output: string, replacements: Replacement[], 
   }
 }
 
-/** True if two tables have the same columns, the same row IDs, and the same cells. The order of the cell keys does not count. */
+/**
+ * True if two tables have the same columns, the same cells, and the same attributes of the columns, the rows, and the cells.
+ * The order of the cell keys does not count.
+ */
 function sameTable(a: Table, b: Table): boolean {
   if (a.columns.length !== b.columns.length || a.rows.length !== b.rows.length) return false;
-  if (a.columns.some((c, i) => c.key !== b.columns[i]!.key || c.title !== b.columns[i]!.title)) return false;
+  const columnsSame = a.columns.every((c, i) => {
+    const other = b.columns[i]!;
+    return c.key === other.key && c.title === other.title && sameAttributes(c.attributes, other.attributes);
+  });
+  if (!columnsSame) return false;
   return a.rows.every((row, i) => {
     const other = b.rows[i]!;
-    const keys = Object.keys(row.cells);
     return (
-      row.id === other.id &&
-      keys.length === Object.keys(other.cells).length &&
-      keys.every((k) => Object.hasOwn(other.cells, k) && row.cells[k] === other.cells[k])
+      sameAttributes(row.attributes, other.attributes) &&
+      sameRecord(row.cells, other.cells, (x, y) => x === y) &&
+      sameRecord(row.cellAttributes ?? {}, other.cellAttributes ?? {}, sameAttributes)
     );
   });
+}
+
+function sameRecord<T>(a: Record<string, T>, b: Record<string, T>, same: (x: T, y: T) => boolean): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => Object.hasOwn(b, k) && same(a[k]!, b[k]!));
+}
+
+/** True if both are missing, or both have the same ID, the same classes, and the same pairs, in the same order. */
+function sameAttributes(a: Attributes | undefined, b: Attributes | undefined): boolean {
+  if (a === undefined || b === undefined) return a === b;
+  return (
+    a.id === b.id &&
+    a.classes.length === b.classes.length &&
+    a.classes.every((c, i) => c === b.classes[i]) &&
+    a.pairs.length === b.pairs.length &&
+    a.pairs.every((p, i) => p.key === b.pairs[i]!.key && p.value === b.pairs[i]!.value)
+  );
 }
 
 function sorted(errors: FileError[]): FileError[] {

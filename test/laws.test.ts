@@ -1,4 +1,4 @@
-// Property tests of the two laws of the renderer, on random valid tables:
+// Property tests of the two laws of the renderer, on random valid tables with random attributes:
 // parse(render(T)) gives T back, and render(parse(render(T)).table) is render(T).
 // The second part checks the laws of the GFM conversion.
 import { describe, expect, test } from "bun:test";
@@ -15,6 +15,9 @@ import {
   renderBlock,
   toGfm,
   validate,
+  type AttributePlace,
+  type Attributes,
+  type Column,
   type FoundGfm,
   type Row,
   type Table,
@@ -53,6 +56,15 @@ const formLine = fc.constantFrom(
   "    ```",
   "  lead",
   "trail  ",
+  "{.x}",
+  "{}",
+  "{!} ",
+  "\\{.x}",
+  "\\\\{#a k=v}",
+  "-- {.x}",
+  "--\t{!}",
+  "\\-- {.y}",
+  "{.x} y",
 );
 const line = fc.oneof(formLine, randomLine);
 
@@ -65,21 +77,58 @@ const cellText = fc
   })
   .filter((text) => text !== "");
 
+// Random attributes (rules 13 to 15): an optional ID, classes, and pairs, with values that need quotes and escapes.
+const className = fc.stringMatching(/^[A-Za-z][A-Za-z0-9_-]{0,3}$/);
+const pairKey = fc.stringMatching(/^[A-Za-z][A-Za-z0-9_-]{0,3}$/).filter((k) => k !== "id" && k !== "class" && k !== "align");
+const value = fc.array(fc.constantFrom("a", "Z", "1", ":", "-", "_", " ", "\t", '"', "\\", "{", "}", "#", ".", "=", "'", "é"), { maxLength: 6 }).map((c) => c.join(""));
+const pair = fc.record({ key: pairKey, value });
+function attributesArb(place: AttributePlace): fc.Arbitrary<Attributes> {
+  const align = place === "column" ? fc.option(fc.constantFrom("left", "center", "right"), { nil: undefined }) : fc.constant(undefined);
+  return fc
+    .record({
+      id: fc.option(id, { nil: undefined }),
+      classes: fc.uniqueArray(className, { maxLength: 3 }),
+      pairs: fc.uniqueArray(pair, { maxLength: 3, selector: (p) => p.key }),
+      align,
+    })
+    .map(({ id: attrId, classes, pairs, align: alignValue }) => {
+      const attributes: Attributes = { classes, pairs: alignValue === undefined ? pairs : [...pairs, { key: "align", value: alignValue }] };
+      if (attrId !== undefined) attributes.id = attrId;
+      return attributes;
+    })
+    .filter((a) => a.id !== undefined || a.classes.length > 0 || a.pairs.length > 0);
+}
+const maybe = <T>(arb: fc.Arbitrary<T>) => fc.option(arb, { nil: undefined, freq: 3 });
+
 const tableArb: fc.Arbitrary<Table> = fc
   .uniqueArray(key, { minLength: 1, maxLength: 4 })
   .chain((keys) =>
     fc.record({
-      columns: fc.tuple(...keys.map((k) => line.map((title) => ({ key: k, title })))),
+      columns: fc.tuple(
+        ...keys.map((k) =>
+          fc.tuple(line, maybe(attributesArb("column"))).map(([title, attributes]) => {
+            const column: Column = { key: k, title };
+            if (attributes !== undefined) column.attributes = attributes;
+            return column;
+          }),
+        ),
+      ),
       rows: fc.array(
         fc
-          .tuple(fc.option(id, { nil: undefined }), fc.tuple(...keys.map(() => fc.option(cellText, { nil: undefined }))))
-          .map(([rowId, texts]) => {
+          .tuple(
+            maybe(attributesArb("row")),
+            fc.tuple(...keys.map(() => fc.tuple(fc.option(cellText, { nil: undefined }), maybe(attributesArb("cell"))))),
+          )
+          .map(([rowAttributes, cellParts]) => {
             const cells: Record<string, string> = {};
-            texts.forEach((text, i) => {
+            const cellAttributes: Record<string, Attributes> = {};
+            cellParts.forEach(([text, attributes], i) => {
               if (text !== undefined) cells[keys[i]!] = text;
+              if (attributes !== undefined) cellAttributes[keys[i]!] = attributes;
             });
             const row: Row = { cells };
-            if (rowId !== undefined) row.id = rowId;
+            if (rowAttributes !== undefined) row.attributes = rowAttributes;
+            if (Object.keys(cellAttributes).length > 0) row.cellAttributes = cellAttributes;
             return row;
           }),
         { maxLength: 4 },
@@ -168,7 +217,7 @@ const gfmTableArb: fc.Arbitrary<Table> = fc.array(gfmTitle, { minLength: 1, maxL
             if (text !== undefined) cells[keys[i]!] = text;
           });
           const row: Row = { cells };
-          if (rowId !== undefined) row.id = rowId;
+          if (rowId !== undefined) row.attributes = { id: rowId, classes: [], pairs: [] };
           return row;
         }),
       { maxLength: 4 },

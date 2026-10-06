@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { locate, parse, unescapeLine, type Table, type TblError } from "../src/index.ts";
+import { locate, parse, unescapeLine, type Table, type TblError, type TblErrorCode } from "../src/index.ts";
 
 function table(text: string): Table {
   const result = parse(text);
@@ -16,11 +16,14 @@ function errors(text: string): TblError[] {
 const lines = (...l: string[]) => l.join("\n");
 const header = lines("model: Model", "price: Price", "note: Note");
 
+const ids = (id: string) => ({ id, classes: [], pairs: [] });
+
 describe("the example of docs/format.md", () => {
   test("gives the expected table", () => {
     const text = lines(
       "model: Model",
       "price: Price",
+      "{align=right}",
       "note: Note",
       "--",
       "model: Opus",
@@ -29,16 +32,18 @@ describe("the example of docs/format.md", () => {
       "Second line of the same cell.",
       "hint\\: this line is text, not a key.",
       "Note: a capital letter is never a key, so this line needs no escape.",
-      "-- {#a1b2c3d4}",
+      "\\{this line is text, not an attribute line}",
+      "-- {#a1b2c3d4 .new}",
       "m: Haiku",
       "p: $1",
+      "{.cheap}",
     );
-    expect(parse(text)).toEqual({
+    expect(parse(text)).toStrictEqual({
       ok: true,
       table: {
         columns: [
           { key: "model", title: "Model" },
-          { key: "price", title: "Price" },
+          { key: "price", title: "Price", attributes: { classes: [], pairs: [{ key: "align", value: "right" }] } },
           { key: "note", title: "Note" },
         ],
         rows: [
@@ -51,12 +56,24 @@ describe("the example of docs/format.md", () => {
                 "Second line of the same cell.",
                 "hint: this line is text, not a key.",
                 "Note: a capital letter is never a key, so this line needs no escape.",
+                "{this line is text, not an attribute line}",
               ].join("\n"),
             },
           },
-          { id: "a1b2c3d4", cells: { model: "Haiku", price: "$1" } },
+          {
+            attributes: { id: "a1b2c3d4", classes: ["new"], pairs: [] },
+            cells: { model: "Haiku", price: "$1" },
+            cellAttributes: { price: { classes: ["cheap"], pairs: [] } },
+          },
         ],
       },
+    });
+  });
+
+  test("a 0.1 table with no row ID gives the same objects as in 0.1", () => {
+    expect(parse(lines("a: A", "--", "a: 1"))).toStrictEqual({
+      ok: true,
+      table: { columns: [{ key: "a", title: "A" }], rows: [{ cells: { a: "1" } }] },
     });
   });
 });
@@ -138,7 +155,7 @@ describe("rule 4: separators and IDs", () => {
   test("`--` starts a record, and an ID marker gives the row ID", () => {
     expect(table(lines("a: A", "--", "a: 1", "-- {#x_Y-9}", "a: 2")).rows).toEqual([
       { cells: { a: "1" } },
-      { id: "x_Y-9", cells: { a: "2" } },
+      { attributes: ids("x_Y-9"), cells: { a: "2" } },
     ]);
   });
 
@@ -146,10 +163,8 @@ describe("rule 4: separators and IDs", () => {
     expect(table(lines("a: A", "--", "a: 1", "-- foo")).rows).toEqual([{ cells: { a: "1\n-- foo" } }]);
   });
 
-  test("an invalid ID marker or a space after `--` is text", () => {
-    expect(table(lines("a: A", "--", "a: 1", "-- {#a.b}", "--- ", "--x")).rows).toEqual([
-      { cells: { a: "1\n-- {#a.b}\n--- \n--x" } },
-    ]);
+  test("`--- `, `--x`, and `-- ` with no block are text", () => {
+    expect(table(lines("a: A", "--", "a: 1", "--- ", "--x", "-- ")).rows).toEqual([{ cells: { a: "1\n--- \n--x\n-- " } }]);
   });
 });
 
@@ -330,6 +345,271 @@ describe("details beyond docs/format.md", () => {
   });
 });
 
+describe("rule 13: the places of attributes", () => {
+  const x = { classes: ["x"], pairs: [] };
+
+  test("a line in the attribute form directly after a header key line describes that column", () => {
+    expect(table(lines("a: A", "{#c1 .x k=v}", "b: B", "{align=center}")).columns).toEqual([
+      { key: "a", title: "A", attributes: { id: "c1", classes: ["x"], pairs: [{ key: "k", value: "v" }] } },
+      { key: "b", title: "B", attributes: { classes: [], pairs: [{ key: "align", value: "center" }] } },
+    ]);
+  });
+
+  test("spaces and tabs after the `}` are not part of the block", () => {
+    expect(table(lines("a: A", "{.x} \t", "--", "a: 1", "{.x}  ")).rows[0]!.cellAttributes).toEqual({ a: x });
+    expect(table(lines("a: A", "{.x} \t")).columns[0]!.attributes).toEqual(x);
+  });
+
+  test("the `--` line takes the block of the row after spaces or tabs", () => {
+    expect(table(lines("a: A", "-- {#a1 .new}", "--\t {.x}\t", "--")).rows).toStrictEqual([
+      { attributes: { id: "a1", classes: ["new"], pairs: [] }, cells: {} },
+      { attributes: x, cells: {} },
+      { cells: {} },
+    ]);
+  });
+
+  test("a line in the attribute form as the last line of a cell describes the cell", () => {
+    expect(table(lines("a: A", "b: B", "--", "a: 1", "two", "{.x}", "b: 2")).rows).toStrictEqual([
+      { cells: { a: "1\ntwo", b: "2" }, cellAttributes: { a: x } },
+    ]);
+  });
+
+  test("the attribute line of the last cell of a record and of the block", () => {
+    expect(table(lines("a: A", "--", "a: 1", "{.x}", "", "--", "a: 2", "{.y}", "")).rows).toEqual([
+      { cells: { a: "1" }, cellAttributes: { a: x } },
+      { cells: { a: "2" }, cellAttributes: { a: { classes: ["y"], pairs: [] } } },
+    ]);
+  });
+
+  test("empty lines before the attribute line of a cell are not content (rule 7)", () => {
+    expect(table(lines("a: A", "--", "a: 1", "", "two", "", "", "{.x}", "")).rows).toEqual([
+      { cells: { a: "1\n\ntwo" }, cellAttributes: { a: x } },
+    ]);
+  });
+
+  test("a cell can have attributes and no text", () => {
+    expect(table(lines("a: A", "b: B", "--", "a:", "{.x}", "b: 2")).rows).toStrictEqual([{ cells: { b: "2" }, cellAttributes: { a: x } }]);
+    expect(table(lines("a: A", "--", "a:", "", "{.x}")).rows).toStrictEqual([{ cells: {}, cellAttributes: { a: x } }]);
+  });
+
+  test("a cell with a prefix key gets its attributes by the full key", () => {
+    expect(table(lines("model: M", "--", "m: x", "{.x}")).rows[0]!.cellAttributes).toEqual({ model: x });
+  });
+
+  test("an attribute block on a key line is text", () => {
+    expect(table(lines("price: P", "--", "price: $15 {.x}", "p2 {.y}")).rows).toStrictEqual([{ cells: { price: "$15 {.x}\np2 {.y}" } }]);
+    expect(table(lines("price: {.x}", "--", "price: {.y}"))).toStrictEqual({
+      columns: [{ key: "price", title: "{.x}" }],
+      rows: [{ cells: { price: "{.y}" } }],
+    });
+  });
+
+  test("a line that is not in the attribute form is text", () => {
+    expect(table(lines("a: A", "--", "a: 1", " {.x}", "{.x", ".x}", "{.x} y", "x {.y}")).rows[0]!.cells).toEqual({
+      a: "1\n {.x}\n{.x\n.x}\n{.x} y\nx {.y}",
+    });
+  });
+});
+
+describe("rule 10: the escape of the attribute form and the separator form with a block", () => {
+  test("one backslash goes from each escaped form", () => {
+    expect(table(lines("a: A", "--", "a: x", "\\{.x}", "\\\\{.x} ", "\\{}", "\\-- {.x}", "\\--\t{!}", "\\\\-- {#a}")).rows[0]!.cells).toEqual({
+      a: "x\n{.x}\n\\{.x} \n{}\n-- {.x}\n--\t{!}\n\\-- {#a}",
+    });
+  });
+
+  test("an escaped attribute line in the header is header-not-key", () => {
+    expect(errors(lines("a: A", "\\{.x}"))).toEqual([expect.objectContaining({ line: 2, column: 1, code: "header-not-key" })]);
+  });
+
+  test("an escaped attribute line before the first key of a record is orphan-line", () => {
+    expect(errors(lines("a: A", "--", "\\{.x}", "a: 1"))).toEqual([expect.objectContaining({ line: 3, code: "orphan-line" })]);
+  });
+});
+
+describe("rule 16: the errors of the attributes", () => {
+  // A grammar error of each code: the block, the code, and the 0-based offset of the first bad character.
+  const grammar: [string, TblErrorCode, number][] = [
+    ["{.hl !}", "attr-unexpected-char", 5],
+    ["{#a.b}", "attr-no-space", 3],
+    ["{}", "attr-empty", 1],
+    ["{#a:b}", "attr-bad-id", 3],
+    ["{.1a}", "attr-bad-class", 2],
+    ["{1k=v}", "attr-bad-key", 1],
+    ["{#a #b}", "attr-duplicate-id", 4],
+    ["{.a .a}", "attr-duplicate-class", 4],
+    ["{k=1 k=2}", "attr-duplicate-key", 5],
+    ["{id=x}", "attr-reserved-key", 1],
+    ["{k}", "attr-no-value", 2],
+    ["{k=a.b}", "attr-bad-bare-value", 4],
+    ["{k='a'}", "attr-single-quotes", 3],
+    ['{k="a}', "attr-unclosed-quote", 3],
+    ['{k="a\\b"}', "attr-bad-escape", 5],
+  ];
+  for (const [block, code, offset] of grammar) {
+    test(`${code} in a column line, a cell line, and a separator line, with its line and column`, () => {
+      expect(errors(lines("a: A", block)).map((e) => [e.line, e.column, e.code])).toEqual([[2, offset + 1, code]]);
+      expect(errors(lines("a: A", "--", "a: x", block)).map((e) => [e.line, e.column, e.code])).toEqual([[4, offset + 1, code]]);
+      expect(errors(lines("a: A", "-- " + block, "a: x")).map((e) => [e.line, e.column, e.code])).toEqual([[2, offset + 4, code]]);
+      expect(errors(lines("a: A", "--\t \t" + block + " ", "a: x")).map((e) => [e.line, e.column, e.code])).toEqual([[2, offset + 6, code]]);
+    });
+  }
+
+  test("a grammar error has the message of parseAttributes", () => {
+    expect(errors(lines("a: A", "-- {.x !}"))).toEqual([
+      {
+        line: 2,
+        column: 8,
+        code: "attr-unexpected-char",
+        message: 'The attribute block has the unexpected character "!". A part is an ID (#id), a class (.class), or a pair (key=value).',
+      },
+    ]);
+  });
+
+  test("a bad value of align in a column line is attr-bad-value at the value", () => {
+    expect(errors(lines("a: A", "{.x align=middle}"))).toEqual([
+      { line: 2, column: 11, code: "attr-bad-value", message: 'The value "middle" of "align" is not valid. Use left, center, or right.' },
+    ]);
+  });
+
+  test("align at a row or a cell is attr-key-place at the key", () => {
+    expect(errors(lines("a: A", "-- {.x align=left}", "a: 1", "{align=right}")).map((e) => [e.line, e.column, e.code])).toEqual([
+      [2, 8, "attr-key-place"],
+      [4, 2, "attr-key-place"],
+    ]);
+    expect(errors(lines("a: A", "--", "a: 1", "{align=right}"))[0]!.message).toBe(
+      'The key "align" is allowed only on a column, not on a cell. Remove it, or write it in the attribute line of the column.',
+    );
+  });
+
+  test("a second attribute line of a column is attr-second-line, also a third one", () => {
+    expect(errors(lines("a: A", "{.a}", "{.b}", "{.c}", "b: B"))).toEqual([
+      {
+        line: 3,
+        column: 1,
+        code: "attr-second-line",
+        message: 'The column "a" has an attribute line already. A column has one attribute line at most, so merge the two blocks into one line.',
+      },
+      expect.objectContaining({ line: 4, column: 1, code: "attr-second-line" }),
+    ]);
+  });
+
+  test("a second attribute line of a cell is attr-second-line, also after empty lines", () => {
+    expect(errors(lines("a: A", "--", "a: 1", "{.a}", "", "{.b}", "{.c}"))).toEqual([
+      {
+        line: 6,
+        column: 1,
+        code: "attr-second-line",
+        message: 'The cell "a" has an attribute line already. A cell has one attribute line at most, so merge the two blocks into one line.',
+      },
+      expect.objectContaining({ line: 7, code: "attr-second-line" }),
+    ]);
+  });
+
+  test("a place error wins over a grammar error", () => {
+    expect(errors(lines("{!}", "a: A", "{.a}", "{!}")).map((e) => [e.line, e.code])).toEqual([
+      [1, "attr-misplaced"],
+      [3 + 1, "attr-second-line"],
+    ]);
+    expect(errors(lines("a: A", "--", "{!}", "a: 1", "{!}", "x", "{.a}", "{!}")).map((e) => [e.line, e.code])).toEqual([
+      [3, "attr-misplaced"],
+      [5, "attr-misplaced"],
+      [8, "attr-second-line"],
+    ]);
+  });
+
+  test("an attribute line before the first header key is attr-misplaced, not header-not-key", () => {
+    expect(errors(lines("{.x}", "a: A"))).toEqual([
+      {
+        line: 1,
+        column: 1,
+        code: "attr-misplaced",
+        message:
+          "This attribute line follows no header key line, so it describes no column. Put it directly after the key line of its column, with no empty line between them.",
+      },
+    ]);
+  });
+
+  test("a block of only attribute lines gives attr-misplaced, not no-header", () => {
+    expect(errors("{.x}").map((e) => e.code)).toEqual(["attr-misplaced"]);
+  });
+
+  test("an attribute line after an empty line in the header is attr-misplaced", () => {
+    expect(errors(lines("a: A", "", "{.x}", "b: B")).map((e) => [e.line, e.code])).toEqual([
+      [2, "header-not-key"],
+      [3, "attr-misplaced"],
+    ]);
+  });
+
+  test("an attribute line after a text line of the header is attr-misplaced", () => {
+    expect(errors(lines("a: A", "text", "{.x}")).map((e) => [e.line, e.code])).toEqual([
+      [2, "header-not-key"],
+      [3, "attr-misplaced"],
+    ]);
+  });
+
+  test("an attribute line directly after `--` is attr-misplaced, not orphan-line", () => {
+    expect(errors(lines("a: A", "--", "", "{.x}", "a: 1"))).toEqual([
+      {
+        line: 4,
+        column: 1,
+        code: "attr-misplaced",
+        message:
+          "This attribute line comes before the first key of the record, so it describes nothing. Write the attributes of the row on its `--` line, for example `-- {.new}`.",
+      },
+    ]);
+  });
+
+  test("an attribute line in the middle of a cell is attr-misplaced, and the message names the escape", () => {
+    expect(errors(lines("a: A", "--", "a: 1", "{.x}  ", "more"))).toEqual([
+      {
+        line: 4,
+        column: 1,
+        code: "attr-misplaced",
+        message:
+          "This attribute line is in the middle of a cell. The attribute line of a cell must be its last line. If the line is text, add a backslash: \\{.x}.",
+      },
+    ]);
+    expect(errors(lines("a: A", "--", "a:", "{.x}", "", "more")).map((e) => [e.line, e.code])).toEqual([[4, "attr-misplaced"]]);
+  });
+
+  test("the attribute line after a header key line with an error is still read", () => {
+    expect(errors(lines("a: A", "a: B", "{.x}", "{!}")).map((e) => [e.line, e.code])).toEqual([
+      [2, "header-duplicate-key"],
+      [4, "attr-second-line"],
+    ]);
+    expect(errors(lines("a: A", "a: B", "{!}")).map((e) => [e.line, e.code])).toEqual([
+      [2, "header-duplicate-key"],
+      [3, "attr-unexpected-char"],
+    ]);
+  });
+
+  test("the attribute lines of a cell with a key error are still read", () => {
+    expect(errors(lines("a: A", "--", "z: 1", "{.x}", "{.y}")).map((e) => [e.line, e.code])).toEqual([
+      [3, "unknown-key"],
+      [5, "attr-second-line"],
+    ]);
+    expect(errors(lines("a: A", "--", "z: 1", "{!}")).map((e) => [e.line, e.code])).toEqual([
+      [3, "unknown-key"],
+      [4, "attr-unexpected-char"],
+    ]);
+  });
+
+  test("one error per attribute line, and all errors come sorted by line", () => {
+    const text = lines("{.x}", "a: A", "{k}", "{.y}", "--{.z}", "-- {}", "{.w}", "a: 1", "{.v}", "x", "{align=left}");
+    expect(errors(text).map((e) => [e.line, e.column, e.code])).toEqual([
+      [1, 1, "attr-misplaced"],
+      [3, 3, "attr-no-value"],
+      [4, 1, "attr-second-line"],
+      [5, 1, "header-not-key"],
+      [6, 5, "attr-empty"],
+      [7, 1, "attr-misplaced"],
+      [9, 1, "attr-misplaced"],
+      [11, 2, "attr-key-place"],
+    ]);
+  });
+});
+
 describe("locate", () => {
   test("gives the lines of the header keys and of the cell key lines", () => {
     const text = "model: Model\nnote: Note\n--\nn: a\nb\nm: Opus\n\n-- {#x}\n--\nnote: c";
@@ -349,6 +629,13 @@ describe("locate", () => {
 
   test("reads CRLF and CR lines", () => {
     expect(locate("a: A\r\n--\ra: y")).toEqual({ headerLines: { a: 1 }, rows: [{ line: 2, cells: { a: 3 } }] });
+  });
+
+  test("skips the attribute lines of the header", () => {
+    expect(locate("a: A\n{.x}\nb: B\n-- {.r}\nb: y\n{.c}\na: x")).toEqual({
+      headerLines: { a: 1, b: 3 },
+      rows: [{ line: 4, cells: { b: 5, a: 7 } }],
+    });
   });
 
   test("gives null for an invalid block", () => {

@@ -43,7 +43,7 @@ The switch is reversible. `tbl-md convert --to gfm` converts each `tbl` block ba
 
 ## Next: version 0.2.0
 
-Version 0.2.0 adds attributes (section How to write a table). `docs/format.md` has their rules since step 11, and the code follows in steps 12 and 13. A conversion to GFM keeps `align` and the row ID, and fails for each other attribute unless you give `--drop-attributes`. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
+Version 0.2.0 adds attributes (section How to write a table). `docs/format.md` has their rules since step 11. Since step 12, the parser and the renderer follow them, and the conversion follows in step 13. A conversion to GFM keeps `align` and the row ID, and fails for each other attribute unless you give `--drop-attributes`. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
 
 A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cell options of Quarto.
 
@@ -105,13 +105,21 @@ if (result.ok) {
 } else {
   // result.errors: [{ line, column, code, message }, ...]
 }
+
+parse("model: Model\nprice: Price\n{align=right}\n-- {#r1 .new}\nm: Opus\n{.top}");
+// { ok: true, table: {
+//   columns: [{ key: "model", title: "Model" },
+//     { key: "price", title: "Price", attributes: { classes: [], pairs: [{ key: "align", value: "right" }] } }],
+//   rows: [{ attributes: { id: "r1", classes: ["new"], pairs: [] }, cells: { model: "Opus" },
+//     cellAttributes: { model: { classes: ["top"], pairs: [] } } }] } }
 ```
 
 The result has `ok: true` and a `table`, or `ok: false` and a list of `errors`:
 
-- `table.columns` lists each column in header order, with its `key` and its `title`.
-- `table.rows` lists each data record in order. A row has an optional `id` from its ID marker, and `cells`. `cells` maps the full header key to the cell text. The lines of a cell join with `\n`. An empty cell has no entry.
-- An error has a `line` and a `column`, both from 1. Line 1 is the first line after the opening fence. The parser collects all errors. It does not stop at the first one.
+- `table.columns` lists each column in header order, with its `key`, its `title`, and optional `attributes` from the attribute line after its header key line.
+- `table.rows` lists each data record in order. A row has optional `attributes` from its `--` line, `cells`, and optional `cellAttributes`. The row ID is `row.attributes.id`. `cells` maps the full header key to the cell text. The lines of a cell join with `\n`. An empty cell has no entry. `cellAttributes` maps the full header key to the attributes of the cell. A cell can have attributes and no text.
+- `attributes` has an optional `id`, a list `classes`, and a list `pairs` of `{ key, value }`, all in source order. A value has no quotes and no escapes. The parser sets `attributes` and `cellAttributes` only if the block has attributes for them, so a table with no attributes gives the same objects as in version 0.1.
+- An error has a `line` and a `column`, both from 1. Line 1 is the first line after the opening fence. The column of an attribute error is the column of its first bad character. The parser collects all errors, sorted by line and then by column. It does not stop at the first one, but it gives one error per attribute line at most.
 
 These are the error codes:
 
@@ -139,6 +147,76 @@ when: A record has the same key two times, also as two different prefixes of one
 --
 code: `orphan-line`
 when: A line comes before the first key line of a data record.
+--
+code: `attr-unexpected-char`
+when: An attribute block has an unexpected character, for example `{.hl !}`.
+--
+code: `attr-no-space`
+when: Two parts of an attribute block have no space between them, for example `{#a.b}`.
+--
+code: `attr-empty`
+when: An attribute block is empty: `{}` or `{ }`.
+--
+code: `attr-bad-id`
+when: An ID is empty or has a bad character, for example `{#}` or `{#a:b}`.
+--
+code: `attr-bad-class`
+when: A class is empty, has no letter first, or has a bad character, for example `{.}` or `{.1a}`.
+--
+code: `attr-bad-key`
+when: A key has no letter first or has a bad character, for example `{1k=v}`.
+--
+code: `attr-duplicate-id`
+when: A block has more than one ID.
+--
+code: `attr-duplicate-class`
+when: A block has the same class two times.
+--
+code: `attr-duplicate-key`
+when: A block has the same key two times.
+--
+code: `attr-reserved-key`
+when: A block has the key `id` or `class`. The message names `#x` or `.x`.
+--
+code: `attr-no-value`
+when: A key has no value, for example `{k}` or `{k=}`.
+--
+code: `attr-bad-bare-value`
+when: A value with no quotes has a character other than `[A-Za-z0-9_:-]`. The message shows the value in quotes.
+--
+code: `attr-single-quotes`
+when: A value has single quotes. The message names double quotes.
+--
+code: `attr-unclosed-quote`
+when: A quoted value has no closing quote.
+--
+code: `attr-bad-escape`
+when: A quoted value has a backslash before a character other than `"` or `\`.
+--
+code: `attr-bad-value`
+when: A known key has a bad value, for example `{align=middle}`. The message lists the values.
+--
+code: `attr-key-place`
+when: A known key is at a place that does not allow it: `align` on a row or a cell.
+--
+code: `attr-second-line`
+when: A column or a cell has a second attribute line.
+--
+code: `attr-misplaced`
+when: A line in the attribute form is at a place that takes no attributes: before the first header key, after an empty line or a text line in the header, before the first key of a record (also directly after `--`), or in the middle of a cell.
+```
+
+An error in the attribute block of a `--` line has the code of the grammar error, at its column in the line. A place error wins over a grammar error, because the parser does not read a block at a wrong place.
+
+`parseAttributes(block, place?)` reads one attribute block, such as `{#a1 .new align=right}`, by the grammar of rule 14 of `docs/format.md`. With a place (`"column"`, `"row"`, or `"cell"`), it also checks the known key `align`. The result has `ok: true` and the `attributes`, or `ok: false` and one `error` with a `code`, a `message`, and the 0-based `offset` of the first bad character in the block. `renderAttributes(attributes)` writes the canonical form: the ID, then the classes, then the pairs. A value is bare if it has the form `[A-Za-z0-9_:-]+`, and else it gets double quotes. `validateAttributes(attributes, place, where)` lists the problems of one attributes object, as `validate` does.
+
+```ts
+import { parseAttributes, renderAttributes } from "tbl-md";
+
+parseAttributes('{ note="a b" .x #r1 }');
+// { ok: true, attributes: { id: "r1", classes: ["x"], pairs: [{ key: "note", value: "a b" }] } }
+renderAttributes({ id: "r1", classes: ["x"], pairs: [{ key: "note", value: "a b" }] });
+// '{#r1 .x note="a b"}'
 ```
 
 `render(table)` writes the canonical text of a table, by the section Canonical form of `docs/format.md`. The text has the lines joined with `\n` and no final newline. `renderBlock(table)` writes the whole block: the opening fence with the info string `tbl`, the text, and the closing fence, also with no final newline. The fence has three backticks, or more if a line of the text would close it.
@@ -172,16 +250,30 @@ problem: A title has a line break or a CR.
 --
 problem: A cell key is no column key.
 --
-problem: A row ID does not have the form `[A-Za-z0-9_-]+`.
+problem: An attribute block of a column, a row, or a cell is empty: no ID, no class, and no pair.
+--
+problem: An ID does not have the form `[A-Za-z0-9_-]+`.
+--
+problem: A class does not have the form `[A-Za-z][A-Za-z0-9_-]*`, or a block has the same class two times.
+--
+problem: An attribute key does not have the form `[A-Za-z][A-Za-z0-9_-]*`, is `id` or `class`, or comes two times in a block.
+--
+problem: An attribute value has a line break or a CR.
+--
+problem: The value of `align` is not `left`, `center`, or `right`, or `align` is on a row or a cell.
+--
+problem: `cellAttributes` has a key that is no column key.
 --
 problem: A cell text ends with a line break.
 --
 problem: A cell text has a CR.
 ```
 
-An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))` has no entry for it.
+An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))` has no entry for it. A cell with attributes and no text gives the key line `key:` and the attribute line.
 
-`locate(text)` gives the lines of the key lines of a valid `tbl` block, so that an error about a cell or a title can name its line. All lines are block lines from 1, as in the errors of `parse`. `headerLines` maps each header key to its line. `rows` has one entry for each data record: `line` is the line of its `--`, and `cells` maps the full header key of each key line to its line, also for a prefix key. For a block with parse errors, `locate` gives `null`.
+The renderer writes the attribute line of a column directly after its header key line, the block of a row on its `--` line, and the attribute line of a cell as the last line of the cell.
+
+`locate(text)` gives the lines of the key lines of a valid `tbl` block, and it skips the attribute lines, so that an error about a cell or a title can name its line. All lines are block lines from 1, as in the errors of `parse`. `headerLines` maps each header key to its line. `rows` has one entry for each data record: `line` is the line of its `--`, and `cells` maps the full header key of each key line to its line, also for a prefix key. For a block with parse errors, `locate` gives `null`.
 
 ```ts
 import { locate } from "tbl-md";
@@ -190,7 +282,7 @@ locate("model: Model\nnote: Note\n--\nn: a\nm: Opus");
 // { headerLines: { model: 1, note: 2 }, rows: [{ line: 3, cells: { note: 4, model: 5 } }] }
 ```
 
-`src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, their escaped forms, `escapeLine`, and `unescapeLine`.
+`src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, the attribute line, their escaped forms, `escapeLine`, and `unescapeLine`.
 
 `findTables(source)` reads a Markdown text and lists its `tbl` blocks and its GFM tables in document order. It parses CommonMark with only the GFM table extension, and it walks the whole tree, also into list items and block quotes. A `tbl` block is a fenced code block with the language `tbl`, with backticks or tildes. An indented code block, a code block with another language (also `tbl-x` or `TBL`), and the text inside another code block or an HTML block are not `tbl` blocks.
 
@@ -226,7 +318,7 @@ when: A `tbl` block has this error. The problem is at the line of the error in t
 ```ts
 import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm } from "tbl-md";
 
-toGfm({ columns: [{ key: "a", title: "A" }], rows: [{ id: "r1", cells: { a: "x|y\nz" } }] });
+toGfm({ columns: [{ key: "a", title: "A" }], rows: [{ attributes: { id: "r1", classes: [], pairs: [] }, cells: { a: "x|y\nz" } }] });
 // { ok: true, text: "| A |\n| --- |\n| x\\|y<br>z {#r1} |" }
 
 const source = "| Price ($) | Note |\n| :-- | --- |\n| 1 | a<br>b |\n";
@@ -260,7 +352,7 @@ tbl: a first cell with no ID that ends with `{#x}`, at the start or after a spac
 gfm: one backslash more before the `{`: `\{#x}`
 ```
 
-A title keeps `<br>` as it is. GFM column alignment is dropped. Both functions collect all errors. An error of `toGfm` has an optional `row` (from 1), an optional `key`, and a `message`. An error of a title has no `row`. An error of `fromGfm` has the `line` and the `column` of the cell in the source, and a `message`. These are the errors:
+A title keeps `<br>` as it is. GFM column alignment is dropped. Until step 13, `toGfm` writes only the row ID of the attributes and drops the others, and `fromGfm` gives a row with an ID the attributes `{ id, classes: [], pairs: [] }`. Both functions collect all errors. An error of `toGfm` has an optional `row` (from 1), an optional `key`, and a `message`. An error of a title has no `row`. An error of `fromGfm` has the `line` and the `column` of the cell in the source, and a `message`. These are the errors:
 
 ```tbl
 fn: Function
@@ -315,7 +407,7 @@ The result has `ok: true`, the new text `output`, and `count`, the number of con
 - The new text uses the first line end of the file: CRLF, LF, or CR.
 - An error of a `tbl` block is at its line in the file, as in `lint`. An error of a cell from `toGfm` is at the key line of the cell, and an error of a title is at its header key line. `convert` finds these lines with `locate`.
 
-After the conversion, `convert` reads the new text again with `findTables`. This is the self-check. Each new table must be at the same place in the list of tables, with the new kind, and it must read back as the same table. A new GFM table reads back with the keys of its titles. If the check fails, the conversion fails with an error at the first line of the table. The main case is a `tbl` block with a text line directly after it: GFM would read that line as a row of the table, so the error tells the writer to add an empty line. A `tbl` block directly after a paragraph line converts, because a GFM table can interrupt a paragraph.
+After the conversion, `convert` reads the new text again with `findTables`. This is the self-check. Each new table must be at the same place in the list of tables, with the new kind, and it must read back as the same table, with the same attributes. A new GFM table reads back with the keys of its titles. If the check fails, the conversion fails with an error at the first line of the table. The main case is a `tbl` block with a text line directly after it: GFM would read that line as a row of the table, so the error tells the writer to add an empty line. A `tbl` block directly after a paragraph line converts, because a GFM table can interrupt a paragraph.
 
 Two laws hold, and the property test `test/laws.test.ts` checks them on random tables in random Markdown with paragraphs, list items, and block quotes, and with each line end. The tables have the keys of their titles:
 
@@ -394,6 +486,7 @@ pre-commit:
 - A tbl cell with a pipe after an odd number of backslashes, for example `a\|b`, does not convert to GFM. Write `a|b`.
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
 - A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
+- Until step 13, a conversion to GFM fails for a `tbl` block with attributes other than a row ID, also for `align`. The error is the read-back error of the self-check at the first line of the table, and it does not name the attribute. A conversion to tbl drops the GFM column alignment.
 - The keys of a GFM table come from its titles. The keys of a tbl block do not survive a round trip through GFM if they differ from `keysFromTitles` of the titles.
 - The package test needs the npm registry, because npm installs the mdast libraries of the tarball. With no network, `mise run test` fails.
 - The package has no CommonJS entry. Its `exports` has only the condition `import`, so `require("tbl-md")` fails. A CommonJS module loads it with `import("tbl-md")`.
