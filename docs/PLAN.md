@@ -10,7 +10,7 @@ New context: yes. The interview is done, and step 16 starts a new topic.
 
 2026-10-06, interactive session in `~/dv/tbl-md`, after the grilling interview on the Discourse plugin.
 
-State: the user decided the far goal and the order (section Goal of the Discourse work). The research is `docs/research/discourse-integration.md`. Two outbox files wait for the supervisor: a lesson (the spec names the target renderer) and a task for arch-helper (the user joins the group `docker`). The older outbox task on `session-restart` also waits.
+State: the user decided the far goal and the order (section Goal of the Discourse work). The research is `docs/research/discourse-integration.md`. Two outbox files wait for the supervisor: a lesson (the spec names the target renderer) and a task for arch-helper (the user joins the group `docker`).
 
 Open tasks of the user: none. The spec change of step 17 will need the approval of the user.
 
