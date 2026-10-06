@@ -74,13 +74,14 @@ afterAll(() => {
 describe("the tarball", () => {
   test("has the build, the format, the schema, the README, and the license", () => {
     const names = ["LICENSE", "README.md", "dist/cli.js", "dist/index.d.ts", "dist/index.js", "docs/format.md", "package.json"];
+    names.push("dist/markdown-it.js", "dist/markdown-it.d.ts", "dist/tbl-md-markdown-it.iife.js");
     for (const name of [...names, "schema/tbl-md.schema.json"]) {
       expect(files).toContain(name);
     }
   });
 
   test("has no source, no test, and no config of the project", () => {
-    const allowed = /^(LICENSE|README\.md|package\.json|docs\/format\.md|schema\/tbl-md\.schema\.json|dist\/[a-z]+\.(js|d\.ts))$/;
+    const allowed = /^(LICENSE|README\.md|package\.json|docs\/format\.md|schema\/tbl-md\.schema\.json|dist\/[a-z-]+\.(js|d\.ts)|dist\/tbl-md-markdown-it\.iife\.js)$/;
     expect(files.filter((name) => !allowed.test(name))).toEqual([]);
   });
 });
@@ -99,6 +100,20 @@ if (!result.ok) throw new Error("parse failed");
 const converted = convert(${JSON.stringify(GFM)}, { to: "tbl" });
 console.log(JSON.stringify({ render: render(result.table), converted }));
 `;
+
+/** Renders a tbl block with the plugin through the export tbl-md/markdown-it, and with the IIFE file through its export. */
+const PLUGIN_SCRIPT = `import markdownit from "markdown-it";
+import tblPlugin from "tbl-md/markdown-it";
+import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+const block = "\`\`\`tbl\\na: A\\n{align=right}\\n--\\na: x\\n\`\`\`\\n";
+const iife = readFileSync(createRequire(import.meta.url).resolve("tbl-md/markdown-it.iife.js"), "utf8");
+const context = {};
+runInNewContext(iife, context);
+console.log(JSON.stringify({ esm: markdownit().use(tblPlugin).render(block), iife: markdownit().use(context.tblMdMarkdownIt.default).render(block) }));
+`;
+const PLUGIN_HTML = '<table>\n<thead>\n<tr>\n<th style="text-align:right">A</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td style="text-align:right">x</td>\n</tr>\n</tbody>\n</table>\n';
 
 for (const node of NODES) {
   describe(`the installed package on ${node}`, () => {
@@ -152,6 +167,14 @@ for (const node of NODES) {
       expect(output.render).toBe("model: Model\n--\nmodel: Opus");
       expect(output.converted).toMatchObject({ ok: true, count: 1 });
     });
+
+    test("renders a tbl block with the markdown-it plugin and with its IIFE file", () => {
+      const script = join(consumer, "plugin.mjs");
+      writeFileSync(script, PLUGIN_SCRIPT);
+      const result = exec(["node", script], consumer);
+      expect(result.stderr).toBe("");
+      expect(JSON.parse(result.stdout)).toEqual({ esm: PLUGIN_HTML, iife: PLUGIN_HTML });
+    });
   });
 }
 
@@ -195,7 +218,11 @@ const titles: string[] = found.header.cells.map((cell) => cell.text);
 const count: number = convert("", { to: "gfm", flavor: "discourse" }).ok ? 1 : 0;
 // @ts-expect-error The library has no default export.
 import def from "tbl-md";
-export { text, kind, titles, count, def };
+import markdownit from "markdown-it";
+import tblPlugin, { type TblPlace, type TblPluginOptions } from "tbl-md/markdown-it";
+const options: TblPluginOptions = { attributes: (attributes, place: TblPlace) => (place.kind === "row" ? null : attributes) };
+const html: string = markdownit().use(tblPlugin, options).render("");
+export { text, kind, titles, count, def, html };
 `,
     );
     const result = run(TSC, ["-p", "tsconfig.json"], consumer);
