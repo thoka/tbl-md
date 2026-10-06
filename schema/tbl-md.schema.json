@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "tbl-md configuration",
+  "description": "The configuration file .tbl-md.json of the lint of tbl-md.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "The URL of this schema. tbl-md ignores the value.",
+      "type": "string"
+    },
+    "attributeKeys": {
+      "description": "The attribute keys of the project. tbl-md lint warns on each other key. The key align is always known.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+      }
+    }
+  },
+  "additionalProperties": false
+}

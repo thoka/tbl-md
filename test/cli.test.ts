@@ -47,7 +47,7 @@ describe("lint", () => {
     expect(await cli(["lint", a!])).toEqual({ code: 0, out: "", err: "" });
   });
 
-  test("each problem has the form file:line:column: message (code), in file order and then line order", async () => {
+  test("each error has the form file:line:column: message (code), in file order and then line order, and a summary ends the output", async () => {
     const [a, b] = files({ "a.md": BAD_TBL + "\n" + GFM, "b.md": GFM });
     const run = await cli(["lint", b!, a!]);
     expect(run.code).toBe(1);
@@ -57,12 +57,13 @@ describe("lint", () => {
       `${b}:3:1: This is a GFM pipe table. Write it as a tbl block, for example with \`tbl-md convert\`. (gfm-table)`,
       expect.stringMatching(new RegExp(`^${escape(a!)}:6:1: The key "b" matches no header key\\..* \\(unknown-key\\)$`)),
       `${a}:11:1: This is a GFM pipe table. Write it as a tbl block, for example with \`tbl-md convert\`. (gfm-table)`,
+      "3 errors and 0 warnings.",
     ]);
   });
 
   test("the file name - reads stdin and names the file -", async () => {
     const run = await cli(["lint", "-"], GFM);
-    expect(run).toEqual({ code: 1, out: "-:3:1: This is a GFM pipe table. Write it as a tbl block, for example with `tbl-md convert`. (gfm-table)\n", err: "" });
+    expect(run).toEqual({ code: 1, out: "-:3:1: This is a GFM pipe table. Write it as a tbl block, for example with `tbl-md convert`. (gfm-table)\n1 error and 0 warnings.\n", err: "" });
   });
 
   test("a BOM does not count in the line or the column", async () => {
@@ -74,6 +75,121 @@ describe("lint", () => {
     const [a] = files({ "a.md": GFM });
     await cli(["lint", a!]);
     expect(readFileSync(a!, "utf8")).toBe(GFM);
+  });
+});
+
+/** A new temp folder with a `.git` folder, so that the search for `.tbl-md.json` stops there. */
+function repo(entries: Record<string, string>): string {
+  const dir = tempDir("cli-config");
+  mkdirSync(join(dir, ".git"));
+  for (const [name, text] of Object.entries(entries)) {
+    mkdirSync(join(dir, name, ".."), { recursive: true });
+    writeFileSync(join(dir, name), text);
+  }
+  return dir;
+}
+
+const KEYS_TBL = "```tbl\na: A\n{status=open owner=me}\n```\n";
+
+describe("lint with a configuration", () => {
+  test("a warning has the form file:line:column: warning: message (code), and the exit code is 0", async () => {
+    const dir = repo({ "a.md": KEYS_TBL });
+    const run = await cli(["lint", join(dir, "a.md")]);
+    expect(run.code).toBe(0);
+    expect(run.err).toBe("");
+    expect(run.out.trimEnd().split("\n")).toEqual([
+      `${dir}/a.md:3:2: warning: The attribute key "status" is unknown. If the key is right, add it to attributeKeys in .tbl-md.json. Otherwise fix it. No .tbl-md.json was found, so only "align" is known. (unknown-attribute-key)`,
+      expect.stringMatching(/^.*a\.md:3:14: warning: The attribute key "owner" is unknown\..* \(unknown-attribute-key\)$/),
+      "0 errors and 2 warnings.",
+    ]);
+  });
+
+  test("a key in .tbl-md.json gives no warning, and the warning names the file", async () => {
+    const dir = repo({ "docs/a.md": KEYS_TBL, ".tbl-md.json": '{"attributeKeys": ["status"]}' });
+    const run = await cli(["lint", join(dir, "docs/a.md")]);
+    expect(run.code).toBe(0);
+    expect(run.out).toBe(
+      `${dir}/docs/a.md:3:14: warning: The attribute key "owner" is unknown. If the key is right, add it to attributeKeys in .tbl-md.json. Otherwise fix it. The configuration file is ${dir}/.tbl-md.json. (unknown-attribute-key)\n0 errors and 1 warning.\n`,
+    );
+  });
+
+  test("the nearest .tbl-md.json wins for each file, with no merge", async () => {
+    const dir = repo({
+      "a.md": KEYS_TBL,
+      "sub/b.md": KEYS_TBL,
+      ".tbl-md.json": '{"attributeKeys": ["status", "owner"]}',
+      "sub/.tbl-md.json": '{"attributeKeys": ["owner"]}',
+    });
+    const run = await cli(["lint", join(dir, "a.md"), join(dir, "sub/b.md")]);
+    expect(run.out).toBe(
+      `${dir}/sub/b.md:3:2: warning: The attribute key "status" is unknown. If the key is right, add it to attributeKeys in .tbl-md.json. Otherwise fix it. The configuration file is ${dir}/sub/.tbl-md.json. (unknown-attribute-key)\n0 errors and 1 warning.\n`,
+    );
+  });
+
+  test("the search stops at the .git folder", async () => {
+    const outer = repo({ ".tbl-md.json": '{"attributeKeys": ["status", "owner"]}' });
+    const inner = join(outer, "inner");
+    mkdirSync(join(inner, ".git"), { recursive: true });
+    writeFileSync(join(inner, "a.md"), KEYS_TBL);
+    const run = await cli(["lint", join(inner, "a.md")]);
+    expect(run.out).toContain("No .tbl-md.json was found");
+    expect(run.out).toEndWith("0 errors and 2 warnings.\n");
+  });
+
+  test("--config replaces the search for all files", async () => {
+    const dir = repo({ "a.md": KEYS_TBL, ".tbl-md.json": '{"attributeKeys": []}', "other.json": '{"attributeKeys": ["status", "owner"]}' });
+    expect(await cli(["lint", "--config", join(dir, "other.json"), join(dir, "a.md")])).toEqual({ code: 0, out: "", err: "" });
+  });
+
+  test("--max-warnings fails the run only for more warnings than the limit", async () => {
+    const dir = repo({ "a.md": KEYS_TBL });
+    const a = join(dir, "a.md");
+    const zero = await cli(["lint", "--max-warnings", "0", a]);
+    expect(zero.code).toBe(1);
+    expect(zero.out).toEndWith("0 errors and 2 warnings. The warnings are more than --max-warnings 0.\n");
+    expect((await cli(["lint", "--max-warnings", "1", a])).code).toBe(1);
+    const two = await cli(["lint", "--max-warnings", "2", a]);
+    expect(two.code).toBe(0);
+    expect(two.out).toEndWith("0 errors and 2 warnings.\n");
+  });
+
+  test("an error gives exit code 1 also with warnings under the limit, and the summary counts both", async () => {
+    const dir = repo({ "a.md": KEYS_TBL + "\n" + GFM });
+    const run = await cli(["lint", "--max-warnings", "5", join(dir, "a.md")]);
+    expect(run.code).toBe(1);
+    expect(run.out).toEndWith("1 error and 2 warnings.\n");
+  });
+
+  test.each([
+    ["invalid JSON", "{", /^tbl-md: .*\/\.tbl-md\.json(:1)?: The file is not valid JSON: /],
+    ["an unknown key", '{"keys": []}', /^tbl-md: .*\/\.tbl-md\.json: The key "keys" is unknown\./],
+    ["a bad key", '{"attributeKeys": ["a b"]}', /^tbl-md: .*\/\.tbl-md\.json: attributeKeys\[0\] "a b" is not a key\./],
+  ])("a configuration file with %s stops the run with exit code 2 before any output", async (_, text, message) => {
+    const dir = repo({ "a.md": GFM, "sub/b.md": GFM, "sub/.tbl-md.json": text });
+    const run = await cli(["lint", join(dir, "a.md"), join(dir, "sub/b.md")]);
+    expect(run.code).toBe(2);
+    expect(run.out).toBe("");
+    expect(run.err).toMatch(message);
+    expect(run.err).not.toContain("--help");
+  });
+
+  test("a --config file that does not exist is a configuration error", async () => {
+    const dir = repo({ "a.md": GFM });
+    const run = await cli(["lint", "--config", join(dir, "missing.json"), join(dir, "a.md")]);
+    expect(run).toEqual({
+      code: 2,
+      out: "",
+      err: `tbl-md: ${dir}/missing.json: Cannot read the configuration file: no such file.\n`,
+    });
+  });
+
+  test("for stdin, the search starts in the current folder", () => {
+    const dir = repo({ ".tbl-md.json": '{"attributeKeys": ["status"]}' });
+    const result = spawnSync(process.execPath, [join(root, "src/cli.ts"), "lint", "-"], { cwd: dir, encoding: "utf8", input: KEYS_TBL });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe(
+      '-:3:14: warning: The attribute key "owner" is unknown. If the key is right, add it to attributeKeys in .tbl-md.json. Otherwise fix it. The configuration file is .tbl-md.json. (unknown-attribute-key)\n0 errors and 1 warning.\n',
+    );
   });
 });
 
@@ -206,6 +322,10 @@ describe("usage errors exit 2 with one line on stderr", () => {
     ["no files for convert", ["convert", "--to", "gfm"], /No files/],
     ["- two times", ["lint", "-", "-"], /- can come only once/],
     ["--drop-attributes for lint", ["lint", "--drop-attributes", "a.md"], /--drop-attributes is only for convert --to gfm/],
+    ["--config for convert", ["convert", "--config", "c.json", "a.md"], /--config is only for lint/],
+    ["--max-warnings for convert", ["convert", "--max-warnings", "0", "a.md"], /--max-warnings is only for lint/],
+    ["a bad value of --max-warnings", ["lint", "--max-warnings", "x", "a.md"], /Bad value "x" for --max-warnings/],
+    ["a fraction for --max-warnings", ["lint", "--max-warnings", "1.5", "a.md"], /Bad value "1.5" for --max-warnings/],
     ["--drop-attributes with --to tbl", ["convert", "--to", "tbl", "--drop-attributes", "a.md"], /--drop-attributes is only for convert --to gfm/],
     ["--drop-attributes with the default --to", ["convert", "--drop-attributes", "a.md"], /--drop-attributes is only for convert --to gfm/],
     ["--drop-attributes with a value", ["convert", "--to", "gfm", "--drop-attributes=yes", "a.md"], /--drop-attributes/],

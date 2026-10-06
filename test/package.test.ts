@@ -72,14 +72,15 @@ afterAll(() => {
 });
 
 describe("the tarball", () => {
-  test("has the build, the format, the README, and the license", () => {
-    for (const name of ["LICENSE", "README.md", "dist/cli.js", "dist/index.d.ts", "dist/index.js", "docs/format.md", "package.json"]) {
+  test("has the build, the format, the schema, the README, and the license", () => {
+    const names = ["LICENSE", "README.md", "dist/cli.js", "dist/index.d.ts", "dist/index.js", "docs/format.md", "package.json"];
+    for (const name of [...names, "schema/tbl-md.schema.json"]) {
       expect(files).toContain(name);
     }
   });
 
   test("has no source, no test, and no config of the project", () => {
-    const allowed = /^(LICENSE|README\.md|package\.json|docs\/format\.md|dist\/[a-z]+\.(js|d\.ts))$/;
+    const allowed = /^(LICENSE|README\.md|package\.json|docs\/format\.md|schema\/tbl-md\.schema\.json|dist\/[a-z]+\.(js|d\.ts))$/;
     expect(files.filter((name) => !allowed.test(name))).toEqual([]);
   });
 });
@@ -124,6 +125,22 @@ for (const node of NODES) {
         "# Doc\n\n```tbl\nmodel: Model\nprice: Price\n--\nmodel: Opus\nprice: $15\n```\n",
       );
       expect(exec([bin, "lint", "a.md"], folder).status).toBe(0);
+    });
+
+    test("lint reads .tbl-md.json, warns on an unknown key, and names the line of a JSON syntax error", () => {
+      const folder = join(consumer, `config-${node}`);
+      ok("mkdir", ["-p", folder], consumer);
+      writeFileSync(join(folder, "a.md"), "```tbl\na: A\n{status=open owner=me}\n```\n");
+      writeFileSync(join(folder, ".tbl-md.json"), '{"attributeKeys": ["status"]}\n');
+      const warned = exec([bin, "lint", "a.md"], folder);
+      expect(warned.status).toBe(0);
+      expect(warned.stdout).toContain('a.md:3:14: warning: The attribute key "owner" is unknown.');
+      expect(exec([bin, "lint", "--max-warnings", "0", "a.md"], folder).status).toBe(1);
+      // Node gives the position of this syntax error, so the message names the line.
+      writeFileSync(join(folder, ".tbl-md.json"), '{\n"attributeKeys": ["status"],\n}\n');
+      const broken = exec([bin, "lint", "a.md"], folder);
+      expect(broken.status).toBe(2);
+      expect(broken.stderr).toStartWith("tbl-md: .tbl-md.json:3: The file is not valid JSON: ");
     });
 
     test("imports parse, render, and convert in an ESM script", () => {

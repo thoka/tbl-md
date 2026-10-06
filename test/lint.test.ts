@@ -134,4 +134,70 @@ describe("lint", () => {
       [18, 1, "gfm-table"],
     ]);
   });
+
+  test("each problem of a parse is an error", () => {
+    expect(lint("| a |\n| - |\n\n```tbl x\n--\n```\n").map((p) => p.severity)).toEqual(["error", "error", "error"]);
+  });
+});
+
+describe("unknown attribute keys", () => {
+  const warnings = (source: string, attributeKeys?: string[]) =>
+    lint(source, attributeKeys === undefined ? undefined : { attributeKeys }).map((p) => [p.line, p.column, p.severity, p.code]);
+
+  test("a key of a column, a row, and a cell gives a warning at the key", () => {
+    const source = "```tbl\na: A\n{.x status=open}\n-- {#r1 owner=me}\na: 1\n{note=\"a b\"}\n```\n";
+    expect(warnings(source)).toEqual([
+      [3, 5, "warning", "unknown-attribute-key"],
+      [4, 9, "warning", "unknown-attribute-key"],
+      [6, 2, "warning", "unknown-attribute-key"],
+    ]);
+  });
+
+  test("the message names the key and the fix", () => {
+    const [problem] = lint("```tbl\na: A\n{status=open}\n```\n");
+    expect(problem!.message).toContain('"status"');
+    expect(problem!.message).toContain("attributeKeys in .tbl-md.json");
+  });
+
+  test("align is always known", () => {
+    expect(lint("```tbl\na: A\n{align=right}\n```\n")).toEqual([]);
+  });
+
+  test("a key in the list gives no warning, and each other key does", () => {
+    const source = "```tbl\na: A\n{status=open owner=me align=left}\n```\n";
+    expect(warnings(source, ["status"])).toEqual([[3, 14, "warning", "unknown-attribute-key"]]);
+    expect(warnings(source, ["status", "owner"])).toEqual([]);
+  });
+
+  test("keys are case-sensitive", () => {
+    expect(warnings("```tbl\na: A\n{Status=x}\n```\n", ["status"])).toEqual([[3, 2, "warning", "unknown-attribute-key"]]);
+  });
+
+  test("a quoted value with a pair in it gives no warning for the text", () => {
+    expect(warnings('```tbl\na: A\n{k="x y=z"}\n```\n', ["k"])).toEqual([]);
+  });
+
+  test("the warning has the file column in a block quote and a list item", () => {
+    expect(warnings("> ```tbl\n> a: A\n> -- {k=v}\n> a: 1\n> ```\n")).toEqual([[3, 7, "warning", "unknown-attribute-key"]]);
+    expect(warnings("- item\n\n  ```tbl\n  a: A\n  --\n  a: 1\n  {.c k=v}\n  ```\n")).toEqual([
+      [7, 7, "warning", "unknown-attribute-key"],
+    ]);
+  });
+
+  test("a row block after a tab has the column after the tab", () => {
+    expect(warnings("```tbl\na: A\n--\t{k=v}\n```\n")).toEqual([[3, 5, "warning", "unknown-attribute-key"]]);
+  });
+
+  test("a block with an error gives only its errors", () => {
+    expect(warnings("```tbl\na: A\n{k=v}\n--\nb: 1\n```\n")).toEqual([[5, 1, "error", "unknown-key"]]);
+  });
+
+  test("warnings and errors are sorted by line", () => {
+    const source = "```tbl\na: A\n{k=v}\n```\n\n| a |\n| - |\n\n```tbl\na: A\n-- {j=1}\n```\n";
+    expect(warnings(source)).toEqual([
+      [3, 2, "warning", "unknown-attribute-key"],
+      [6, 1, "error", "gfm-table"],
+      [11, 5, "warning", "unknown-attribute-key"],
+    ]);
+  });
 });

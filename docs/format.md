@@ -76,7 +76,7 @@ p: $1
     ```
 
     In a quoted value, `\"` is `"` and `\\` is `\`. A block has one ID at most, each class once, and each key once. The keys `id` and `class` are not allowed, because `#x` and `.x` express them. Keys are case-sensitive, as in rule 3, so `Align` and `ID` are unknown keys. A column and a cell can have an ID too. tbl-md does not check that the IDs of a table are unique, as in version 0.1. The parts keep their order, so the classes and the pairs are lists, not sets.
-15. Known keys. Each attribute is kept, also an unknown key. The parser checks only the values of the known keys. The only known key is `align`. Its value is `left`, `center`, or `right`, and it is allowed only on a column, because GFM has an alignment only for a column. A later version can allow `align` on a row or a cell with no breaking change. `tbl-md lint` warns on an unknown key, unless the configuration of the project lists that key (step 14 of `docs/PLAN.md` decides where that configuration lives).
+15. Known keys. Each attribute is kept, also an unknown key. The parser checks only the values of the known keys. The only known key is `align`. Its value is `left`, `center`, or `right`, and it is allowed only on a column, because GFM has an alignment only for a column. A later version can allow `align` on a row or a cell with no breaking change. `tbl-md lint` warns on an unknown key, unless the configuration of the project lists that key (section Configuration of `README.md`).
 16. These are the errors of the attributes. Each error names the line and the column of the first bad character:
 
     ```tbl

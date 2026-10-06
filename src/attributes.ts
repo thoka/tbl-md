@@ -95,6 +95,20 @@ export function parseAttributes(block: string, place?: AttributePlace): Attribut
   }
 }
 
+/**
+ * Gives each pair of a valid attribute block with the 0-based offset of its key in the block, in source order.
+ * It gives an empty list for a block that does not parse. Not part of the public API: the lint uses it to place a warning.
+ */
+export function pairOffsets(block: string): { key: string; offset: number }[] {
+  try {
+    const { attributes, keyOffsets } = readBlock(block.replace(/[ \t]+$/, ""));
+    return attributes.pairs.map((pair, i) => ({ key: pair.key, offset: keyOffsets[i]! }));
+  } catch (e) {
+    if (e instanceof Failure) return [];
+    throw e;
+  }
+}
+
 function readBlock(text: string): { attributes: Attributes; keyOffsets: number[]; valueOffsets: number[] } {
   const attributes: Attributes = { classes: [], pairs: [] };
   const keyOffsets: number[] = [];
