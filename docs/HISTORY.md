@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 9: corpus research
+
+- Step 9: corpus research. The research agent finds existing corpora of Markdown tables, the test fixtures of established parsers (GFM spec, micromark, markdown-it, commonmark.js), sources of real files with tables, and the established ways to fetch single files from a pinned commit with no token. It writes `docs/research/table-corpus.md`. Done on 2026-10-06. Status: no ready-made corpus fits. The report recommends 30 sources with an open license, pinned by commit and SHA-256, and found the bug of step 9b and the excess cells of step 9c.
+
 ## Step 8: release
 
 - Step 8: release research and the brief. The research agent finds the current best practice for release-please with an npm publish from GitHub Actions (trusted publishing with OIDC, provenance), and writes `docs/research/npm-release.md`. Then the session writes the workflow files and one brief for the user: create the GitHub repository `tbl-md`, add the remote, connect npm trusted publishing, and merge the first release PR. This is the outward step, and the user does it. Done on 2026-10-06. Status: the publish script `~/inbox/tbl-md-publish.sh` ran twice, and the second run created the repository, the placeholder `0.0.0`, the trusted publisher, and `mfa=publish`. Only `npm deprecate` failed. The user merged PR #1, and the workflow published `0.1.0` with provenance and moved `stable`.
