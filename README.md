@@ -289,13 +289,17 @@ locate("model: Model\nnote: Note\n{align=right}\n--\nn: a\n{.c}\nm: Opus");
 
 Each entry has a `kind` (`"tbl"` or `"gfm"`), the mdast `node`, the source offsets `start` and `end` of the node, and the `line` and `column` of its start, both from 1. Thus `source.slice(start, end)` is the exact source of the node. A `tbl` entry also has `contentLine`, the file line of the first line inside the fence, `text`, the text inside the fence, and `meta`, the text after `tbl` in the info string, or `null`.
 
-`lint(source)` lists the problems of a Markdown text, sorted by line and then by column. A problem has a `line` and a `column` in the file, a `code`, and a `message`. An error of a `tbl` block has its line in the file, and the column of the fence, because the block content starts there in a list item or a block quote.
+`lint(source, options?)` lists the problems of a Markdown text, sorted by line and then by column. A problem has a `line` and a `column` in the file, a `severity` (`"error"` or `"warning"`), a `code`, and a `message`. An error of a `tbl` block has its line in the file, and the column of the fence, because the block content starts there in a list item or a block quote.
+
+The option `attributeKeys` is the list of the attribute keys of the project. A pair with a key that is not `align` and not in the list gives the warning `unknown-attribute-key`, in a column, a row, and a cell. With no list, each key other than `align` is unknown. The warning is at the key in the file. A block with an error gives only its errors and no warning. The library does not read a configuration file. The CLI reads `.tbl-md.json` (section Configuration) and gives its list to `lint`.
 
 ```ts
 import { lint } from "tbl-md";
 
 lint("> ```tbl\n> a: A\n> --\n> b: x\n> ```\n");
-// [{ line: 4, column: 3, code: "unknown-key", message: 'The key "b" matches no header key. ...' }]
+// [{ line: 4, column: 3, severity: "error", code: "unknown-key", message: 'The key "b" matches no header key. ...' }]
+lint("```tbl\na: A\n{status=open owner=me}\n```\n", { attributeKeys: ["status"] });
+// [{ line: 3, column: 14, severity: "warning", code: "unknown-attribute-key", message: 'The attribute key "owner" is unknown. ...' }]
 ```
 
 These are the problem codes:
@@ -312,7 +316,14 @@ when: The info string has text after `tbl` (rule 1 of `docs/format.md`). The pro
 --
 code: each error code of `parse`
 when: A `tbl` block has this error. The problem is at the line of the error in the file.
+--
+code: `unknown-attribute-key`
+when: A warning. A pair of a valid `tbl` block has a key that is not `align` and not in `attributeKeys` (rule 15 of `docs/format.md`). The problem is at the key.
 ```
+
+Each code other than `unknown-attribute-key` is an error.
+
+`findConfig(folder)`, `readConfig(file)`, and `parseConfig(text, file)` are the loader of the configuration file that the CLI uses (section Configuration). `findConfig` gives the absolute path of the configuration file for a folder, or `null`. `readConfig` and `parseConfig` give `{ ok: true, config: { attributeKeys } }`, or `{ ok: false, error: { file, line?, message } }`. `CONFIG_FILE` is the name `.tbl-md.json`.
 
 `toGfm(table, options?)` writes one table as a GFM pipe table, by the section "Conversion to and from GFM" of `docs/format.md`. `fromGfm(source, found)` reads one GFM table of a Markdown source back as a table. `found` is a `"gfm"` entry of `findTables(source)`. `fromGfm` reads each cell text from the source by the offsets of its mdast cell, so the inline Markdown stays byte for byte. The keys come from the titles by `keysFromTitles(titles)`.
 
@@ -439,17 +450,19 @@ Two laws hold, and the property test `test/laws.test.ts` checks them on random t
 The package installs the CLI as `tbl-md`. Its source is `src/cli.ts`. In this checkout, run it with `mise run tbl-md <command> ...` or `bun src/cli.ts <command> ...`.
 
 ```sh
-tbl-md lint <files...>
+tbl-md lint [--config <file>] [--max-warnings <n>] <files...>
 tbl-md convert [--to tbl|gfm] [--drop-attributes] <files...>
 ```
 
-`tbl-md lint` reads each file and prints each problem of `lint`, in the order of the files and then by line. Each problem is one line:
+`tbl-md lint` reads each file and prints each problem of `lint`, in the order of the files and then by line. It gives `lint` the `attributeKeys` of the configuration file of each file (section Configuration). Each problem is one line, and a summary line counts the errors and the warnings:
 
 ```text
 docs/a.md:12:1: This is a GFM pipe table. Write it as a tbl block, for example with `tbl-md convert`. (gfm-table)
+docs/a.md:20:2: warning: The attribute key "owner" is unknown. If the key is right, add it to attributeKeys in .tbl-md.json. Otherwise fix it. The configuration file is .tbl-md.json. (unknown-attribute-key)
+1 error and 1 warning.
 ```
 
-The form is `<file>:<line>:<column>: <message> (<code>)`. The codes are the problem codes of `lint` (section Library). The lint does not change a file.
+The form of an error is `<file>:<line>:<column>: <message> (<code>)`, and the form of a warning is `<file>:<line>:<column>: warning: <message> (<code>)`. The message of an unknown key also names the configuration file that the CLI used, or says that it found none. The codes are the problem codes of `lint` (section Library). With no problem, the CLI prints nothing. If the warnings are more than `--max-warnings`, the summary line says so. The lint does not change a file.
 
 `tbl-md convert` converts the tables of each file in place with `convert`. `--to tbl` is the default: each GFM table becomes a `tbl` block. `--to gfm` converts each `tbl` block to a GFM table. An attribute with no GFM form is an error at its line. With `--drop-attributes`, `--to gfm` drops these attributes and keeps the `align` of the columns and the IDs of the rows. For each file, the CLI does one of three things:
 
@@ -468,6 +481,8 @@ These are the other options:
 - `-h`, `--help`: print the usage to stdout.
 - `--version`: print the version of the package.
 - `--drop-attributes`: only for `convert --to gfm`. Drop each attribute that GFM cannot hold, with no error.
+- `--config <file>`: only for `lint`. Use this configuration file for all files, and do not search for `.tbl-md.json`.
+- `--max-warnings <n>`: only for `lint`. If there are more than `n` warnings in all files, the exit code is 1. `n` is a whole number, 0 or more. With no option, there is no limit, as in ESLint.
 - `--`: each argument after it is a file name, also if it starts with `-`.
 
 These are the exit codes:
@@ -477,18 +492,43 @@ code: Exit code
 when: When
 --
 code: 0
-when: No file has a problem. For `convert`: each file converted, or it had no table to convert. Also `--help` and `--version`.
+when: For `lint`: no file has an error, and the warnings are not more than `--max-warnings`. For `convert`: each file converted, or it had no table to convert. Also `--help` and `--version`.
 --
 code: 1
-when: For `lint`: a file has a problem. For `convert`: the conversion of a file failed.
+when: For `lint`: a file has an error, or the warnings are more than `--max-warnings`. For `convert`: the conversion of a file failed.
 --
 code: 2
-when: A usage error: no command, an unknown command, an unknown option, a bad value of `--to`, `--to` for `lint`, `--drop-attributes` for `lint` or for `convert --to tbl`, no files, `-` more than once, or a file that cannot be read. The CLI prints one line to stderr that names the problem.
+when: A usage error: no command, an unknown command, an unknown option, a bad value of `--to` or of `--max-warnings`, `--to`, `--drop-attributes`, or `--config` for the wrong command, `--max-warnings` for `convert`, no files, `-` more than once, or a file that cannot be read. Or a configuration error (section Configuration). The CLI prints one line to stderr that names the problem.
 ```
+
+### Configuration
+
+`tbl-md lint` reads the attribute keys of the project from the file `.tbl-md.json`. Rule 15 of `docs/format.md` says that the lint warns on an unknown attribute key. The file lists the keys that the project knows:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/thoka/tbl-md/v0.2.0/schema/tbl-md.schema.json",
+  "attributeKeys": ["status", "owner"]
+}
+```
+
+- `attributeKeys` is a list of keys in the key form of rule 14: a letter, then letters, digits, `_`, and `-`. Keys are case-sensitive. `align` is always known and needs no entry. With no `attributeKeys`, each key other than `align` is unknown.
+- `$schema` is optional. It names the JSON Schema of the file, so that an editor can check the file and complete the keys. The loader ignores its value, but the value must be a string. The package has the schema as `schema/tbl-md.schema.json`.
+- The file is plain JSON, with no comments. `JSON.parse` reads it, so the package needs no other parser.
+
+For each file, the CLI searches the configuration file. The search starts in the folder of the file and goes up. It stops at the first folder with `.tbl-md.json`, and uses that file. It also stops at the first folder with a `.git` entry (a folder, or a file as in a git worktree), and at the root of the file system. Then the file has no configuration. For stdin (`-`), the search starts in the current folder. The nearest file wins, and the CLI does not merge files. Thus a subfolder with its own `.tbl-md.json` has its own full list. `--config <file>` gives one file for all files of the run, and the CLI does not search. There is no configuration in the home folder, so that the lint gives the same result on each computer.
+
+These are configuration errors: invalid JSON, a value that is not an object, a key other than `$schema` and `attributeKeys`, a value of a wrong type, a key that does not have the key form, and a file that cannot be read. A configuration error stops the run before any output, with exit code 2. The CLI prints one line to stderr that names the file, for example:
+
+```text
+tbl-md: docs/.tbl-md.json: attributeKeys[2] "Owner name" is not a key. A key starts with a letter, then letters, digits, "_", and "-".
+```
+
+For invalid JSON, the line has the message of `JSON.parse`. It names the line of the file (`tbl-md: .tbl-md.json:3: ...`) only if `JSON.parse` gives a position. Node gives it for most errors, and Bun gives none.
 
 ### The pre-commit hook
 
-The pre-commit hook of this project runs `tbl-md lint` on the staged Markdown files (`lefthook.yml`). `mise run pre-commit` runs the hook on the staged files, as git does. The lint reads the file in the working tree, not the staged text.
+The pre-commit hook of this project runs `tbl-md lint --max-warnings 0` on the staged Markdown files (`lefthook.yml`), so that an unknown attribute key fails the commit too. `mise run pre-commit` runs the hook on the staged files, as git does. The lint reads the file in the working tree, not the staged text.
 
 When the package is on npm, another project can run the lint in its hook. This is an example for lefthook:
 
@@ -497,7 +537,7 @@ pre-commit:
   jobs:
     - name: tbl-md lint
       glob: "*.md"
-      run: npx tbl-md lint {staged_files}
+      run: npx tbl-md lint --max-warnings 0 {staged_files}
 ```
 
 ## Known gaps
@@ -513,6 +553,8 @@ pre-commit:
 - The package has no CommonJS entry. Its `exports` has only the condition `import`, so `require("tbl-md")` fails. A CommonJS module loads it with `import("tbl-md")`.
 - The pre-commit hook lints the file in the working tree. If a file has unstaged changes, the lint can differ from the staged text.
 - The CLI reads each file as UTF-8. It does not report a file with bytes that are not UTF-8.
+- `.tbl-md.json` has no comments. A syntax error in it names its line only where `JSON.parse` gives a position, so on Node but not on Bun.
+- A `tbl` block with an error gives no warning for an unknown attribute key. The warnings come after the errors are fixed.
 
 ## Development
 

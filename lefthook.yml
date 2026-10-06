@@ -10,8 +10,9 @@ pre-commit:
       run: mise exec -- bun install --frozen-lockfile --silent
     - name: tbl-md lint
       # Fails on a GFM pipe table and on an invalid tbl block in a staged Markdown file (AGENTS.md).
+      # --max-warnings 0 also fails on an attribute key that .tbl-md.json does not list, because a warning is no check.
       glob: "*.md"
-      run: mise exec -- bun src/cli.ts lint {staged_files}
+      run: mise exec -- bun src/cli.ts lint --max-warnings 0 {staged_files}
 pre-push:
   jobs:
     - name: test
