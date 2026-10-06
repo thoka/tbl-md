@@ -43,11 +43,11 @@ what: Fails on a GFM pipe table and on an invalid `tbl` block. Each error names 
 ## Principles
 
 0. Human editing first. The goal of the project is that humans change tables in Markdown with no frustration. For a machine, the form of a table does not matter. If a rule makes the text easier for a human to read or change, it wins over a rule that only makes parsing easier. The user stated this on 2026-10-06.
-1. Lossless. A round trip from `tbl` to GFM and back gives the same titles, cells, and row IDs. A GFM table has no keys, so the keys come back from the titles. A round trip from GFM to `tbl` and back gives the same canonical GFM text. A conversion never drops content silently. Reversible: a switch to tbl-md must be reversible. A conversion of a file to `tbl` and back to GFM gives a file that renders the same, so its mdast is the same, with no positions. Layout of the GFM text, such as padding and column widths, can change. A corpus of real tables from other projects tests this (section Scope of version 0.2.0). The user decided this on 2026-10-06.
+1. Lossless. A round trip from `tbl` to GFM and back gives the same titles, cells, and row IDs. A GFM table has no keys, so the keys come back from the titles. A round trip from GFM to `tbl` and back gives the same canonical GFM text. A conversion never drops content silently. Reversible: a switch to tbl-md must be reversible. A conversion of a file to `tbl` and back to GFM gives a file that renders the same with the reference flavor (principle 5): the same HTML for each table and for the text outside the tables. Layout of the GFM text, such as padding, column widths, and the escapes of pipes, can change. A corpus of real tables from other projects tests this (section Scope of version 0.2.0). The user decided this on 2026-10-06.
 2. Canonical. Each table has one canonical `tbl` text. The parse accepts more forms (prefix keys, any key order), and the render writes one.
 3. Precise errors. Each error names the file, the line, and, where it helps, the column and the possible keys.
-4. Small surface. The library has no runtime dependency outside the mdast and micromark family. The library and the CLI run on Node and on Bun.
-5. Established parsers for Markdown. `mdast-util-from-markdown` with the GFM table extension finds the code blocks and the GFM tables. tbl-md parses only the text inside a `tbl` block.
+4. Small surface. The library has one runtime dependency for Markdown: markdown-it. The library and the CLI run on Node and on Bun. The markdown-it plugin of tbl-md also runs in a browser and in a server JavaScript engine, with no `node:` module. The user decided this on 2026-10-06.
+5. One established parser for Markdown. markdown-it finds the code blocks and the GFM tables. tbl-md parses only the text inside a `tbl` block. A flavor is the set of markdown-it settings of one target renderer. `docs/format.md` defines each flavor, pins it to a version of its renderer, and gives its rules for the conversion to and from GFM. The configuration of the project or the flag `--flavor` picks the flavor, and the default is `discourse`. Inside a renderer, the settings of that renderer apply. The user decided this on 2026-10-06.
 
 ## Scope of version 0.2.0
 
@@ -62,9 +62,20 @@ The user decided this scope on 2026-10-06.
 
 A cell attribute changes the content of a valid 0.1 block, because a line `{...}` after a cell was text. Thus 0.2.0 is a breaking version. On 2026-10-06, no `tbl` block in the 20 files with `tbl` blocks under `~/dv` had such a line.
 
+## Scope of version 0.3.0
+
+The user decided this scope on 2026-10-06.
+
+- markdown-it replaces micromark and mdast as the only parser (principle 5).
+- Two flavors: `discourse` and `markdown-it`. The flavor `github` comes later, because it needs a second reference renderer.
+- The pipe rule of both flavors: the conversion to GFM adds one backslash before each pipe, and the conversion to `tbl` removes one backslash before each pipe that has one.
+- The flavor `discourse` does not split a cell at a pipe inside a link or an image, as Discourse does. tbl-md has its own MIT code for this, because the code of Discourse is GPL-2.0-only.
+- After each conversion, a check renders each table with the flavor, before and after. If the HTML of a cell differs, the conversion fails at that cell.
+- A markdown-it plugin that renders a `tbl` block as a table, with its attributes.
+
 ## Out of scope
 
-- Plugins for remark and markdown-it that show a `tbl` block as a table in a preview.
+- A remark plugin that shows a `tbl` block as a table in a preview.
 - A command that rewrites each `tbl` block in its canonical form.
 - Merged cells. A record maps keys to cells, so a cell that spans columns does not fit the model.
 
