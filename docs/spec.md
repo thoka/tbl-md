@@ -2,21 +2,21 @@
 
 ## Goal
 
-The recurring problem: a Markdown table is hard to read and to edit as plain text, and agents and humans read Markdown mostly as plain text. The user said: "i hate markdown tables". The first case is the table views of Markgraf (`~/dv/markgraf`), and the global rule of the user now says that all projects write tables as `tbl` blocks.
+The recurring problem: a Markdown table is hard to read and to edit as plain text, and agents and humans read Markdown mostly as plain text.
 
 tbl-md gives a table format that is easy to read as text, with tools that make it safe to use everywhere:
 
 - a format specification, `docs/format.md`,
 - a TypeScript library that parses a `tbl` block, renders its canonical form, and converts it to and from a GFM pipe table with no loss of content,
-- a CLI with `tbl-md convert` and `tbl-md lint`, for the pre-commit hooks of all projects.
+- a CLI with `tbl-md convert` and `tbl-md lint`, for pre-commit hooks.
 
-tbl-md is a public open source project: an npm package and a GitHub repository with the MIT license. The user decided this on 2026-10-05.
+tbl-md is a public open source project: an npm package and a GitHub repository with the MIT license. Decided on 2026-10-05.
 
 ## Users
 
 - Agents and humans that write and read Markdown files as text.
-- Markgraf, which renders and parses its table views with the library.
-- The pre-commit hooks of the projects of the user, which run `tbl-md lint`.
+- Tools that render or parse tables with the library.
+- Pre-commit hooks that run `tbl-md lint`.
 
 ## Scope of version 0.1.0
 
@@ -42,29 +42,29 @@ what: Fails on a GFM pipe table and on an invalid `tbl` block. Each error names 
 
 ## Principles
 
-0. Human editing first. The goal of the project is that humans change tables in Markdown with no frustration. For a machine, the form of a table does not matter. If a rule makes the text easier for a human to read or change, it wins over a rule that only makes parsing easier. The user stated this on 2026-10-06.
-1. Lossless. A round trip from `tbl` to GFM and back gives the same titles, cells, and row IDs. A GFM table has no keys, so the keys come back from the titles. A round trip from GFM to `tbl` and back gives the same canonical GFM text. A conversion never drops content silently. Reversible: a switch to tbl-md must be reversible. A conversion of a file to `tbl` and back to GFM gives a file that renders the same with the reference flavor (principle 5): the same HTML for each table and for the text outside the tables. Layout of the GFM text, such as padding, column widths, and the escapes of pipes, can change. A corpus of real tables from other projects tests this (section Scope of version 0.2.0). The user decided this on 2026-10-06.
+0. Human editing first. The goal of the project is that humans change tables in Markdown with no frustration. For a machine, the form of a table does not matter. If a rule makes the text easier for a human to read or change, it wins over a rule that only makes parsing easier. Decided on 2026-10-06.
+1. Lossless. A round trip from `tbl` to GFM and back gives the same titles, cells, and row IDs. A GFM table has no keys, so the keys come back from the titles. A round trip from GFM to `tbl` and back gives the same canonical GFM text. A conversion never drops content silently. Reversible: a switch to tbl-md must be reversible. A conversion of a file to `tbl` and back to GFM gives a file that renders the same with the reference flavor (principle 5): the same HTML for each table and for the text outside the tables. Layout of the GFM text, such as padding, column widths, and the escapes of pipes, can change. A corpus of real tables from other projects tests this (section Scope of version 0.2.0). Decided on 2026-10-06.
 2. Canonical. Each table has one canonical `tbl` text. The parse accepts more forms (prefix keys, any key order), and the render writes one.
 3. Precise errors. Each error names the file, the line, and, where it helps, the column and the possible keys.
-4. Small surface. The library has one runtime dependency for Markdown: markdown-it. The library and the CLI run on Node and on Bun. The markdown-it plugin of tbl-md also runs in a browser and in a server JavaScript engine, with no `node:` module. The user decided this on 2026-10-06.
-5. One established parser for Markdown. markdown-it finds the code blocks and the GFM tables. tbl-md parses only the text inside a `tbl` block. A flavor is the set of markdown-it settings of one target renderer. `docs/format.md` defines each flavor, pins it to a version of its renderer, and gives its rules for the conversion to and from GFM. The configuration of the project or the flag `--flavor` picks the flavor, and the default is `discourse`. Inside a renderer, the settings of that renderer apply. The user decided this on 2026-10-06.
+4. Small surface. The library has one runtime dependency for Markdown: markdown-it. The library and the CLI run on Node and on Bun. The markdown-it plugin of tbl-md also runs in a browser and in a server JavaScript engine, with no `node:` module. Decided on 2026-10-06.
+5. One established parser for Markdown. markdown-it finds the code blocks and the GFM tables. tbl-md parses only the text inside a `tbl` block. A flavor is the set of markdown-it settings of one target renderer. `docs/format.md` defines each flavor, pins it to a version of its renderer, and gives its rules for the conversion to and from GFM. The configuration of the project or the flag `--flavor` picks the flavor, and the default is `discourse`. Inside a renderer, the settings of that renderer apply. Decided on 2026-10-06.
 
 ## Scope of version 0.2.0
 
-The user decided this scope on 2026-10-06.
+Decided on 2026-10-06.
 
 - Attributes. An attribute follows the thing that it describes. An attribute line `{...}` directly after a header key line describes the column. An attribute line directly after the last line of a cell describes the cell. The `--` line that starts a row takes the attribute block of the row, and the row ID marker `{#id}` becomes a special case of it. One attribute line per column or cell at most. The syntax is the attribute block of Pandoc, djot, and kramdown: `#id`, `.class`, and `key=value`.
 - An open vocabulary. The parser keeps each attribute. It checks only the values of the known keys. The first known key is `align` with `left`, `center`, or `right`, and it maps to the GFM column alignment. The lint warns on an unknown key, unless the configuration of the project lists that key.
 - Escape. A text line that reads as an attribute line gets one backslash more, by the rule of the other escapes: `\{.x}` is the text `{.x}`.
 - Conversion to GFM. An attribute that GFM cannot express makes the conversion fail, unless the user gives `--drop-attributes`.
-- A round trip from GFM to `tbl` and back keeps the column alignment. A GFM cell that ends with `<br>` and a space before an ID marker stay errors. Escapes for them are a later option, for example when Markgraf shows highlighted cells.
+- A round trip from GFM to `tbl` and back keeps the column alignment. A GFM cell that ends with `<br>` and a space before an ID marker stay errors. Escapes for them are a later option, for example when a tool shows highlighted cells.
 - A corpus test for the reversibility of principle 1. A downloader fetches real Markdown files with tables, and the test fixtures of established Markdown parsers, from a configuration file. The configuration pins each source to a commit and names each file, and the downloader fetches only these files, with a size cap, into a cache outside the repository. It needs no token. The corpus is not part of the repository. `mise run corpus` runs the test, and the pre-push hook does not.
 
-A cell attribute changes the content of a valid 0.1 block, because a line `{...}` after a cell was text. Thus 0.2.0 is a breaking version. On 2026-10-06, no `tbl` block in the 20 files with `tbl` blocks under `~/dv` had such a line.
+A cell attribute changes the content of a valid 0.1 block, because a line `{...}` after a cell was text. Thus 0.2.0 is a breaking version. On 2026-10-06, no `tbl` block in 20 known files with `tbl` blocks had such a line.
 
 ## Scope of version 0.3.0
 
-The user decided this scope on 2026-10-06.
+Decided on 2026-10-06.
 
 - markdown-it replaces micromark and mdast as the only parser (principle 5).
 - Two flavors: `discourse` and `markdown-it`. The flavor `github` comes later, because it needs a second reference renderer.
