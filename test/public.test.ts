@@ -1,5 +1,5 @@
-// This repository is public (AGENTS.md). No tracked file names a local path. The planning files leave the repository
-// later, so the test skips them, and it skips bun.lock. The cache path of the corpus (~/.cache/tbl-md) is allowed.
+// This repository is public (AGENTS.md). No tracked file names a local path. The planning files live in the private
+// companion repository in .plan/, which git ignores. The test skips bun.lock. The cache path of the corpus (~/.cache/tbl-md) is allowed.
 // The patterns are built from parts, so that this file does not match itself.
 import { expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
@@ -11,8 +11,8 @@ const root = join(import.meta.dir, "..");
 /** The forbidden text: the folder of the private projects, a home folder, and the configuration folder with the keys. */
 const FORBIDDEN = ["~" + "/dv", "/" + "home/", "~" + "/.config/"];
 
-/** The planning files. They move to a private repository later. */
-const EXCLUDED = [/^docs\/PLAN\.md$/, /^docs\/HISTORY\.md$/, /^docs\/review-queue\.md$/, /^docs\/research\//, /^docs\/outbox\//, /^bun\.lock$/];
+/** The files that the scan skips. */
+const EXCLUDED = [/^bun\.lock$/];
 
 /** Each line of `text` with a forbidden text, as `<line>: <forbidden text>`, with the line from 1. */
 function privatePaths(text: string): string[] {
@@ -49,10 +49,10 @@ test("the scan finds a forbidden text with its line", () => {
   expect(privatePaths("the cache is ~/.cache/tbl-md/corpus/")).toEqual([]);
 });
 
-test("the scan reads the tracked files, without the planning files", () => {
+test("the scan reads the tracked files, and no planning file is tracked", () => {
   expect(files).toContain("README.md");
   expect(files).toContain("test/public.test.ts");
-  expect(files).not.toContain("docs/PLAN.md");
+  expect(files.filter((file) => /(^|\/)(PLAN|HISTORY|review-queue)\.md$|^docs\/(research|outbox)\//.test(file))).toEqual([]);
 });
 
 test("no tracked public file names a local path", () => {

@@ -8,6 +8,10 @@ pre-commit:
       # Install the dependencies from bun.lock, as mise run test does, so that the lint finds its libraries
       # in a new checkout.
       run: mise exec -- bun install --frozen-lockfile --silent
+    - name: public-check
+      # The repository is public (AGENTS.md): no local path and no private project name in a staged file.
+      # A contributor without public-check on the PATH gets a note, and the hook passes.
+      run: if command -v public-check >/dev/null 2>&1; then public-check {staged_files}; else echo "public-check not found, skipped"; fi
     - name: tbl-md lint
       # Fails on a GFM pipe table and on an invalid tbl block in a staged Markdown file (AGENTS.md).
       # --max-warnings 0 also fails on an attribute key that .tbl-md.json does not list, because a warning is no check.
