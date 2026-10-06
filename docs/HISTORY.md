@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 17: spec change
+
+- Step 17: spec change. The user approves the new text of principles 1, 4, and 5. `docs/format.md` follows, with an entry in `docs/review-queue.md`. If a valid block changes its content, this is a new minor version (0.3.0). Done on 2026-10-06. Status: the user decided in a grilling round: flavors instead of Discourse in each principle, the flavor in `.tbl-md.json` or `--flavor`, the default `discourse`, MIT stays, and the link pipe rule as own code. The user also decided that the public repository holds no private context (step 17a, `test/public.test.ts`) and that the planning files leave it (step 17c). `docs/format.md` follows in step 17b.
+
 ## Step 16: markdown-it as the reference
 
 - Step 16: measurement of markdown-it as the reference. A research agent finds the markdown-it version and the settings and rules that Discourse uses to cook a post, from the Discourse source, pinned to a commit. A script renders the corpus of step 10 with that markdown-it and with micromark and counts the tables that differ, with examples. It also measures how markdown-it splits a GFM row (pipes, backslashes, code spans, excess cells), and how `fromGfm` can find the exact source of each cell, because markdown-it gives only line numbers. Result: `docs/research/markdown-it-reference.md` with a proposal for the change of principles 1, 4, and 5 of `docs/spec.md` and of the GFM rules of `docs/format.md`. No change of `src/` in this step. Done on 2026-10-06. Status: markdown-it 15.0.1 with the settings of Discourse eb46cffe. 45 of 586 tables differ, all in parser fixtures. Cell sources: option A, a wrapper of the table rule with a check against the token content, 0 mismatches in 17,207 cells. The proposal for step 17 is in the report.
