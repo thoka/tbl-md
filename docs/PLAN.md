@@ -6,7 +6,7 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 2026-10-06, interactive session `tbl-md-2f` in `~/dv/tbl-md`.
 
-State: steps 0 to 8 are done. `tbl-md@0.1.0` is on npm with provenance (SLSA v1), published by the release workflow through trusted publishing. The tag `v0.1.0` exists, and `stable` points to it. The placeholder `0.0.0` stays without a deprecation (`docs/review-queue.md`). After the release, the package test failed, because it expected the version `0.0.0`. It now reads the version from `package.json`. The markgraf session `markgraf-02` got the notice that Markgraf steps 6a and 6b can start.
+State: steps 0 to 8 are done. `tbl-md@0.1.0` is on npm with provenance (SLSA v1), published by the release workflow through trusted publishing. The tag `v0.1.0` exists, and `stable` points to it. The placeholder `0.0.0` stays without a deprecation (`docs/review-queue.md`). After the release, the package test failed, because it expected the version `0.0.0`. It now reads the version from `package.json`. The README of the 0.1.0 tarball still says that the package is not published (found by `markgraf-02`). `main` has the fix, and the next release ships it. The markgraf session `markgraf-02` got the notice that Markgraf steps 6a and 6b can start.
 
 Known gap: `.handover.toml` still has `local_only = true`, although the remote exists. The auto mode classifier blocked its removal on 2026-10-06. Remove the line when the user allows it, so that `handover check` checks the push again.
 
