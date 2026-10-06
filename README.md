@@ -20,6 +20,29 @@ p: $1
 
 The first record is the header. It maps each key to a column title. A line `--` starts the next row. In a row, a key can be any unique prefix of a header key, and a missing key is an empty cell. The full format is in `docs/format.md`.
 
+## Why
+
+A GFM pipe table is hard to read and to change as plain text. One long cell pushes all columns apart, and a pipe or a line break in a cell needs an escape. Humans and agents read Markdown mostly as text, so they suffer from it in each edit.
+
+tbl-md has one goal: humans change tables in Markdown with no frustration. A machine reads any form, so each rule of the format serves the human who edits the text (`docs/spec.md`, principle 0).
+
+The switch is reversible. `tbl-md convert --to gfm` converts each `tbl` block back to a GFM table, and the file then renders the same. Only the layout of the GFM text, such as padding, can change. Version 0.1 still drops the column alignment of GFM, and version 0.2.0 keeps it. A corpus of real tables from other projects will test the round trip.
+
+## How to write a table
+
+- The first record is the header. Each line is `key: Title`. A key has lower-case letters, digits, `_`, and `-`. The order of the lines is the column order.
+- A line `--` starts the next row. To give a row an ID, write it on that line: `-- {#a1b2c3d4}`. The ID goes to the end of the first cell in GFM.
+- In a row, a line `key: text` starts a cell. A key can be any unique prefix of a header key, so `m:` is enough for `model:`. Keys can come in any order, and a missing key is an empty cell.
+- Each other line continues the cell above, so a cell can have many lines, also empty lines in the middle.
+- Cell text is inline Markdown, as in a GFM cell. A pipe needs no escape.
+- If a text line looks like a key line or like `--`, add one backslash: `hint\: text` is the text `hint: text`, and `\--` is the text `--`.
+
+`tbl-md lint` names the line of each error. `docs/format.md` has the full rules.
+
+## Next: version 0.2.0
+
+Version 0.2.0 adds attributes. An attribute follows the thing that it describes: a line `{align=right}` directly after a header key line describes the column, the same line directly after the last line of a cell describes the cell, and the `--` line of a row takes the attributes of the row, for example `-- {#a1 .highlight}`. The syntax is the attribute block of Pandoc and djot. `align` maps to the GFM column alignment. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
+
 A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cell options of Quarto.
 
 ## Status
@@ -50,7 +73,7 @@ if (result.ok) console.log(result.output);
 
 The package has type declarations for TypeScript. The format specification is in the package too, at `docs/format.md`.
 
-## What it will give
+## What it gives
 
 ```tbl
 part: Part
