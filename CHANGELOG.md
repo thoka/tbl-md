@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.0](https://github.com/thoka/tbl-md/compare/v0.1.1...v0.2.0) (2026-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* Row.id moved to row.attributes.id.
+* Row.id moved to row.attributes.id. A line in the attribute form and a line `-- {...}` are no longer text, and a line `\{...}` loses one backslash.
+
+### Features
+
+* align and attribute errors in toGfm and fromGfm, attribute lines in locate ([bcedc5c](https://github.com/thoka/tbl-md/commit/bcedc5cea48305a365c09518755a1595e6b24d75))
+* attributes in the conversion to and from GFM (step 13) ([ee5238d](https://github.com/thoka/tbl-md/commit/ee5238d0bbc1bbda17f5515e79eada9f7f33411a))
+* dropAttributes and the lines of the attribute errors in convert ([205404f](https://github.com/thoka/tbl-md/commit/205404fae57c02afa1f3d1b8647b5a2eb18043b5))
+* find and read the configuration file .tbl-md.json (step 14) ([b826f30](https://github.com/thoka/tbl-md/commit/b826f30ed48f92953238a51cfefb7beef18aa268))
+* lint options --config and --max-warnings, and warnings in the output (step 14) ([b199dfd](https://github.com/thoka/tbl-md/commit/b199dfdc9b8914302eb724692094537a9aa33183))
+* lint warns on an unknown attribute key (step 14) ([7807900](https://github.com/thoka/tbl-md/commit/7807900def3ae1b113751c0d1b1d3d2a3f3d8d92))
+* lint warns on unknown attribute keys, with .tbl-md.json (step 14) ([c7c3bc0](https://github.com/thoka/tbl-md/commit/c7c3bc06ffb336c8007919dda6a328bca8446c1c))
+* parse and render attributes (step 12) ([bee0eb3](https://github.com/thoka/tbl-md/commit/bee0eb3fb84a4bcbf5894d4d91e4c57d9bcab5d0))
+* parse and render the attributes of columns, rows, and cells ([cf2c2e5](https://github.com/thoka/tbl-md/commit/cf2c2e595bfee0e203337c9124f18a846858d6f0))
+* parse, check, and render one attribute block ([b3bc440](https://github.com/thoka/tbl-md/commit/b3bc440bb58bda3125c76a34ff34923998633664))
+* the CLI option --drop-attributes for convert --to gfm ([92b80c6](https://github.com/thoka/tbl-md/commit/92b80c64aca1a70e1eb73db5d668f289043a23f7))
+
 ## [0.1.1](https://github.com/thoka/tbl-md/compare/v0.1.0...v0.1.1) (2026-10-06)
 
 
