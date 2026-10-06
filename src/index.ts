@@ -23,7 +23,8 @@ export {
   unescapeLine,
 } from "./syntax.ts";
 export { findTables } from "./markdown.ts";
-export type { Found, FoundGfm, FoundTbl } from "./markdown.ts";
+export type { FindOptions, Found, FoundGfm, FoundTbl, GfmAlign, GfmCell, GfmRow } from "./markdown.ts";
+export type { Flavor } from "./flavor.ts";
 export { lint } from "./lint.ts";
 export type { LintOptions, Problem, ProblemCode, Severity } from "./lint.ts";
 export { CONFIG_FILE, findConfig, parseConfig, readConfig } from "./config.ts";
