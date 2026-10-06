@@ -3,7 +3,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { Root } from "mdast";
 import { getFile } from "../corpus/fetch.ts";
 import {
   Budget,
@@ -11,10 +10,8 @@ import {
   cacheRoot,
   checkConfig,
   compareTexts,
+  countTables,
   FILE_CAP,
-  firstDifference,
-  normalize,
-  parseTree,
   rawUrl,
   readCapped,
   roundTrip,
@@ -245,33 +242,15 @@ describe("splitDocuments", () => {
   });
 });
 
-describe("normalize", () => {
-  test("removes the positions", () => {
-    expect(normalize(parseTree("a\n"))).toEqual({ type: "root", children: [{ type: "paragraph", children: [{ type: "text", value: "a" }] }] });
-  });
-
-  test("pads a short row and removes the excess cells, as GFM shows them", () => {
-    const short = normalize(parseTree("| a | b |\n| - | - |\n| 1 |\n| 2 | 3 | 4 |\n"));
-    const full = normalize(parseTree("| a | b |\n| - | - |\n| 1 | |\n| 2 | 3 |\n"));
-    expect(short).toEqual(full);
-  });
-
-  test("keeps the alignment", () => {
-    const left = parseTree("| a |\n| :- |\n");
-    const none = parseTree("| a |\n| - |\n");
-    expect(normalize(left)).not.toEqual(normalize(none));
-  });
-
-  test("firstDifference finds the row that differs", () => {
-    const a = parseTree("# T\n\n| a |\n| - |\n| 1 |\n| 2 |\n");
-    const b = parseTree("# T\n\n| a |\n| - |\n| 1 |\n| 3 |\n");
-    expect(firstDifference(a as Root, b as Root).position?.start.line).toBe(6);
-  });
-});
-
 describe("compareTexts", () => {
   test("a change of the layout only is the same", () => {
     expect(compareTexts("|a|b|\n|-|-|\n|1|2|\n", "| a | b |\n| --- | --- |\n| 1 | 2 |\n")).toEqual([{ kind: "same", line: 1 }]);
+  });
+
+  test("a short row and an excess cell are the same as markdown-it shows them", () => {
+    expect(compareTexts("| a | b |\n| - | - |\n| 1 |\n| 2 | 3 | 4 |\n", "| a | b |\n| - | - |\n| 1 | |\n| 2 | 3 |\n")).toEqual([
+      { kind: "same", line: 1 },
+    ]);
   });
 
   test("a change of the alignment only is different", () => {
@@ -283,10 +262,10 @@ describe("compareTexts", () => {
   test("a change of a cell is different, also next to a change of the alignment", () => {
     const original = "| a | b |\n| --- | :-: |\n| x | y |\n";
     expect(compareTexts(original, "| a | b |\n| --- | :-: |\n| x | y \\| |\n")).toEqual([
-      { kind: "different", line: 3, message: "the tableRow differs after the round trip" },
+      { kind: "different", line: 3, message: "a row of the table differs after the round trip" },
     ]);
     expect(compareTexts(original, "| a | b |\n| --- | :-: |\n| x | z |\n")).toEqual([
-      { kind: "different", line: 3, message: "the tableRow differs after the round trip" },
+      { kind: "different", line: 3, message: "a row of the table differs after the round trip" },
     ]);
   });
 
@@ -296,14 +275,14 @@ describe("compareTexts", () => {
     expect(compareTexts(original, back)).toEqual([
       { kind: "same", line: 1 },
       { kind: "different", line: 5, message: "the table differs after the round trip" },
-      { kind: "different", line: 11, message: "the tableRow differs after the round trip" },
+      { kind: "different", line: 11, message: "a row of the table differs after the round trip" },
     ]);
   });
 
   test("a change outside the tables adds one outcome different", () => {
     expect(compareTexts("a\n\n| a |\n| - |\n", "b\n\n| a |\n| - |\n")).toEqual([
       { kind: "same", line: 3 },
-      { kind: "different", line: 1, message: "the text outside the tables differs after the round trip (first at a text)" },
+      { kind: "different", line: 1, message: "the text outside the tables differs after the round trip (first at a paragraph)" },
     ]);
   });
 
@@ -312,6 +291,12 @@ describe("compareTexts", () => {
       { kind: "different", line: 1, message: "the document has 1 tables after the round trip, not 2" },
       { kind: "different", line: 4, message: "the document has 1 tables after the round trip, not 2" },
     ]);
+  });
+});
+
+describe("countTables", () => {
+  test("counts the GFM tables, also in a block quote and a list item", () => {
+    expect(countTables("| a |\n| - |\n\n> | b |\n> | - |\n\n- | c |\n  | - |\n\n```\n| d |\n| - |\n```\n")).toBe(3);
   });
 });
 
