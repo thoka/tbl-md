@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 8: release
+
+- Step 8: release research and the brief. The research agent finds the current best practice for release-please with an npm publish from GitHub Actions (trusted publishing with OIDC, provenance), and writes `docs/research/npm-release.md`. Then the session writes the workflow files and one brief for the user: create the GitHub repository `tbl-md`, add the remote, connect npm trusted publishing, and merge the first release PR. This is the outward step, and the user does it. Done on 2026-10-06. Status: the publish script `~/inbox/tbl-md-publish.sh` ran twice, and the second run created the repository, the placeholder `0.0.0`, the trusted publisher, and `mfa=publish`. Only `npm deprecate` failed. The user merged PR #1, and the workflow published `0.1.0` with provenance and moved `stable`.
+
 ## Step 7: package
 
 - Step 7: package. A build writes ESM JavaScript and type declarations to `dist/`, and `package.json` gets `exports`, `bin`, `files`, `engines`, and `repository`. Node joins `mise.toml`. A test packs the package with `npm pack`, installs the tarball in a temp folder, and runs the CLI and an import with Node. The README gets the install line and the public usage. Done on 2026-10-05. Status: `tsconfig.build.json` (NodeNext, `rewriteRelativeImportExtensions`), a tarball of 25 kB with 22 files. The package test takes about 2.6 seconds, so `mise run test` includes it, and it needs the npm registry. `@types/mdast` is a runtime dependency, because the type declarations import it. ESM only.

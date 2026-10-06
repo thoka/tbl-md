@@ -4,17 +4,17 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 ## Hand-off
 
-2026-10-05, background session `tbl-md` in `~/dv/tbl-md`.
+2026-10-06, interactive session `tbl-md-2f` in `~/dv/tbl-md`.
 
-State: steps 0 to 7 are done, and step 8 is done up to the user step. `main` has the library, the CLI, the package (259 tests, green), the research `docs/research/npm-release.md`, and the release workflow `.github/workflows/release.yml` with `release-please-config.json`. The repository has no remote yet, so `.handover.toml` has `local_only = true`. Nothing is published.
+State: steps 0 to 8 are done. `tbl-md@0.1.0` is on npm with provenance (SLSA v1), published by the release workflow through trusted publishing. The tag `v0.1.0` exists, and `stable` points to it. The placeholder `0.0.0` stays without a deprecation (`docs/review-queue.md`). The markgraf session `markgraf-02` got the notice that Markgraf steps 6a and 6b can start.
 
-Waiting for the user: the script `~/inbox/tbl-md-publish.sh` creates the public repository `thoka/tbl-md`, pushes `main`, allows Actions to open PRs, publishes the npm placeholder `0.0.0`, and connects the trusted publisher. Its log is `~/.local/state/user-steps/tbl-md-publish.log`, and it notifies this session when it ends.
+Known gap: `.handover.toml` still has `local_only = true`, although the remote exists. The auto mode classifier blocked its removal on 2026-10-06. Remove the line when the user allows it, so that `handover check` checks the push again.
 
-Next step: read the log. If it ended with exit 0, remove `local_only` from `.handover.toml`, push, and check with `gh pr list -R thoka/tbl-md` that release-please opened the release PR for 0.1.0. Then give the user one brief: merge that PR. After the release, check `npm view tbl-md version` and the provenance, and tell the markgraf session (Markgraf steps 6a and 6b wait for the release). If the log shows a failure, fix it with a new script file, not by a change of the old one.
+Next step: none is open in this plan. Pick one item of the section Later, plan it, and review it before you write code. The first candidate is `tbl-md fmt <files>`, because Markgraf can use it in its hook.
 
-Open tasks of the user: the script `~/inbox/tbl-md-publish.sh`.
+Open tasks of the user: none.
 
-New context: no. The next step needs the context of step 8.
+New context: yes. The release topic is finished, and the next step has a new topic.
 
 ## Rules for each step
 
@@ -22,7 +22,7 @@ Each step plans and reviews first, then implements in its own branch `feature/<s
 
 ## Open steps
 
-- Step 8: release research and the brief. The research agent finds the current best practice for release-please with an npm publish from GitHub Actions (trusted publishing with OIDC, provenance), and writes `docs/research/npm-release.md`. Then the session writes the workflow files and one brief for the user: create the GitHub repository `tbl-md`, add the remote, connect npm trusted publishing, and merge the first release PR. This is the outward step, and the user does it.
+- None. Pick the next step from the section Later.
 
 ## Later
 
