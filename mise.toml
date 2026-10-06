@@ -43,3 +43,8 @@ run = "bun corpus/run.ts"
 description = "Pin corpus files: mise run corpus-pin <owner/repo> <commit> <path>... [--kind <kind>] [--license <license>] writes the size and the SHA-256 of each file into corpus/sources.json"
 depends = ["install"]
 run = "bun corpus/pin.ts"
+
+[tasks.corpus-markdown-it]
+description = "Step 16: compare the GFM tables of the corpus as markdown-it with the settings of Discourse and micromark see them (--cases: the row-split cases as a tbl block, --verbose: all examples). Not part of mise run test"
+depends = ["install"]
+run = "bun corpus/markdown-it.ts"

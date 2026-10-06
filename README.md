@@ -589,6 +589,9 @@ what: Runs the corpus test (section The corpus test). It needs the network for t
 --
 task: `mise run corpus-pin <owner/repo> <commit> <path>...`
 what: Gets each file and writes its size and SHA-256 into `corpus/sources.json`. A new source needs `--license <SPDX id>`. `--kind <kind>` sets the kind of the files (default `markdown`).
+--
+task: `mise run corpus-markdown-it`
+what: Compares the GFM tables of the corpus as markdown-it with the settings of Discourse and as micromark see them (section The markdown-it measurement). With `--cases`, it prints the row-split cases as a `tbl` block. With `--verbose`, it lists all examples.
 ```
 
 `npm pack` runs the build first (the script `prepack`), so a tarball always has a new build.
@@ -653,6 +656,16 @@ If raw.githubusercontent.com is not available, jsDelivr is the fallback: `https:
 
 Licenses: each source in `corpus/sources.json` has its license, and a file with another license has its own. Use only sources with an open license. A copy in the local cache shares nothing, so the conditions of the licenses for sharing do not apply. Do not copy a table from the corpus into `test/`. Some sources have a share-alike license, for example the GFM spec (CC-BY-SA-4.0). Write a regression test with a new table that shows the same case.
 
+### The markdown-it measurement
+
+Discourse renders a post with markdown-it, and markdown-it is to become the reference parser of tbl-md (`docs/PLAN.md`, steps 16 to 18). `mise run corpus-markdown-it` measures how markdown-it with the settings of Discourse and micromark, the current parser of tbl-md, see the GFM tables of the corpus. The report is `docs/research/markdown-it-reference.md`.
+
+- The engine is markdown-it at the version that Discourse pins, with the options and the site setting defaults of Discourse (`corpus/markdown-it-lib.ts`, `discourseEngine`).
+- The table feature of Discourse (`features/table.js`, GPL-2.0-only) goes into the cache at the pinned Discourse commit, with a hash check, as a corpus file does. The script loads it from the cache. It is not part of the repository.
+- `recordTableLines` wraps the table rule of markdown-it and records the source of each table line. `splitRow` splits a line as the table rule does, with the offsets of each cell. The run checks that the text at each offset is the content of the token of markdown-it.
+
+The run needs the network for the files that are not in the cache yet. `test/markdown-it.test.ts` tests the parts that need no network. Neither `mise run test` nor the pre-push hook runs the measurement.
+
 ## Release
 
 A merge of the release PR makes a release. release-please keeps one release PR open on GitHub, and it updates the PR after each push to `main`. When you merge the PR, the workflow `.github/workflows/release.yml` does these steps:
@@ -672,6 +685,8 @@ The workflow runs no tests, because the pre-push hook runs them before each push
 - `mdast-util-from-markdown`: parses a Markdown text into an mdast tree with source positions, so that the lint finds each table at its line.
 - `micromark-extension-gfm-table`: the GFM table syntax for the parser, so that the lint finds GFM pipe tables. It is the only GFM extension that the parse uses.
 - `mdast-util-gfm-table`: turns the GFM table tokens into `table` nodes of the mdast tree.
+- `markdown-it` (dev, exactly 15.0.1, the version that Discourse pins): the reference parser of the step 16 measurement, `corpus/markdown-it.ts`. It is not a runtime dependency yet.
+- `micromark` (dev): renders the hand-written row-split cases of `corpus/markdown-it.ts` to HTML, to compare them with markdown-it. It is already in the tree as a dependency of `mdast-util-from-markdown`.
 - `@types/mdast`: the types of the mdast nodes. It is a runtime dependency, because the type declarations of the package use these types, for example the `node` of `findTables`.
 
 ## Research
