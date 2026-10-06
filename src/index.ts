@@ -2,6 +2,15 @@
 export { locate, parse } from "./parse.ts";
 export type { Column, ParseResult, Row, Table, TblError, TblErrorCode, TblLocation } from "./parse.ts";
 export { render, renderBlock, validate } from "./render.ts";
+export { parseAttributes, renderAttributes, validateAttributes } from "./attributes.ts";
+export type {
+  AttributeError,
+  AttributeErrorCode,
+  AttributePlace,
+  Attributes,
+  AttributesResult,
+  Pair,
+} from "./attributes.ts";
 export {
   escapedKeyLine,
   escapedSeparatorLine,
