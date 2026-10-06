@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 15: release 0.2.0
+
+- Step 15: release 0.2.0. A breaking version, so the changelog names the three kinds of 0.1 text that change their meaning: a line `{...}`, a line `\{...}`, and a line `-- {...}` other than a row ID marker (`docs/review-queue.md`, step 11). The user merges the release PR. Done on 2026-10-06: the user merged PR #3, and 0.2.0 is on npm.
+
 ## Step 14: lint of unknown attribute keys
 
 - Step 14: lint of unknown attribute keys. The lint warns on an unknown key, unless the configuration of the project lists it. The step decides where that configuration lives. Done on 2026-10-06. Status: `.tbl-md.json` with `attributeKeys`, found upward to the git root, `--config`, `--max-warnings`, the warning `unknown-attribute-key`, and a JSON Schema in `schema/`. Decisions in `docs/review-queue.md`. 553 tests pass.
