@@ -10,11 +10,11 @@ State: steps 0 to 8 are done. `tbl-md@0.1.0` is on npm with provenance (SLSA v1)
 
 Known gap: `.handover.toml` still has `local_only = true`, although the remote exists. The auto mode classifier blocked its removal on 2026-10-06. Remove the line when the user allows it, so that `handover check` checks the push again.
 
-Next step: none is open in this plan. Pick one item of the section Later, plan it, and review it before you write code. The first candidate is `tbl-md fmt <files>`, because Markgraf can use it in its hook.
+Next step: step 9. The user agreed on the scope of 0.2.0 on 2026-10-06 (spec section Scope of version 0.2.0). A research agent runs step 9 in `.worktrees/9-corpus-research`. When its report is in, review it and merge it, then plan step 10.
 
 Open tasks of the user: none.
 
-New context: yes. The release topic is finished, and the next step has a new topic.
+New context: no. The design talk of 0.2.0 is in this context, and step 9 runs.
 
 ## Rules for each step
 
@@ -22,7 +22,15 @@ Each step plans and reviews first, then implements in its own branch `feature/<s
 
 ## Open steps
 
-- None. Pick the next step from the section Later.
+The goal of these steps is version 0.2.0. `docs/spec.md`, section Scope of version 0.2.0, has the decisions of the user from 2026-10-06.
+
+- Step 9: corpus research. The research agent finds existing corpora of Markdown tables, the test fixtures of established parsers (GFM spec, micromark, markdown-it, commonmark.js), sources of real files with tables, and the established ways to fetch single files from a pinned commit with no token. It writes `docs/research/table-corpus.md`.
+- Step 10: corpus downloader and baseline. A configuration file lists each source with its repository, a pinned commit, and its files. The downloader fetches only these files, with a size cap per file and in total, into `~/.cache/tbl-md/corpus/`, and it never fetches a file twice. `mise run corpus` converts each file to `tbl` and back to GFM and compares the mdast with no positions. The first run measures the baseline of 0.1, so the known loss of the column alignment shows up. Not in the pre-push hook.
+- Step 11: format rules for attributes. `docs/format.md` gets the rules of the spec section Scope of version 0.2.0: the attribute block, its three places, the escape, the canonical form, and the errors. The README gets a section on the syntax that a writer reads, also the row ID on the `--` line. Plan and review only, no code.
+- Step 12: parse and render attributes. The parser keeps the attributes of the columns, the rows, and the cells, and the renderer writes them in the canonical form. Tests for each error.
+- Step 13: attributes in the conversion. `align` maps to the GFM alignment in both directions. Any other attribute makes the conversion to GFM fail, unless `--drop-attributes` is given. The corpus test of step 10 then passes for the alignment.
+- Step 14: lint of unknown attribute keys. The lint warns on an unknown key, unless the configuration of the project lists it. The step decides where that configuration lives.
+- Step 15: release 0.2.0. A breaking version, so the changelog names the change of the cell attributes. The user merges the release PR.
 
 ## Later
 
