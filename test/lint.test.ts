@@ -140,6 +140,23 @@ describe("lint", () => {
   });
 });
 
+describe("lint: the flavor", () => {
+  // An HTML block of type 6 runs to the next empty line, so the text has none.
+  const source = "<div>\n| a |\n| - |\n```tbl\na: A\n--\nb: x\n```\n</div>\n";
+
+  test("with discourse (the default), an HTML block hides the tables in it", () => {
+    expect(lint(source)).toEqual([]);
+    expect(lint(source, { flavor: "discourse" })).toEqual([]);
+  });
+
+  test("with markdown-it, HTML is off, so lint finds the tables", () => {
+    expect(lint(source, { flavor: "markdown-it" }).map((p) => [p.line, p.column, p.code])).toEqual([
+      [2, 1, "gfm-table"],
+      [7, 1, "unknown-key"],
+    ]);
+  });
+});
+
 describe("unknown attribute keys", () => {
   const warnings = (source: string, attributeKeys?: string[]) =>
     lint(source, attributeKeys === undefined ? undefined : { attributeKeys }).map((p) => [p.line, p.column, p.severity, p.code]);

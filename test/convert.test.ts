@@ -139,7 +139,7 @@ describe("convert: the file", () => {
   test("an error in one table gives no output for the file", () => {
     const source = `${gfm}\n\n| A |\n| --- |\n| x<br> |\n`;
     expect(errors(convert(source, { to: "tbl" }))).toEqual([
-      { line: 7, column: 1, message: 'Row 1, cell "a": the text ends with `<br>`. A tbl cell never ends with a line break, so remove the last `<br>`.' },
+      { line: 7, column: 3, message: 'Row 1, cell "a": the text ends with `<br>`. A tbl cell never ends with a line break, so remove the last `<br>`.' },
     ]);
   });
 
@@ -178,16 +178,16 @@ describe("convert: error lines", () => {
   });
 
   test("a title error is at the header key line", () => {
-    const source = "```tbl\na: A\nb: B|\\|\n```\n";
+    const source = "```tbl\na: A\nb: B\u00a0\n```\n";
     const [error] = errors(convert(source, { to: "gfm" }));
     expect(error).toMatchObject({ line: 3, column: 1 });
-    expect(error!.message).toStartWith('The title of column "b" has a pipe after 1 backslash');
+    expect(error!.message).toStartWith('The title of column "b" starts or ends with a space, a tab, or another character that markdown-it trims');
   });
 
   test("a fromGfm error is at the line of the cell", () => {
     const source = "- | A |\n  | - |\n  | x | y |\n";
     expect(errors(convert(source, { to: "tbl" }))).toEqual([
-      { line: 3, column: 7, message: "Row 1 has more cells than the header (1). GFM drops cell 2, so add a column for it or remove it." },
+      { line: 3, column: 9, message: "Row 1 has more cells than the header (1). GFM drops cell 2, so add a column for it or remove it." },
     ]);
   });
 });
@@ -240,6 +240,20 @@ describe("convert: the self-check", () => {
     const source = `${gfm}\n# Heading\n${gfm}\n- item\n`;
     const out = output(convert(source, { to: "tbl" }));
     expect(out).toBe(`${tbl}\n# Heading\n${tbl}\n- item\n`);
+  });
+  test("a tbl block directly before <div> converts with discourse, and fails with markdown-it, which reads <div> as a row", () => {
+    const source = `${tbl}\n<div>\n`;
+    expect(output(convert(source, { to: "gfm" }))).toBe(`${gfm}\n<div>\n`);
+    expect(output(convert(source, { to: "gfm", flavor: "discourse" }))).toBe(`${gfm}\n<div>\n`);
+    expect(errors(convert(source, { to: "gfm", flavor: "markdown-it" }))).toEqual([{ line: 1, column: 1, message: absorbed }]);
+  });
+});
+
+describe("convert: the flavor", () => {
+  test("a GFM table in an HTML block is a table only with markdown-it", () => {
+    const source = `<div>\n${gfm}\n\n</div>\n`;
+    expect(output(convert(source, { to: "tbl" }))).toBe(source);
+    expect(output(convert(source, { to: "tbl", flavor: "markdown-it" }))).toBe(`<div>\n${tbl}\n\n</div>\n`);
   });
 });
 

@@ -1,6 +1,7 @@
 // The lint of a Markdown text: each GFM table and each error of a tbl block, at its place in the file,
 // and a warning for each attribute key that the project does not know (docs/format.md, rule 15).
 import { pairOffsets } from "./attributes.ts";
+import type { Flavor } from "./flavor.ts";
 import { findTables } from "./markdown.ts";
 import { locate, parse, type TblErrorCode } from "./parse.ts";
 import { attributeLine, separatorLine } from "./syntax.ts";
@@ -26,13 +27,15 @@ export interface LintOptions {
    * `align` is always known. With no list, each key other than `align` is unknown.
    */
   attributeKeys?: string[];
+  /** The flavor whose markdown-it settings find the tables (docs/format.md, section Flavors). The default is `discourse`. */
+  flavor?: Flavor;
 }
 
 /** Lists the problems of a Markdown text, sorted by line and then by column. */
 export function lint(source: string, options: LintOptions = {}): Problem[] {
   const known = new Set(["align", ...(options.attributeKeys ?? [])]);
   const problems: Problem[] = [];
-  for (const found of findTables(source)) {
+  for (const found of findTables(source, { flavor: options.flavor })) {
     if (found.kind === "gfm") {
       problems.push({
         line: found.line,
