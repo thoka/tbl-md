@@ -51,6 +51,8 @@
     "@types/bun": "^1.4.2",
     "@types/node": "^22",
     "fast-check": "^4.10.2",
+    "markdown-it": "15.0.1",
+    "micromark": "^4.0.3",
     "typescript": "^7.0.2"
   },
   "dependencies": {
