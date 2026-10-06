@@ -36,6 +36,23 @@ describe("lint", () => {
     expect(problems[0]!.message).toContain('"z"');
   });
 
+  test("an attribute error has its file line and its column, also in a separator line and in a block quote", () => {
+    const source = "intro\n\n> ```tbl\n> a: A\n> {align=middle}\n> -- {#a.b}\n> a: 1\n> {.x}\n> more\n> ```\n";
+    expect(where(source)).toEqual([
+      [5, 10, "attr-bad-value"],
+      [6, 9, "attr-no-space"],
+      [8, 3, "attr-misplaced"],
+    ]);
+  });
+
+  test("a place error and a grammar error reach the lint with their codes", () => {
+    const source = "```tbl\na: A\n{.a}\n{.b}\n--\na: 1\n{k='v'}\n```\n";
+    expect(where(source)).toEqual([
+      [4, 1, "attr-second-line"],
+      [7, 4, "attr-single-quotes"],
+    ]);
+  });
+
   test("an empty block gives no-header at the first line inside the fence", () => {
     expect(where("text\n\n```tbl\n```\n")).toEqual([[4, 1, "no-header"]]);
   });

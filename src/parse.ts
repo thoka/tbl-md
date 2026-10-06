@@ -1,17 +1,23 @@
-// The parser of a tbl block (docs/format.md, rules 2 to 10 and 12).
+// The parser of a tbl block (docs/format.md, rules 2 to 10, 12, and 13 to 16).
 // A line ends with LF, CRLF, or CR, as in CommonMark.
 // It reads the text inside the fence. The fence and its info string are not part of the text.
-import { keyLine, separatorLine, unescapeLine } from "./syntax.ts";
+import { parseAttributes, type AttributeErrorCode, type AttributePlace, type Attributes } from "./attributes.ts";
+import { attributeLine, keyLine, separatorLine, unescapeLine } from "./syntax.ts";
 
 export interface Column {
   key: string;
   title: string;
+  /** The attributes of the column, from the attribute line after its header key line. */
+  attributes?: Attributes;
 }
 
 export interface Row {
-  id?: string;
+  /** The attributes of the row, from its `--` line. The row ID is `attributes.id`. */
+  attributes?: Attributes;
   /** Only the cells with text, by the full header key. */
   cells: Record<string, string>;
+  /** The attributes of the cells, by the full header key. A cell can have attributes and no text. */
+  cellAttributes?: Record<string, Attributes>;
 }
 
 export interface Table {
@@ -26,7 +32,8 @@ export type TblErrorCode =
   | "unknown-key"
   | "ambiguous-key"
   | "duplicate-key"
-  | "orphan-line";
+  | "orphan-line"
+  | AttributeErrorCode;
 
 export interface TblError {
   /** 1-based line in the block text. Line 1 is the first line after the opening fence. */
@@ -46,17 +53,19 @@ interface Line {
 }
 
 interface Record_ {
-  id?: string;
+  /** The attribute block of the `--` line, and its 1-based column. */
+  block?: { text: string; column: number };
   /** 1-based block line of the separator. The header record has none. */
   separator?: number;
   lines: Line[];
 }
 
+type Report = (line: number, code: TblErrorCode, message: string, column?: number) => void;
+
 /** Parses the text inside a tbl fence. It collects all errors and does not stop at the first one. */
 export function parse(text: string): ParseResult {
   const errors: TblError[] = [];
-  const error = (line: number, code: TblErrorCode, message: string) =>
-    errors.push({ line, column: 1, code, message });
+  const error: Report = (line, code, message, column = 1) => errors.push({ line, column, code, message });
 
   const records = splitRecords(text);
   const header = records[0]!;
@@ -69,7 +78,8 @@ export function parse(text: string): ParseResult {
   // With no header key, each key of a data record would be an error too, so the parser skips the data records.
   const rows = keys.length === 0 ? [] : records.slice(1).map((record) => parseRecord(record, keys, error));
 
-  if (errors.length > 0) return { ok: false, errors };
+  // Array.prototype.sort is stable, so errors on the same line keep their order.
+  if (errors.length > 0) return { ok: false, errors: errors.sort((a, b) => a.line - b.line || a.column - b.column) };
   return { ok: true, table: { columns, rows } };
 }
 
@@ -80,7 +90,7 @@ function splitRecords(text: string): Record_[] {
     const separator = separatorLine.exec(line);
     if (separator) {
       const record: Record_ = { lines: [], separator: i + 1 };
-      if (separator[2] !== undefined) record.id = separator[2];
+      if (separator[2] !== undefined) record.block = { text: separator[2], column: 3 + separator[1]!.length };
       records.push(record);
     } else {
       records[records.length - 1]!.lines.push({ text: line, number: i + 1 });
@@ -98,23 +108,65 @@ function trimEmpty(lines: Line[]): Line[] {
   return lines.slice(start, end);
 }
 
-type Report = (line: number, code: TblErrorCode, message: string) => void;
+/**
+ * Reads an attribute block at its place and reports its first error. `column` is the 1-based column of its `{`.
+ * It gives the attributes, or undefined after an error.
+ */
+function readAttributes(block: string, place: AttributePlace, line: number, column: number, error: Report): Attributes | undefined {
+  const result = parseAttributes(block, place);
+  if (result.ok) return result.attributes;
+  error(line, result.error.code, result.error.message, column + result.error.offset);
+  return undefined;
+}
+
+/** The block of a line in the attribute form, with no spaces or tabs after the `}`. */
+function blockOf(line: Line): string | undefined {
+  return attributeLine.exec(line.text)?.[1];
+}
 
 function parseHeader(lines: Line[], error: Report): Column[] {
   const columns: Column[] = [];
+  // What the previous line was: a key line (with its column, or null after an error), the attribute line of a column, or other.
+  let previous: { kind: "key"; column: Column | null } | { kind: "attributes"; key: string } | null = null;
   for (const line of lines) {
+    const block = blockOf(line);
+    if (block !== undefined) {
+      // A place error wins over a grammar error, so the parser reads a block only at a right place.
+      if (previous?.kind === "key") {
+        const attributes = readAttributes(block, "column", line.number, 1, error);
+        if (attributes !== undefined && previous.column !== null) previous.column.attributes = attributes;
+        previous = { kind: "attributes", key: previous.column?.key ?? "" };
+      } else if (previous?.kind === "attributes") {
+        error(
+          line.number,
+          "attr-second-line",
+          `The column "${previous.key}" has an attribute line already. A column has one attribute line at most, so merge the two blocks into one line.`,
+        );
+      } else {
+        error(
+          line.number,
+          "attr-misplaced",
+          "This attribute line follows no header key line, so it describes no column. Put it directly after the key line of its column, with no empty line between them.",
+        );
+      }
+      continue;
+    }
     const match = keyLine.exec(line.text);
     if (!match) {
       const what = line.text === "" ? "an empty line" : "no key line";
       error(line.number, "header-not-key", `The header has ${what} here. Each header line must have the form \`key: Title\`.`);
+      previous = null;
       continue;
     }
     const key = match[1]!;
     if (columns.some((c) => c.key === key)) {
       error(line.number, "header-duplicate-key", `The header has the key "${key}" two times.`);
+      previous = { kind: "key", column: null };
       continue;
     }
-    columns.push({ key, title: keyText(line.text, key) });
+    const column: Column = { key, title: keyText(line.text, key) };
+    columns.push(column);
+    previous = { kind: "key", column };
   }
   return columns;
 }
@@ -133,29 +185,38 @@ function resolve(key: string, keys: string[]): { key: string } | { candidates: s
   return { candidates };
 }
 
+/** The lines of one cell: its key line and the lines after it. `key` is null after an error of the key line. */
+interface Cell {
+  key: string | null;
+  first: string;
+  lines: Line[];
+}
+
 function parseRecord(record: Record_, keys: string[], error: Report): Row {
   const cells: Record<string, string> = {};
+  const cellAttributes: Record<string, Attributes> = {};
   const row: Row = { cells };
-  if (record.id !== undefined) row.id = record.id;
+  if (record.block !== undefined) {
+    const attributes = readAttributes(record.block.text, "row", record.separator!, record.block.column, error);
+    if (attributes !== undefined) row.attributes = attributes;
+  }
 
-  // The lines of the current cell. Null before the first key line, and after a key line with an error.
-  let current: Line[] | null = null;
-  let currentKey = "";
-  let started = false;
+  let current: Cell | null = null;
+  const seen = new Set<string>();
   const finish = () => {
     if (current === null) return;
-    // A cell drops its trailing empty lines (rule 7), and an empty cell counts as missing (rule 8).
-    const text = trimTrailingEmpty(current).map((l) => l.text).join("\n");
-    if (text !== "") cells[currentKey] = text;
+    const { text, attributes } = finishCell(current, error);
+    if (current.key === null) return;
+    // An empty cell counts as missing (rule 8).
+    if (text !== "") cells[current.key] = text;
+    if (attributes !== undefined) cellAttributes[current.key] = attributes;
   };
-  const seen = new Set<string>();
 
   for (const line of record.lines) {
     const match = keyLine.exec(line.text);
     if (match) {
       finish();
-      current = null;
-      started = true;
+      current = { key: null, first: keyText(line.text, match[1]!), lines: [] };
       const resolved = resolve(match[1]!, keys);
       if ("candidates" in resolved) {
         if (resolved.candidates.length === 0) {
@@ -170,26 +231,66 @@ function parseRecord(record: Record_, keys: string[], error: Report): Row {
         continue;
       }
       seen.add(resolved.key);
-      currentKey = resolved.key;
-      current = [{ text: keyText(line.text, match[1]!), number: line.number }];
+      current.key = resolved.key;
       continue;
     }
-    if (!started) {
-      if (line.text !== "") {
+    if (current === null) {
+      if (blockOf(line) !== undefined) {
+        error(
+          line.number,
+          "attr-misplaced",
+          "This attribute line comes before the first key of the record, so it describes nothing. Write the attributes of the row on its `--` line, for example `-- {.new}`.",
+        );
+      } else if (line.text !== "") {
         error(line.number, "orphan-line", "This line comes before the first key of the record, so it belongs to no cell.");
       }
       continue;
     }
-    current?.push({ text: unescapeLine(line.text), number: line.number });
+    current.lines.push(line);
   }
   finish();
+  if (Object.keys(cellAttributes).length > 0) row.cellAttributes = cellAttributes;
   return row;
 }
 
-function trimTrailingEmpty(lines: Line[]): Line[] {
-  let end = lines.length;
-  while (end > 0 && lines[end - 1]!.text === "") end--;
-  return lines.slice(0, end);
+/**
+ * Reads the lines of a cell (rule 13). The first attribute line that only empty lines and attribute lines follow describes the cell.
+ * An earlier attribute line is in the middle of the cell, and a later one is a second attribute line.
+ * The text ends at the last text line, so the empty lines before the attribute line are not content (rule 7).
+ */
+function finishCell(cell: Cell, error: Report): { text: string; attributes?: Attributes } {
+  const isText = (line: Line) => line.text !== "" && blockOf(line) === undefined;
+  let last = -1;
+  cell.lines.forEach((line, i) => {
+    if (isText(line)) last = i;
+  });
+  let attributes: Attributes | undefined;
+  let described = false;
+  const name = cell.key === null ? "This cell" : `The cell "${cell.key}"`;
+  cell.lines.forEach((line, i) => {
+    const block = blockOf(line);
+    if (block === undefined) return;
+    if (i < last) {
+      error(
+        line.number,
+        "attr-misplaced",
+        `This attribute line is in the middle of a cell. The attribute line of a cell must be its last line. If the line is text, add a backslash: \\${block}.`,
+      );
+    } else if (described) {
+      error(
+        line.number,
+        "attr-second-line",
+        `${name} has an attribute line already. A cell has one attribute line at most, so merge the two blocks into one line.`,
+      );
+    } else {
+      described = true;
+      attributes = readAttributes(block, "cell", line.number, 1, error);
+    }
+  });
+  const lines = [cell.first, ...cell.lines.slice(0, last + 1).map((l) => unescapeLine(l.text))];
+  while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  const text = lines.join("\n");
+  return attributes === undefined ? { text } : { text, attributes };
 }
 
 /** The block lines of the key lines of a valid tbl block. All lines are 1-based block lines, as in `TblError`. */
@@ -211,7 +312,11 @@ export function locate(text: string): TblLocation | null {
   const keys = parsed.table.columns.map((c) => c.key);
   const [header, ...data] = splitRecords(text);
   const headerLines: Record<string, number> = {};
-  for (const line of header!.lines) headerLines[keyLine.exec(line.text)![1]!] = line.number;
+  for (const line of header!.lines) {
+    // The attribute lines of the columns are no key lines.
+    const match = keyLine.exec(line.text);
+    if (match) headerLines[match[1]!] = line.number;
+  }
   const rows = data.map((record) => {
     const cells: Record<string, number> = {};
     for (const line of record.lines) {

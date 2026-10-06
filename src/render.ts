@@ -1,10 +1,10 @@
 // The renderer of a tbl block (docs/format.md, section Canonical form).
 // It writes the canonical form, so that parse(render(table)) gives the table back.
+import { renderAttributes, validateAttributes } from "./attributes.ts";
 import type { Table } from "./parse.ts";
 import { escapeLine } from "./syntax.ts";
 
 const keyForm = /^[a-z0-9_-]+$/;
-const idForm = /^[A-Za-z0-9_-]+$/;
 /** A line that CommonMark reads as a closing backtick fence. */
 const closingFence = /^ {0,3}(`{3,})[ \t]*$/;
 
@@ -26,12 +26,11 @@ export function validate(table: Table): string[] {
     if (/[\r\n]/.test(column.title)) {
       problems.push(`${where} (key "${column.key}") has a title with a line break. A title has one line and no CR.`);
     }
+    if (column.attributes !== undefined) problems.push(...validateAttributes(column.attributes, "column", `${where} (key "${column.key}")`));
   });
   table.rows.forEach((row, i) => {
     const where = `Row ${i + 1}`;
-    if (row.id !== undefined && !idForm.test(row.id)) {
-      problems.push(`${where} has the ID "${row.id}". An ID must have the form [A-Za-z0-9_-]+.`);
-    }
+    if (row.attributes !== undefined) problems.push(...validateAttributes(row.attributes, "row", where));
     for (const [key, text] of Object.entries(row.cells)) {
       if (!keys.has(key)) {
         problems.push(`${where} has a cell with the key "${key}", but no column has this key.`);
@@ -43,6 +42,13 @@ export function validate(table: Table): string[] {
         problems.push(`${where} has a cell "${key}" with a CR character. A CR is a line end, so a cell holds no CR.`);
       }
     }
+    for (const [key, attributes] of Object.entries(row.cellAttributes ?? {})) {
+      if (!keys.has(key)) {
+        problems.push(`${where} has attributes for a cell with the key "${key}", but no column has this key.`);
+        continue;
+      }
+      problems.push(...validateAttributes(attributes, "cell", `${where}, cell "${key}"`));
+    }
   });
   return problems;
 }
@@ -52,14 +58,20 @@ export function render(table: Table): string {
   const problems = validate(table);
   if (problems.length > 0) throw new Error(problems[0]);
   const lines: string[] = [];
-  for (const column of table.columns) lines.push(keyLine(column.key, column.title));
+  for (const column of table.columns) {
+    lines.push(keyLine(column.key, column.title));
+    if (column.attributes !== undefined) lines.push(renderAttributes(column.attributes));
+  }
   for (const row of table.rows) {
-    lines.push(row.id === undefined ? "--" : `-- {#${row.id}}`);
+    lines.push(row.attributes === undefined ? "--" : `-- ${renderAttributes(row.attributes)}`);
     for (const { key } of table.columns) {
-      const text = row.cells[key];
-      if (text === undefined || text === "") continue;
+      const text = row.cells[key] ?? "";
+      const attributes = row.cellAttributes?.[key];
+      if (text === "" && attributes === undefined) continue;
       const [first, ...rest] = text.split("\n");
       lines.push(keyLine(key, first!), ...rest.map(escapeLine));
+      // The attribute line of a cell is its last line. A cell with attributes and no text has the key line `key:`.
+      if (attributes !== undefined) lines.push(renderAttributes(attributes));
     }
   }
   return lines.join("\n");

@@ -270,3 +270,34 @@ describe("convert: round trips", () => {
     expect(output(convert(there, { to: "tbl" }))).toBe(canonical);
   });
 });
+
+// Until step 13 maps the attributes to GFM, toGfm keeps only the row ID. The self-check compares all attributes,
+// so a conversion to GFM of a table with other attributes fails at the read-back check and changes nothing.
+describe("convert: attributes before step 13", () => {
+  const readBack = "The new table does not read back as the same table. Add an empty line before and after this table.";
+
+  for (const [name, block] of [
+    ["a column attribute", "```tbl\na: A\n{align=right}\n--\na: x\n```"],
+    ["a class of a row", "```tbl\na: A\n-- {#r1 .new}\na: x\n```"],
+    ["an attribute of a cell", "```tbl\na: A\n--\na: x\n{.c}\n```"],
+  ] as const) {
+    test(`${name} fails the conversion to GFM at the first line of the table`, () => {
+      const source = `Intro\n\n${block}\n`;
+      expect(errors(convert(source, { to: "gfm" }))).toEqual([{ line: 3, column: 1, message: readBack }]);
+    });
+  }
+
+  test("a row ID alone converts, as in 0.1", () => {
+    expect(output(convert("```tbl\na: A\n-- {#r1}\na: x\n```\n", { to: "gfm" }))).toBe("| A |\n| --- |\n| x {#r1} |\n");
+  });
+
+  test("an attribute error is at its line and column in the file", () => {
+    expect(errors(convert("- ```tbl\n  a: A\n  -- {.x !}\n  ```\n", { to: "gfm" }))).toEqual([
+      {
+        line: 3,
+        column: 10,
+        message: 'The attribute block has the unexpected character "!". A part is an ID (#id), a class (.class), or a pair (key=value).',
+      },
+    ]);
+  });
+});

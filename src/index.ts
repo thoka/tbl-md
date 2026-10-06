@@ -12,6 +12,8 @@ export type {
   Pair,
 } from "./attributes.ts";
 export {
+  attributeLine,
+  escapedAttributeLine,
   escapedKeyLine,
   escapedSeparatorLine,
   escapeLine,

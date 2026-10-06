@@ -134,7 +134,8 @@ function escapePipes(text: string): string {
 
 /** The ID marker goes to the end of the first cell. With no ID, a text that ends with the marker form gets one backslash more. */
 function firstCell(cell: string, r: Row): string {
-  if (r.id !== undefined) return cell === "" ? `{#${r.id}}` : `${cell} {#${r.id}}`;
+  const id = r.attributes?.id;
+  if (id !== undefined) return cell === "" ? `{#${id}}` : `${cell} {#${id}}`;
   return cell.replace(markerForm, "$1\\$2$3");
 }
 
@@ -172,7 +173,7 @@ export function fromGfm(source: string, found: FoundGfm): FromGfmResult {
       if (c === 0) {
         const id = marker.exec(text);
         if (id) {
-          r.id = id[2]!;
+          r.attributes = { id: id[2]!, classes: [], pairs: [] };
           text = text.slice(0, id.index);
           if (/[ \t]$/.test(text)) {
             errors.push({
