@@ -6,6 +6,7 @@ import { engineOf, type FenceMeta, type TableMeta } from "./engine.ts";
 import { DEFAULT_FLAVOR, type Flavor } from "./flavor.ts";
 import { linkPipes } from "./discourse.ts";
 import { escapedSplit } from "./split.ts";
+import { splitInfo } from "./info.ts";
 
 export { escapedSplit };
 
@@ -130,13 +131,6 @@ export function findTables(source: string, options: FindOptions = {}): Found[] {
     }
   }
   return found;
-}
-
-/** The language and the meta of an info string, as the fence renderer of markdown-it splits it: the first word, then the rest. */
-function splitInfo(info: string): [string, string | null] {
-  const trimmed = info.trim();
-  const match = /^(\S*)\s*([\s\S]*)$/.exec(trimmed)!;
-  return [match[1]!, match[2] === "" ? null : match[2]!];
 }
 
 function alignOf(style: string): GfmAlign {
