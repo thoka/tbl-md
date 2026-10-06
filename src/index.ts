@@ -25,7 +25,9 @@ export {
 export { findTables } from "./markdown.ts";
 export type { Found, FoundGfm, FoundTbl } from "./markdown.ts";
 export { lint } from "./lint.ts";
-export type { Problem, ProblemCode } from "./lint.ts";
+export type { LintOptions, Problem, ProblemCode, Severity } from "./lint.ts";
+export { CONFIG_FILE, findConfig, parseConfig, readConfig } from "./config.ts";
+export type { Config, ConfigError, ConfigResult } from "./config.ts";
 export { fromGfm, keysFromTitles, toGfm } from "./gfm.ts";
 export type { ConvertError, FromGfmResult, GfmError, ToGfmOptions, ToGfmResult } from "./gfm.ts";
 export { convert } from "./convert.ts";
