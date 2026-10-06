@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1](https://github.com/thoka/tbl-md/compare/v0.1.0...v0.1.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* drop an excess GFM cell with no text in the conversion to tbl ([716e1b9](https://github.com/thoka/tbl-md/commit/716e1b935b978d6e0a98bdf9e200ad298cb9ad89))
+* read the expected CLI version from package.json in the package test ([1a7b9c3](https://github.com/thoka/tbl-md/commit/1a7b9c39892a88e6d9f288b83e66041ed85b4177))
+* remove the last pipe of a GFM row with spaces or tabs after it ([7e4d148](https://github.com/thoka/tbl-md/commit/7e4d148dc74f30fff75cd17cd3682a860a633520))
+
 ## 0.1.0 (2026-10-05)
 
 
