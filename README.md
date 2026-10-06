@@ -36,12 +36,14 @@ The switch is reversible. `tbl-md convert --to gfm` converts each `tbl` block ba
 - Each other line continues the cell above, so a cell can have many lines, also empty lines in the middle.
 - Cell text is inline Markdown, as in a GFM cell. A pipe needs no escape.
 - If a text line looks like a key line or like `--`, add one backslash: `hint\: text` is the text `hint: text`, and `\--` is the text `--`.
+- From version 0.2.0, attributes describe a column, a row, or a cell. Write the attribute block on its own line after the thing that it describes: `{align=right}` directly after a header key line for the column, `{.cheap}` as the last line of a cell for the cell, and `-- {#a1 .new}` on the `--` line for the row. The syntax is the attribute block of Pandoc and djot: `#id`, `.class`, and `key=value`. Put a value in double quotes if it has a character other than letters, digits, `_`, `:`, and `-`: `{note="a b"}`. `align` with `left`, `center`, or `right` is the GFM column alignment.
+- A line that starts with `{` and ends with `}` is always an attribute line, and an attribute line at a wrong place is an error. If such a line is text, add one backslash: `\{.x}` is the text `{.x}`.
 
 `tbl-md lint` names the line of each error. `docs/format.md` has the full rules.
 
 ## Next: version 0.2.0
 
-Version 0.2.0 adds attributes. An attribute follows the thing that it describes: a line `{align=right}` directly after a header key line describes the column, the same line directly after the last line of a cell describes the cell, and the `--` line of a row takes the attributes of the row, for example `-- {#a1 .highlight}`. The syntax is the attribute block of Pandoc and djot. `align` maps to the GFM column alignment. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
+Version 0.2.0 adds attributes (section How to write a table). `docs/format.md` has their rules since step 11, and the code follows in steps 12 and 13. A conversion to GFM keeps `align` and the row ID, and fails for each other attribute unless you give `--drop-attributes`. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
 
 A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cell options of Quarto.
 
