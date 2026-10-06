@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0](https://github.com/thoka/tbl-md/compare/v0.2.0...v0.3.0) (2026-10-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* markdown-it as the only parser, with the option flavor (step 18a)
+* the pipe rule and the trim of format 0.3.0 in fromGfm and toGfm
+* findTables reads Markdown with markdown-it
+
+### Features
+
+* findTables reads Markdown with markdown-it ([3ab4543](https://github.com/thoka/tbl-md/commit/3ab4543fe2d2b3eaec5cc88136a5b74ea5ab76f1))
+* markdown-it as the only parser, with the option flavor (step 18a) ([6cff714](https://github.com/thoka/tbl-md/commit/6cff71419f7cbb99db03217998e37bf610d5bb11))
+* mise run corpus-markdown-it compares markdown-it and micromark on the corpus ([012062c](https://github.com/thoka/tbl-md/commit/012062cb373372ed960a38d34cdc9abe6442d39c))
+* the CLI flag --flavor and the configuration key flavor (step 18d) ([eeea94f](https://github.com/thoka/tbl-md/commit/eeea94fe1e28028b1fd4aa4b1b4fc6a641165bcb))
+* the CLI flag --flavor and the configuration key flavor, and the README for 0.3.0 (step 18d) ([33977a6](https://github.com/thoka/tbl-md/commit/33977a63fe814058760e51bc772457d9c85fa014))
+* the flavors discourse and markdown-it and their markdown-it engines ([6301de9](https://github.com/thoka/tbl-md/commit/6301de92c908a79fb1fdf8e176583209cc958ba1))
+* the HTML check after each conversion, and the URL decode characters of Discourse (step 18c) ([fb83e73](https://github.com/thoka/tbl-md/commit/fb83e7342b774e19baf1ded5110f07eaf5d26298))
+* the link pipe rule of the flavor discourse (step 18b) ([7612970](https://github.com/thoka/tbl-md/commit/76129703ea7b04f0a68bca6d4a7d2384ec403382))
+* the markdown-it plugin (step 19) ([d6203cb](https://github.com/thoka/tbl-md/commit/d6203cbae2de27be1e5c845cf689757d240184fe))
+* the markdown-it plugin tbl-md/markdown-it and its single-file bundle (step 19) ([8a93ed3](https://github.com/thoka/tbl-md/commit/8a93ed3574ff07e18508e2663a0fb540c1f5899e))
+* the option flavor of lint and convert ([5fcf7ec](https://github.com/thoka/tbl-md/commit/5fcf7ec825b4d1dd524c487665bc8d4956823675))
+* the pipe rule and the trim of format 0.3.0 in fromGfm and toGfm ([8992fb3](https://github.com/thoka/tbl-md/commit/8992fb31736ca6e97a0529617cd7ff6fc21e9f61))
+
 ## [0.2.0](https://github.com/thoka/tbl-md/compare/v0.1.1...v0.2.0) (2026-10-06)
 
 
