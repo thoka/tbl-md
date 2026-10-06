@@ -9,6 +9,8 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "..");
 const TSC = join(ROOT, "node_modules", ".bin", "tsc");
+/** The version of the package. release-please changes it with each release, so no test hardcodes it. */
+const VERSION: string = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version;
 
 /** The runtimes that run the installed package. Each entry is the command prefix of `mise exec`. */
 const NODES = ["node@24.20.0", "node@22"];
@@ -106,7 +108,7 @@ for (const node of NODES) {
       const version = exec(["node", "--version"], consumer);
       expect(version.stdout).toStartWith(`v${node.split("@")[1]}`);
       const result = exec([bin, "--version"], consumer);
-      expect(result).toEqual({ status: 0, stdout: "0.0.0\n", stderr: "" });
+      expect(result).toEqual({ status: 0, stdout: `${VERSION}\n`, stderr: "" });
     });
 
     test("lint fails on a GFM table with its message, and convert converts it", () => {
