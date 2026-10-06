@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "tbl-md configuration",
-  "description": "The configuration file .tbl-md.json of the lint of tbl-md.",
+  "description": "The configuration file .tbl-md.json of tbl-md, for lint and convert.",
   "type": "object",
   "properties": {
     "$schema": {
@@ -15,6 +15,14 @@
         "type": "string",
         "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
       }
+    },
+    "flavor": {
+      "description": "The target renderer of GFM, for tbl-md lint and tbl-md convert. The flag --flavor overrides it. The default is discourse.",
+      "type": "string",
+      "enum": [
+        "discourse",
+        "markdown-it"
+      ]
     }
   },
   "additionalProperties": false

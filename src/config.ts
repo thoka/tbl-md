@@ -2,6 +2,7 @@
 // Only `node:` modules, so that it runs on Node and on Bun.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { FLAVORS, type Flavor } from "./flavor.ts";
 
 /** The name of the configuration file. */
 export const CONFIG_FILE = ".tbl-md.json";
@@ -10,6 +11,8 @@ export const CONFIG_FILE = ".tbl-md.json";
 export interface Config {
   /** The attribute keys of the project, in the key form of rule 14. An empty list if the file has no `attributeKeys`. */
   attributeKeys: string[];
+  /** The flavor of the project (docs/format.md, section Flavors). Absent if the file has no `flavor`. */
+  flavor?: Flavor;
 }
 
 /** A problem of a configuration file. `line` is set only where `JSON.parse` gives the position of a syntax error. */
@@ -57,8 +60,9 @@ export function readConfig(file: string): ConfigResult {
 
 /**
  * Checks the text of a configuration file. `file` names the file in the error.
- * The file is one JSON object with the keys `$schema` (a string, which the loader ignores) and `attributeKeys`
- * (a list of keys). Each other key, a value of a wrong type, a key with a bad form, and invalid JSON are errors.
+ * The file is one JSON object with the keys `$schema` (a string, which the loader ignores), `attributeKeys`
+ * (a list of keys), and `flavor` (one of FLAVORS). Each other key, a value of a wrong type, a key with a bad form,
+ * an unknown flavor, and invalid JSON are errors.
  */
 export function parseConfig(text: string, file: string): ConfigResult {
   const fail = (message: string, line?: number): ConfigResult => ({
@@ -78,14 +82,23 @@ export function parseConfig(text: string, file: string): ConfigResult {
   }
   const object = data as Record<string, unknown>;
   for (const key of Object.keys(object)) {
-    if (key !== "$schema" && key !== "attributeKeys") {
-      return fail(`The key "${key}" is unknown. The file can have only the keys "$schema" and "attributeKeys".`);
+    if (key !== "$schema" && key !== "attributeKeys" && key !== "flavor") {
+      return fail(`The key "${key}" is unknown. The file can have only the keys "$schema", "attributeKeys", and "flavor".`);
     }
   }
   if ("$schema" in object && typeof object.$schema !== "string") {
     return fail('The value of "$schema" must be a string, the URL of the JSON Schema of the file.');
   }
-  if (!("attributeKeys" in object)) return { ok: true, config: { attributeKeys: [] } };
+  const config: Config = { attributeKeys: [] };
+  if ("flavor" in object) {
+    const flavor = object.flavor;
+    if (typeof flavor !== "string" || !(FLAVORS as readonly string[]).includes(flavor)) {
+      const shown = typeof flavor === "string" ? `"${flavor}"` : JSON.stringify(flavor);
+      return fail(`The value ${shown} of "flavor" is not a flavor. Give one of ${FLAVORS.map((f) => `"${f}"`).join(", ")}.`);
+    }
+    config.flavor = flavor as Flavor;
+  }
+  if (!("attributeKeys" in object)) return { ok: true, config };
   const keys = object.attributeKeys;
   if (!Array.isArray(keys)) {
     return fail('The value of "attributeKeys" must be a list of keys, for example ["status", "owner"].');
@@ -96,7 +109,8 @@ export function parseConfig(text: string, file: string): ConfigResult {
       return fail(`attributeKeys[${i}] "${key}" is not a key. A key starts with a letter, then letters, digits, "_", and "-".`);
     }
   }
-  return { ok: true, config: { attributeKeys: keys as string[] } };
+  config.attributeKeys = keys as string[];
+  return { ok: true, config };
 }
 
 /**

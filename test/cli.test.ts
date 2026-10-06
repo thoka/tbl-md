@@ -299,6 +299,88 @@ describe("convert", () => {
   });
 });
 
+// A pipe table directly inside an HTML block. The flavor discourse has HTML on, so the lines are HTML and hold no table.
+// The flavor markdown-it has HTML off, so the lines are text: the table starts at line 2, and `</div>` is its last row.
+const HTML_TABLE = "<div>\n| A |\n| --- |\n| x |\n</div>\n";
+const HTML_TABLE_AS_TBL = "<div>\n```tbl\na: A\n--\na: x\n--\na: </div>\n```\n";
+const HTML_TABLE_ERROR = "2:1: This is a GFM pipe table. Write it as a tbl block, for example with `tbl-md convert`. (gfm-table)";
+
+describe("flavor", () => {
+  test("lint uses the flavor discourse by default, and --flavor markdown-it changes the tables it finds", async () => {
+    const dir = repo({ "a.md": HTML_TABLE });
+    const a = join(dir, "a.md");
+    expect(await cli(["lint", a])).toEqual({ code: 0, out: "", err: "" });
+    expect(await cli(["lint", "--flavor", "discourse", a])).toEqual({ code: 0, out: "", err: "" });
+    expect(await cli(["lint", "--flavor", "markdown-it", a])).toEqual({ code: 1, out: `${a}:${HTML_TABLE_ERROR}\n1 error and 0 warnings.\n`, err: "" });
+  });
+
+  test("convert uses the flavor discourse by default, and --flavor=markdown-it converts the table", async () => {
+    const dir = repo({ "a.md": HTML_TABLE });
+    const a = join(dir, "a.md");
+    expect(await cli(["convert", a])).toEqual({ code: 0, out: "", err: "" });
+    expect(readFileSync(a, "utf8")).toBe(HTML_TABLE);
+    expect(await cli(["convert", "--flavor=markdown-it", a])).toEqual({ code: 0, out: `${a}: converted 1 table\n`, err: "" });
+    expect(readFileSync(a, "utf8")).toBe(HTML_TABLE_AS_TBL);
+  });
+
+  test("the flavor of .tbl-md.json applies to lint and convert, for each file by its nearest configuration", async () => {
+    const dir = repo({ "a.md": HTML_TABLE, "sub/b.md": HTML_TABLE, "sub/.tbl-md.json": '{"flavor": "markdown-it"}' });
+    const [a, b] = [join(dir, "a.md"), join(dir, "sub/b.md")];
+    expect(await cli(["lint", a, b])).toEqual({ code: 1, out: `${b}:${HTML_TABLE_ERROR}\n1 error and 0 warnings.\n`, err: "" });
+    expect(await cli(["convert", a, b])).toEqual({ code: 0, out: `${b}: converted 1 table\n`, err: "" });
+    expect(readFileSync(a, "utf8")).toBe(HTML_TABLE);
+    expect(readFileSync(b, "utf8")).toBe(HTML_TABLE_AS_TBL);
+  });
+
+  test("--flavor wins over the flavor of .tbl-md.json, and lint still uses the attribute keys of the file", async () => {
+    const dir = repo({ "a.md": HTML_TABLE + "\n" + KEYS_TBL, ".tbl-md.json": '{"flavor": "markdown-it", "attributeKeys": ["status", "owner"]}' });
+    const a = join(dir, "a.md");
+    expect((await cli(["lint", a])).out).toBe(`${a}:${HTML_TABLE_ERROR}\n1 error and 0 warnings.\n`);
+    expect(await cli(["lint", "--flavor", "discourse", a])).toEqual({ code: 0, out: "", err: "" });
+    expect(await cli(["convert", "--flavor", "discourse", a])).toEqual({ code: 0, out: "", err: "" });
+    expect(readFileSync(a, "utf8")).toBe(HTML_TABLE + "\n" + KEYS_TBL);
+  });
+
+  test("convert --config uses the flavor of that file and does not search for .tbl-md.json", async () => {
+    const dir = repo({ "a.md": HTML_TABLE, ".tbl-md.json": '{"flavor": "discourse"}', "other.json": '{"flavor": "markdown-it"}' });
+    const a = join(dir, "a.md");
+    expect(await cli(["convert", "--config", join(dir, "other.json"), a])).toEqual({ code: 0, out: `${a}: converted 1 table\n`, err: "" });
+    expect(readFileSync(a, "utf8")).toBe(HTML_TABLE_AS_TBL);
+  });
+
+  test("convert with stdin reads the configuration of the current folder", () => {
+    const dir = repo({ ".tbl-md.json": '{"flavor": "markdown-it"}' });
+    const result = spawnSync(process.execPath, [join(root, "src/cli.ts"), "convert", "-"], { cwd: dir, encoding: "utf8", input: HTML_TABLE });
+    expect([result.status, result.stdout, result.stderr]).toEqual([0, HTML_TABLE_AS_TBL, "-: converted 1 table\n"]);
+  });
+
+  test.each([
+    ["a broken .tbl-md.json", ["convert"], '{"flavor": "gitlab"}', /^tbl-md: .*\/sub\/\.tbl-md\.json: The value "gitlab" of "flavor" is not a flavor\. Give one of "discourse", "markdown-it"\.\n$/],
+    ["a broken .tbl-md.json also with --flavor", ["convert", "--flavor", "markdown-it"], "{", /^tbl-md: .*\/sub\/\.tbl-md\.json(:1)?: The file is not valid JSON: /],
+  ])("%s stops convert with exit code 2 before any file changes", async (_, args, text, message) => {
+    const dir = repo({ "a.md": GFM, "sub/b.md": GFM, "sub/.tbl-md.json": text });
+    const run = await cli([...args, join(dir, "a.md"), join(dir, "sub/b.md")]);
+    expect(run.code).toBe(2);
+    expect(run.out).toBe("");
+    expect(run.err).toMatch(message);
+    expect(readFileSync(join(dir, "a.md"), "utf8")).toBe(GFM);
+    expect(readFileSync(join(dir, "sub/b.md"), "utf8")).toBe(GFM);
+  });
+
+  test("a convert --config file that does not exist is a configuration error, and no file changes", async () => {
+    const dir = repo({ "a.md": GFM });
+    const run = await cli(["convert", "--config", join(dir, "missing.json"), join(dir, "a.md")]);
+    expect(run).toEqual({ code: 2, out: "", err: `tbl-md: ${dir}/missing.json: Cannot read the configuration file: no such file.\n` });
+    expect(readFileSync(join(dir, "a.md"), "utf8")).toBe(GFM);
+  });
+
+  test("a bad flavor in .tbl-md.json stops lint with exit code 2", async () => {
+    const dir = repo({ "a.md": PLAIN, ".tbl-md.json": '{"flavor": 1}' });
+    const run = await cli(["lint", join(dir, "a.md")]);
+    expect(run).toEqual({ code: 2, out: "", err: `tbl-md: ${dir}/.tbl-md.json: The value 1 of "flavor" is not a flavor. Give one of "discourse", "markdown-it".\n` });
+  });
+});
+
 describe("help and version", () => {
   test.each(["--help", "-h", "lint --help"])("%s prints the usage to stdout and exits 0", async (args) => {
     expect(await cli(args.split(" "))).toEqual({ code: 0, out: `${USAGE}\n`, err: "" });
@@ -322,7 +404,9 @@ describe("usage errors exit 2 with one line on stderr", () => {
     ["no files for convert", ["convert", "--to", "gfm"], /No files/],
     ["- two times", ["lint", "-", "-"], /- can come only once/],
     ["--drop-attributes for lint", ["lint", "--drop-attributes", "a.md"], /--drop-attributes is only for convert --to gfm/],
-    ["--config for convert", ["convert", "--config", "c.json", "a.md"], /--config is only for lint/],
+    ["a bad --flavor for lint", ["lint", "--flavor", "gitlab", "a.md"], /Bad value "gitlab" for --flavor\. Give discourse or markdown-it\./],
+    ["a bad --flavor for convert", ["convert", "--flavor=Discourse", "a.md"], /Bad value "Discourse" for --flavor\. Give discourse or markdown-it\./],
+    ["--flavor with no value", ["lint", "--flavor"], /--flavor/],
     ["--max-warnings for convert", ["convert", "--max-warnings", "0", "a.md"], /--max-warnings is only for lint/],
     ["a bad value of --max-warnings", ["lint", "--max-warnings", "x", "a.md"], /Bad value "x" for --max-warnings/],
     ["a fraction for --max-warnings", ["lint", "--max-warnings", "1.5", "a.md"], /Bad value "1.5" for --max-warnings/],

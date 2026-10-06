@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The command line of tbl-md: `tbl-md lint [--config <file>] [--max-warnings <n>] <files...>`
-// and `tbl-md convert [--to tbl|gfm] [--drop-attributes] <files...>`.
+// The command line of tbl-md: `tbl-md lint [--flavor <flavor>] [--config <file>] [--max-warnings <n>] <files...>`
+// and `tbl-md convert [--to tbl|gfm] [--drop-attributes] [--flavor <flavor>] [--config <file>] <files...>`.
 // It uses only `node:` modules and the library, so that it runs on Node and on Bun.
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { convert, type ConvertOptions } from "./convert.ts";
 import { CONFIG_FILE, findConfig, readConfig, type Config, type ConfigError } from "./config.ts";
+import { DEFAULT_FLAVOR, FLAVORS, type Flavor } from "./flavor.ts";
 import { lint } from "./lint.ts";
 
 export const USAGE = `Usage: tbl-md <command> [options] <files...>
@@ -26,7 +27,10 @@ Options:
   --version          Print the version.
   --drop-attributes  Only with convert --to gfm. Drop each attribute that GFM cannot hold,
                      with no error. The align of the columns and the IDs of the rows stay.
-  --config <file>    Only with lint. Use this configuration file, and do not search for .tbl-md.json.
+  --flavor <flavor>  The target renderer of GFM: discourse or markdown-it. It overrides the flavor
+                     of .tbl-md.json. The default is discourse.
+  --config <file>    Use this configuration file, and do not search for .tbl-md.json.
+                     convert uses only its flavor.
   --max-warnings <n> Only with lint. Fail if there are more than n warnings. No limit by default.
 
 Exit codes: 0 no error, and not more warnings than --max-warnings. 1 an error in a file, or more
@@ -90,6 +94,7 @@ async function run(argv: string[], io: Io): Promise<number> {
         to: { type: "string" },
         "drop-attributes": { type: "boolean" },
         config: { type: "string" },
+        flavor: { type: "string" },
         "max-warnings": { type: "string" },
       },
     });
@@ -116,7 +121,7 @@ async function run(argv: string[], io: Io): Promise<number> {
   if (dropAttributes && (command === "lint" || to === "tbl")) {
     throw new UsageError("The option --drop-attributes is only for convert --to gfm.");
   }
-  if (command === "convert" && values.config !== undefined) throw new UsageError("The option --config is only for lint.");
+  const flavor = values.flavor === undefined ? undefined : flavorOf(values.flavor);
   if (command === "convert" && values["max-warnings"] !== undefined) throw new UsageError("The option --max-warnings is only for lint.");
   const maxWarnings = values["max-warnings"] === undefined ? undefined : count(values["max-warnings"]);
   if (files.length === 0) throw new UsageError(`No files. Give one or more Markdown files after ${command}.`);
@@ -126,16 +131,25 @@ async function run(argv: string[], io: Io): Promise<number> {
   const inputs: Input[] = [];
   for (const name of files) inputs.push(await read(name, io));
 
-  if (command === "convert") return runConvert(inputs, { to, dropAttributes }, io);
-  // Read the configuration of all inputs first, so that an error in a configuration file stops the run before any output.
+  // Read the configuration of all inputs first, so that an error in a configuration file stops the run before any output
+  // and before any file changes. This also happens with --flavor: lint needs the attribute keys, and convert behaves the same.
   const configs = configurations(inputs, values.config);
-  return runLint(inputs, configs, maxWarnings, io);
+  // --flavor wins over the flavor of the configuration, and that wins over the default.
+  const flavors = configs.map(({ config }) => flavor ?? config.flavor ?? DEFAULT_FLAVOR);
+  if (command === "convert") return runConvert(inputs, flavors, { to, dropAttributes }, io);
+  return runLint(inputs, configs, flavors, maxWarnings, io);
 }
 
 /** The value of --max-warnings: a whole number, 0 or more. */
 function count(value: string): number {
   if (!/^\d+$/.test(value)) throw new UsageError(`Bad value "${value}" for --max-warnings. Give a whole number, 0 or more.`);
   return Number(value);
+}
+
+/** The value of --flavor: one of FLAVORS. */
+function flavorOf(value: string): Flavor {
+  if (!(FLAVORS as readonly string[]).includes(value)) throw new UsageError(`Bad value "${value}" for --flavor. Give ${FLAVORS.join(" or ")}.`);
+  return value as Flavor;
 }
 
 /** The configuration of one input: the file that gives it (null if none), and its content. */
@@ -180,12 +194,12 @@ function show(file: string): string {
   return path === "" || path.startsWith("..") || isAbsolute(path) ? file : path;
 }
 
-function runLint(inputs: Input[], configs: Configured[], maxWarnings: number | undefined, io: Io): number {
+function runLint(inputs: Input[], configs: Configured[], flavors: Flavor[], maxWarnings: number | undefined, io: Io): number {
   let errors = 0;
   let warnings = 0;
   inputs.forEach((input, i) => {
     const { file, config } = configs[i]!;
-    for (const p of lint(input.text, config)) {
+    for (const p of lint(input.text, { attributeKeys: config.attributeKeys, flavor: flavors[i]! })) {
       if (p.severity === "error") {
         errors++;
         io.stdout(`${input.name}:${p.line}:${p.column}: ${p.message} (${p.code})\n`);
@@ -213,13 +227,13 @@ function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-function runConvert(inputs: Input[], options: ConvertOptions, io: Io): number {
+function runConvert(inputs: Input[], flavors: Flavor[], options: ConvertOptions, io: Io): number {
   let failed = false;
-  for (const input of inputs) {
+  for (const [i, input] of inputs.entries()) {
     const stdin = input.name === "-";
     // With stdin, stdout carries the text, so the messages go to stderr.
     const say = stdin ? io.stderr : io.stdout;
-    const result = convert(input.text, options);
+    const result = convert(input.text, { ...options, flavor: flavors[i]! });
     if (!result.ok) {
       failed = true;
       for (const e of result.errors) say(`${input.name}:${e.line}:${e.column}: ${e.message}\n`);
