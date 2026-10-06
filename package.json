@@ -39,6 +39,10 @@
   "files": [
     "dist",
     "docs/format.md",
+    "docs/api.md",
+    "docs/cli.md",
+    "docs/markdown-it.md",
+    "docs/known-gaps.md",
     "schema/tbl-md.schema.json",
     "README.md",
     "LICENSE"
