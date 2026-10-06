@@ -4,7 +4,7 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 ## Hand-off
 
-Next step: 18. markdown-it as the only parser, with the flavors of `docs/format.md`.
+Next step: 18a. The parser switch to markdown-it (see Open steps).
 Waits for: nothing
 New context: yes. Step 18 is code work with a new topic, and this context holds the long spec discussion.
 
@@ -34,7 +34,11 @@ The user decided this in the grilling interview of 2026-10-06. The far goal: the
 ## Open steps
 
 - Step 17c: the planning files leave the public repository. `docs/PLAN.md`, `docs/HISTORY.md`, `docs/review-queue.md`, `docs/research/`, and `docs/outbox/` move to the private repository `thoka/tbl-md-plan`, cloned into the git-ignored folder `.plan/`. Waits for the outbox task `2026-10-06-task-plan-path-for-public-repos.md` in meta (plan path setting of `handover`, the outbox scan, and the creation of the repository). Then `AGENTS.md` and `test/public.test.ts` drop the exception for these files.
-- Step 18: markdown-it as the only parser. `findTables`, `lint`, `fromGfm`, and the corpus test use markdown-it with the settings of Discourse. The mdast and micromark dependencies go. The CLI and `.tbl-md.json` get the flavor (`--flavor`, key `flavor`, default `discourse`), and the conversion gets the HTML check of `docs/format.md`. The link pipe rule of `discourse` is own MIT code. `README.md` follows (it still describes the micromark split and the odd-backslash error of 0.2.0).
+- Step 18: markdown-it as the only parser, in four small steps. Each step merges into `main`. The next release waits for step 18d.
+  - Step 18a: the parser switch. A new `src/flavor.ts` makes the markdown-it engine of each flavor. `findTables`, `fromGfm`, `toGfm`, `lint`, and `convert` use it, with the option `flavor` (default `discourse`). The new pipe rule and the trim of `docs/format.md` replace the rules of 0.2.0. `FoundTbl` and `FoundGfm` lose the mdast node. The mdast and micromark dependencies go, also from the laws test and the corpus code. Known gap until 18b: the flavor `discourse` has no link pipe rule.
+  - Step 18b: the link pipe rule of `discourse`, own MIT code, tested against the cached table feature of Discourse when the cache has it.
+  - Step 18c: the HTML check after each conversion. The engine sets the URL decode characters of Discourse with no change of the shared mdurl module.
+  - Step 18d: the CLI flag `--flavor`, the key `flavor` in `.tbl-md.json` and its schema, and the full pass of `README.md` (it still describes the micromark split and the odd-backslash error of 0.2.0).
 - Step 19: the markdown-it plugin. A separate entry point, for example `tbl-md/markdown-it`, renders a `tbl` block as a table, with the attributes. It has its own tests and bundles to one file with no `node:` module.
 - Step 20 and later, in the repository `discourse-tbl` (the supervisor creates it on an outbox task when step 19 is done): an automatic Discourse development instance in Docker; the server plugin with `discourse-markdown/*.js`, the allow list, and an email fallback; a composer item that converts a GFM table to `tbl`; the rich editor extension that saves each table as `tbl`.
 
