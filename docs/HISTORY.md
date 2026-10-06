@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 13: attributes in the conversion
+
+- Corpus baseline after step 13 (`mise run corpus`, 2026-10-06): 586 tables in 142 documents, 564 same, 22 errors, 0 different. The count `alignment` is gone, because the alignment now converts. The 119 tables that differed only in the alignment on 0.1 are now `same`.
+
 ## Step 12: parse and render attributes
 
 - Step 12: parse and render attributes. The parser keeps the attributes of the columns, the rows, and the cells, and the renderer writes them in the canonical form. Tests for each error. The plan of the step is in the section Plan of step 12. Done on 2026-10-06. Status: `src/attributes.ts` parses, checks, and renders one block. The parser keeps the attributes of columns, rows, and cells, with the 19 `attr-*` error codes, and `render` writes the canonical form. `Row.id` moved to `row.attributes.id` (breaking). A conversion to GFM of a table with attributes other than a row ID fails at the read-back check until step 13. Decisions in `docs/review-queue.md`. 452 tests pass.

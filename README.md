@@ -26,7 +26,7 @@ A GFM pipe table is hard to read and to change as plain text. One long cell push
 
 tbl-md has one goal: humans change tables in Markdown with no frustration. A machine reads any form, so each rule of the format serves the human who edits the text (`docs/spec.md`, principle 0).
 
-The switch is reversible. `tbl-md convert --to gfm` converts each `tbl` block back to a GFM table, and the file then renders the same. Only the layout of the GFM text, such as padding, can change. Version 0.1 still drops the column alignment of GFM, and version 0.2.0 keeps it. A corpus of real tables from other projects will test the round trip.
+The switch is reversible. `tbl-md convert --to gfm` converts each `tbl` block back to a GFM table, and the file then renders the same. Only the layout of the GFM text, such as padding, can change. Version 0.1 drops the column alignment of GFM, and version 0.2.0 keeps it as the attribute `align`. A corpus of real tables from other projects tests the round trip (section The corpus test).
 
 ## How to write a table
 
@@ -43,7 +43,7 @@ The switch is reversible. `tbl-md convert --to gfm` converts each `tbl` block ba
 
 ## Next: version 0.2.0
 
-Version 0.2.0 adds attributes (section How to write a table). `docs/format.md` has their rules since step 11. Since step 12, the parser and the renderer follow them, and the conversion follows in step 13. A conversion to GFM keeps `align` and the row ID, and fails for each other attribute unless you give `--drop-attributes`. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
+Version 0.2.0 adds attributes (section How to write a table). `docs/format.md` has their rules since step 11. Since step 12, the parser and the renderer follow them, and since step 13 the conversion follows them too. A conversion to GFM keeps `align` and the row ID, and fails for each other attribute unless you give `--drop-attributes`. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
 
 A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cell options of Quarto.
 
@@ -273,13 +273,14 @@ An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))
 
 The renderer writes the attribute line of a column directly after its header key line, the block of a row on its `--` line, and the attribute line of a cell as the last line of the cell.
 
-`locate(text)` gives the lines of the key lines of a valid `tbl` block, and it skips the attribute lines, so that an error about a cell or a title can name its line. All lines are block lines from 1, as in the errors of `parse`. `headerLines` maps each header key to its line. `rows` has one entry for each data record: `line` is the line of its `--`, and `cells` maps the full header key of each key line to its line, also for a prefix key. For a block with parse errors, `locate` gives `null`.
+`locate(text)` gives the lines of the key lines and of the attribute lines of a valid `tbl` block, so that an error about a cell, a title, or an attribute can name its line. All lines are block lines from 1, as in the errors of `parse`. `headerLines` maps each header key to its line, and `headerAttributeLines` maps the key of each column with an attribute line to that line. `rows` has one entry for each data record: `line` is the line of its `--`, which also holds the block of the row. `cells` maps the full header key of each key line to its line, also for a prefix key, and `cellAttributeLines` maps the full header key of each cell with an attribute line to that line. For a block with parse errors, `locate` gives `null`.
 
 ```ts
 import { locate } from "tbl-md";
 
-locate("model: Model\nnote: Note\n--\nn: a\nm: Opus");
-// { headerLines: { model: 1, note: 2 }, rows: [{ line: 3, cells: { note: 4, model: 5 } }] }
+locate("model: Model\nnote: Note\n{align=right}\n--\nn: a\n{.c}\nm: Opus");
+// { headerLines: { model: 1, note: 2 }, headerAttributeLines: { note: 3 },
+//   rows: [{ line: 4, cells: { note: 5, model: 7 }, cellAttributeLines: { note: 6 } }] }
 ```
 
 `src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, the attribute line, their escaped forms, `escapeLine`, and `unescapeLine`.
@@ -313,7 +314,7 @@ code: each error code of `parse`
 when: A `tbl` block has this error. The problem is at the line of the error in the file.
 ```
 
-`toGfm(table)` writes one table as a GFM pipe table, by the section "Conversion to and from GFM" of `docs/format.md`. `fromGfm(source, found)` reads one GFM table of a Markdown source back as a table. `found` is a `"gfm"` entry of `findTables(source)`. `fromGfm` reads each cell text from the source by the offsets of its mdast cell, so the inline Markdown stays byte for byte. The keys come from the titles by `keysFromTitles(titles)`.
+`toGfm(table, options?)` writes one table as a GFM pipe table, by the section "Conversion to and from GFM" of `docs/format.md`. `fromGfm(source, found)` reads one GFM table of a Markdown source back as a table. `found` is a `"gfm"` entry of `findTables(source)`. `fromGfm` reads each cell text from the source by the offsets of its mdast cell, so the inline Markdown stays byte for byte. The keys come from the titles by `keysFromTitles(titles)`.
 
 ```ts
 import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm } from "tbl-md";
@@ -321,10 +322,19 @@ import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm } from "tbl-m
 toGfm({ columns: [{ key: "a", title: "A" }], rows: [{ attributes: { id: "r1", classes: [], pairs: [] }, cells: { a: "x|y\nz" } }] });
 // { ok: true, text: "| A |\n| --- |\n| x\\|y<br>z {#r1} |" }
 
-const source = "| Price ($) | Note |\n| :-- | --- |\n| 1 | a<br>b |\n";
+const source = "| Price ($) | Note |\n| --: | --- |\n| 1 | a<br>b |\n";
 fromGfm(source, findTables(source)[0] as FoundGfm);
-// { ok: true, table: { columns: [{ key: "price", title: "Price ($)" }, { key: "note", title: "Note" }],
+// { ok: true, table: { columns: [
+//     { key: "price", title: "Price ($)", attributes: { classes: [], pairs: [{ key: "align", value: "right" }] } },
+//     { key: "note", title: "Note" }],
 //   rows: [{ cells: { price: "1", note: "a\nb" } }] } }
+
+const wide = { columns: [{ key: "a", title: "A", attributes: { classes: ["wide"], pairs: [{ key: "align", value: "center" }] } }], rows: [] };
+toGfm(wide);
+// { ok: false, errors: [{ key: "a", attribute: "column",
+//   message: 'Column "a": the attribute `.wide` has no GFM form, because GFM keeps only the align of a column. ...' }] }
+toGfm(wide, { dropAttributes: true });
+// { ok: true, text: "| A |\n| :---: |" }
 
 keysFromTitles(["a", "a", "a-2", ""]);
 // ["a", "a-3", "a-2", "c4"]
@@ -350,9 +360,14 @@ gfm: ` {#r1}` at the end of the first cell, or `{#r1}` in an empty first cell
 --
 tbl: a first cell with no ID that ends with `{#x}`, at the start or after a space
 gfm: one backslash more before the `{`: `\{#x}`
+--
+tbl: `{align=left}`, `{align=center}`, or `{align=right}` of a column
+gfm: `:---`, `:---:`, or `---:` in the delimiter row. A column with no `align` is `---`.
 ```
 
-A title keeps `<br>` as it is. GFM column alignment is dropped. Until step 13, `toGfm` writes only the row ID of the attributes and drops the others, and `fromGfm` gives a row with an ID the attributes `{ id, classes: [], pairs: [] }`. Both functions collect all errors. An error of `toGfm` has an optional `row` (from 1), an optional `key`, and a `message`. An error of a title has no `row`. An error of `fromGfm` has the `line` and the `column` of the cell in the source, and a `message`. These are the errors:
+A title keeps `<br>` as it is. `fromGfm` gives a column with an alignment the attributes `{ classes: [], pairs: [{ key: "align", value }] }`, and a column with no alignment gets no `attributes`. It gives a row with an ID the attributes `{ id, classes: [], pairs: [] }`. Each other attribute has no GFM form: a class or a pair of a row, any attribute of a cell, and any attribute of a column other than `align`. `toGfm` gives one error for each attribute block with such a part, unless `options.dropAttributes` is true. With `dropAttributes`, it keeps the `align` of the columns and the ID of the rows, and drops the rest with no error.
+
+Both functions collect all errors. An error of `toGfm` has an optional `row` (from 1), an optional `key`, an optional `attribute`, and a `message`. An error of a title has no `row`. An error of an attribute block has `attribute`: `"column"` with the `key` of the column, `"row"` with the `row`, or `"cell"` with the `row` and the `key`. An error of `fromGfm` has the `line` and the `column` of the cell in the source, and a `message`. These are the errors:
 
 ```tbl
 fn: Function
@@ -370,6 +385,9 @@ when: A title or a cell has a pipe after an odd number of backslashes. One backs
 fn: `toGfm`
 when: A cell line ends with a backslash and has a next line. The backslash would escape the `<br>` of the line break.
 --
+fn: `toGfm`
+when: An attribute block has a part with no GFM form, and `dropAttributes` is not true. The message names the parts and the two fixes: remove them, or convert with `--drop-attributes`.
+--
 fn: `fromGfm`
 when: A cell ends with `<br>`. A tbl cell never ends with a line break.
 --
@@ -386,9 +404,11 @@ Three laws hold for each valid table `T` whose keys are `keysFromTitles` of its 
 - `toGfm` of that table gives the same GFM text again.
 - The GFM text is one GFM table with the width of the header and the rows of `T`.
 
+The tables of these laws have a random `align`. One more law holds for each valid table `T` with random attributes, whose keys are `keysFromTitles` of its titles and whose text `toGfm` accepts: `toGfm(T, { dropAttributes: true })` converts, and it reads back as the table that GFM can hold, that is `T` with only the `align` of the columns and the ID of the rows. The same holds for `convert` with `dropAttributes`.
+
 A fourth property test checks the meaning: the mdast of each GFM cell, with no positions, equals the mdast of the paragraph that the tbl cell text gives when each line break is `<br>`. It skips a literal `<br>` and a first cell with an ID or with the marker form, because their text changes on purpose.
 
-`convert(source, { to })` converts all tables of a Markdown text, in memory, by the section "Conversion of a file" of `docs/format.md`. With `to: "tbl"`, each GFM table becomes a `tbl` block (`fromGfm`, then `renderBlock`). With `to: "gfm"`, each `tbl` block becomes a GFM table (`parse`, then `toGfm`). Tables of the target kind stay as they are, also an invalid `tbl` block.
+`convert(source, { to, dropAttributes? })` converts all tables of a Markdown text, in memory, by the section "Conversion of a file" of `docs/format.md`. With `to: "tbl"`, each GFM table becomes a `tbl` block (`fromGfm`, then `renderBlock`). With `to: "gfm"`, each `tbl` block becomes a GFM table (`parse`, then `toGfm`). Tables of the target kind stay as they are, also an invalid `tbl` block. `dropAttributes: true` is only for `to: "gfm"`, and `convert` passes it to `toGfm`. With `to: "tbl"`, it has no effect.
 
 ```ts
 import { convert } from "tbl-md";
@@ -405,9 +425,9 @@ The result has `ok: true`, the new text `output`, and `count`, the number of con
 - Only the source of each converted table changes. Each other byte stays the same.
 - The first line of the new text starts where the table started. Each other line gets the continuation prefix: the text before the table on its first line, with each character other than `>`, a space, or a tab replaced by a space. Thus `- ` gives two spaces, `> ` gives `> `, and `> 1. ` gives `>    `. An empty line gets this prefix with no spaces at its end.
 - The new text uses the first line end of the file: CRLF, LF, or CR.
-- An error of a `tbl` block is at its line in the file, as in `lint`. An error of a cell from `toGfm` is at the key line of the cell, and an error of a title is at its header key line. `convert` finds these lines with `locate`.
+- An error of a `tbl` block is at its line in the file, as in `lint`. An error of a cell from `toGfm` is at the key line of the cell, and an error of a title is at its header key line. An attribute with no GFM form is at its attribute line, or for a row at its `--` line. `convert` finds these lines with `locate`. The column of these errors is the column of the fence.
 
-After the conversion, `convert` reads the new text again with `findTables`. This is the self-check. Each new table must be at the same place in the list of tables, with the new kind, and it must read back as the same table, with the same attributes. A new GFM table reads back with the keys of its titles. If the check fails, the conversion fails with an error at the first line of the table. The main case is a `tbl` block with a text line directly after it: GFM would read that line as a row of the table, so the error tells the writer to add an empty line. A `tbl` block directly after a paragraph line converts, because a GFM table can interrupt a paragraph.
+After the conversion, `convert` reads the new text again with `findTables`. This is the self-check. Each new table must be at the same place in the list of tables, with the new kind, and it must read back as the same table, with the same attributes. A new GFM table reads back with the keys of its titles, and as the table that GFM can hold: the `align` of the columns, the ID of the rows, and no other attributes. If the check fails, the conversion fails with an error at the first line of the table. The main case is a `tbl` block with a text line directly after it: GFM would read that line as a row of the table, so the error tells the writer to add an empty line. A `tbl` block directly after a paragraph line converts, because a GFM table can interrupt a paragraph.
 
 Two laws hold, and the property test `test/laws.test.ts` checks them on random tables in random Markdown with paragraphs, list items, and block quotes, and with each line end. The tables have the keys of their titles:
 
@@ -420,7 +440,7 @@ The package installs the CLI as `tbl-md`. Its source is `src/cli.ts`. In this ch
 
 ```sh
 tbl-md lint <files...>
-tbl-md convert [--to tbl|gfm] <files...>
+tbl-md convert [--to tbl|gfm] [--drop-attributes] <files...>
 ```
 
 `tbl-md lint` reads each file and prints each problem of `lint`, in the order of the files and then by line. Each problem is one line:
@@ -431,7 +451,7 @@ docs/a.md:12:1: This is a GFM pipe table. Write it as a tbl block, for example w
 
 The form is `<file>:<line>:<column>: <message> (<code>)`. The codes are the problem codes of `lint` (section Library). The lint does not change a file.
 
-`tbl-md convert` converts the tables of each file in place with `convert`. `--to tbl` is the default: each GFM table becomes a `tbl` block. `--to gfm` converts each `tbl` block to a GFM table. For each file, the CLI does one of three things:
+`tbl-md convert` converts the tables of each file in place with `convert`. `--to tbl` is the default: each GFM table becomes a `tbl` block. `--to gfm` converts each `tbl` block to a GFM table. An attribute with no GFM form is an error at its line. With `--drop-attributes`, `--to gfm` drops these attributes and keeps the `align` of the columns and the IDs of the rows. For each file, the CLI does one of three things:
 
 - The file has tables to convert. The CLI writes the file and prints `<file>: converted <n> table` (or `tables`).
 - The file has no table to convert. The CLI prints nothing and does not write the file.
@@ -447,6 +467,7 @@ These are the other options:
 
 - `-h`, `--help`: print the usage to stdout.
 - `--version`: print the version of the package.
+- `--drop-attributes`: only for `convert --to gfm`. Drop each attribute that GFM cannot hold, with no error.
 - `--`: each argument after it is a file name, also if it starts with `-`.
 
 These are the exit codes:
@@ -462,7 +483,7 @@ code: 1
 when: For `lint`: a file has a problem. For `convert`: the conversion of a file failed.
 --
 code: 2
-when: A usage error: no command, an unknown command, an unknown option, a bad value of `--to`, `--to` for `lint`, no files, `-` more than once, or a file that cannot be read. The CLI prints one line to stderr that names the problem.
+when: A usage error: no command, an unknown command, an unknown option, a bad value of `--to`, `--to` for `lint`, `--drop-attributes` for `lint` or for `convert --to tbl`, no files, `-` more than once, or a file that cannot be read. The CLI prints one line to stderr that names the problem.
 ```
 
 ### The pre-commit hook
@@ -486,7 +507,7 @@ pre-commit:
 - A tbl cell with a pipe after an odd number of backslashes, for example `a\|b`, does not convert to GFM. Write `a|b`.
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
 - A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
-- Until step 13, a conversion to GFM fails for a `tbl` block with attributes other than a row ID, also for `align`. The error is the read-back error of the self-check at the first line of the table, and it does not name the attribute. A conversion to tbl drops the GFM column alignment.
+- GFM holds only the `align` of a column and the ID of a row. A conversion to GFM fails for each other attribute, or drops it with `--drop-attributes`.
 - The keys of a GFM table come from its titles. The keys of a tbl block do not survive a round trip through GFM if they differ from `keysFromTitles` of the titles.
 - The package test needs the npm registry, because npm installs the mdast libraries of the tarball. With no network, `mise run test` fails.
 - The package has no CommonJS entry. Its `exports` has only the condition `import`, so `require("tbl-md")` fails. A CommonJS module loads it with `import("tbl-md")`.
@@ -522,7 +543,7 @@ task: `mise run tbl-md <command>`
 what: Runs the CLI from the source with Bun.
 --
 task: `mise run corpus`
-what: Runs the corpus test (section The corpus test). It needs the network for the files that are not in the cache yet. With `--verbose`, it also lists each conversion error and each alignment case.
+what: Runs the corpus test (section The corpus test). It needs the network for the files that are not in the cache yet. With `--verbose`, it also lists each conversion error.
 --
 task: `mise run corpus-pin <owner/repo> <commit> <path>...`
 what: Gets each file and writes its size and SHA-256 into `corpus/sources.json`. A new source needs `--license <SPDX id>`. `--kind <kind>` sets the kind of the files (default `markdown`).
@@ -557,11 +578,8 @@ meaning: The mdast of the table after the round trip is the same.
 count: error
 meaning: The conversion of the table to `tbl` fails with an error by `docs/format.md`, for example for an excess cell with text. This is not a failure: tbl-md loses no content in silence. The check of the other tables of the document goes on.
 --
-count: alignment
-meaning: The mdast of the table differs only in the column alignment. tbl-md 0.1 drops the alignment. This count is separate, so that it does not hide other differences. Step 13 keeps the alignment and removes this count.
---
 count: different
-meaning: The mdast of the table differs in another way, or the text outside the tables differs. The run fails.
+meaning: The mdast of the table differs, also only in the column alignment, or the text outside the tables differs. The run fails.
 ```
 
 A crash also fails the run. Neither `mise run test` nor the pre-push hook runs the corpus test. `test/corpus.test.ts` tests the parts that need no network.
