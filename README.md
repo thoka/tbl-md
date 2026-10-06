@@ -425,9 +425,75 @@ what: Runs only the package test, `test/package.test.ts`. It packs the package w
 --
 task: `mise run tbl-md <command>`
 what: Runs the CLI from the source with Bun.
+--
+task: `mise run corpus`
+what: Runs the corpus test (section The corpus test). It needs the network for the files that are not in the cache yet. With `--verbose`, it also lists each conversion error and each alignment case.
+--
+task: `mise run corpus-pin <owner/repo> <commit> <path>...`
+what: Gets each file and writes its size and SHA-256 into `corpus/sources.json`. A new source needs `--license <SPDX id>`. `--kind <kind>` sets the kind of the files (default `markdown`).
 ```
 
 `npm pack` runs the build first (the script `prepack`), so a tarball always has a new build.
+
+### The corpus test
+
+Principle 1 of `docs/spec.md` says that a switch to tbl-md must be reversible. The corpus test checks this on tables that other people wrote. The corpus is a list of real Markdown files and of the table fixtures of established Markdown parsers, in `corpus/sources.json`. The research behind the list is `docs/research/table-corpus.md`. The files are not part of the repository, and the code in `corpus/` is not part of the package.
+
+`mise run corpus` does these steps:
+
+1. It gets each file of `corpus/sources.json` from `https://raw.githubusercontent.com/<owner>/<repo>/<commit>/<path>`, with no token and no extra header.
+2. It makes sure that the SHA-256 of each file is the SHA-256 in `corpus/sources.json`. On a wrong hash, it stops with an error that names the file. Only `mise run corpus-pin` writes a hash, so a changed file always gives an error.
+3. It splits each fixture file into one Markdown document for each example. A plain Markdown file is one document.
+4. It converts each document with a GFM table to `tbl` and back to GFM with the library, and it compares the mdast before and after. Before the comparison, it removes the positions, pads short rows with empty cells, and removes excess cells, because GFM shows the table so.
+5. It prints the file and the line of each difference, never the content, and a summary of counts for each source.
+
+The counts:
+
+```tbl
+count: Count
+meaning: Meaning
+--
+count: same
+meaning: The mdast after the round trip is the same.
+--
+count: error
+meaning: The conversion to `tbl` fails with an error by `docs/format.md`, for example for an excess cell with text. This is not a failure: tbl-md loses no content in silence. The error stops the conversion of the whole document, so the other tables of that document are not tested.
+--
+count: alignment
+meaning: The mdast differs only in the column alignment. tbl-md 0.1 drops the alignment. This count is separate, so that it does not hide other differences. Step 13 keeps the alignment and removes this count.
+--
+count: different
+meaning: The mdast differs in another way. The run fails.
+```
+
+A crash also fails the run. Neither `mise run test` nor the pre-push hook runs the corpus test. `test/corpus.test.ts` tests the parts that need no network.
+
+The kinds of a file:
+
+```tbl
+kind: Kind
+documents: Documents
+--
+kind: `markdown`
+documents: The whole file.
+--
+kind: `spec`
+documents: The spec format of cmark-gfm and pulldown-cmark. Each example starts with a line of 32 backticks and the word `example`, and its Markdown ends at a line `.`. The character `→` stands for a tab.
+--
+kind: `markdown-it`
+documents: The fixture format of markdown-it. The Markdown is between the first and the second line `.` of a case.
+--
+kind: `goldmark`
+documents: The fixture format of goldmark. The Markdown is between the first and the second line `//- - - - - - - - -//` of a case.
+```
+
+The cache is `$XDG_CACHE_HOME/tbl-md/corpus/<owner>/<repo>/<commit>/<path>`, by default `~/.cache/tbl-md/corpus/`. A file that the cache has with the correct hash never downloads again. A commit never changes, so the cache never gets old. Delete the folder to get all files again.
+
+The caps: 512 KiB for each file and 4 MiB for all files of one run. The download reads each file as a stream and stops as soon as a cap is passed. The corpus has about 1.6 MB.
+
+If raw.githubusercontent.com is not available, jsDelivr is the fallback: `https://cdn.jsdelivr.net/gh/<owner>/<repo>@<commit>/<path>` gives the same file. To use it, change `rawUrl` in `corpus/lib.ts`. The code has no automatic fallback.
+
+Licenses: each source in `corpus/sources.json` has its license, and a file with another license has its own. Use only sources with an open license. A copy in the local cache shares nothing, so the conditions of the licenses for sharing do not apply. Do not copy a table from the corpus into `test/`. Some sources have a share-alike license, for example the GFM spec (CC-BY-SA-4.0). Write a regression test with a new table that shows the same case.
 
 ## Release
 
