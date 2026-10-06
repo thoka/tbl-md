@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CONFIG_FILE, findConfig, parseConfig, readConfig } from "../src/index.ts";
+import { FLAVORS } from "../src/flavor.ts";
 import { tempDir } from "./helpers.ts";
 
 const root = join(import.meta.dir, "..");
@@ -15,6 +16,15 @@ describe("parseConfig", () => {
 
   test("a file with no attributeKeys has an empty list", () => {
     expect(parseConfig("{}", "c.json")).toEqual({ ok: true, config: { attributeKeys: [] } });
+  });
+
+  test.each(["discourse", "markdown-it"])("a file with the flavor %s", (flavor) => {
+    expect(parseConfig(`{"flavor": "${flavor}"}`, "c.json")).toEqual({ ok: true, config: { attributeKeys: [], flavor } });
+  });
+
+  test("a file with no flavor has no flavor key", () => {
+    const result = parseConfig('{"attributeKeys": ["a"]}', "c.json");
+    expect(result.ok && "flavor" in result.config).toBe(false);
   });
 
   test("a BOM before the JSON is allowed", () => {
@@ -31,6 +41,10 @@ describe("parseConfig", () => {
     ["a key that starts with a digit", '{"attributeKeys": ["1a"]}', 'attributeKeys[0] "1a" is not a key'],
     ["a key with a dot", '{"attributeKeys": ["a", "b.c"]}', 'attributeKeys[1] "b.c" is not a key'],
     ["an empty key", '{"attributeKeys": [""]}', 'attributeKeys[0] "" is not a key'],
+    ["an unknown flavor", '{"flavor": "gitlab"}', 'The value "gitlab" of "flavor" is not a flavor. Give one of "discourse", "markdown-it".'],
+    ["a flavor that is not a string", '{"flavor": 1}', 'The value 1 of "flavor" is not a flavor.'],
+    ["a flavor null", '{"flavor": null}', 'The value null of "flavor" is not a flavor.'],
+    ["a flavor in other case", '{"flavor": "Discourse"}', 'The value "Discourse" of "flavor" is not a flavor.'],
   ])("%s is an error that names the file", (_, text, message) => {
     const result = parseConfig(text, "dir/.tbl-md.json");
     expect(result.ok).toBe(false);
@@ -128,9 +142,10 @@ interface Schema {
   additionalProperties?: false;
   items?: Schema;
   pattern?: string;
+  enum?: unknown[];
 }
 
-const KEYWORDS = ["$schema", "title", "description", "type", "properties", "additionalProperties", "items", "pattern"];
+const KEYWORDS = ["$schema", "title", "description", "type", "properties", "additionalProperties", "items", "pattern", "enum"];
 
 /** A small validator for the keywords of `Schema`, so that the test needs no JSON Schema library. */
 function valid(schema: Schema, value: unknown): boolean {
@@ -139,6 +154,7 @@ function valid(schema: Schema, value: unknown): boolean {
   if (schema.type === "array" && !Array.isArray(value)) return false;
   if (schema.type === "string" && typeof value !== "string") return false;
   if (schema.pattern !== undefined && typeof value === "string" && !new RegExp(schema.pattern, "u").test(value)) return false;
+  if (schema.enum !== undefined && !schema.enum.includes(value)) return false;
   if (schema.items !== undefined && Array.isArray(value) && !value.every((item) => valid(schema.items!, item))) return false;
   if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     for (const [key, item] of Object.entries(value)) {
@@ -177,11 +193,20 @@ describe("the JSON Schema", () => {
     ["an empty key", { attributeKeys: [""] }],
     ["a line end after the key", { attributeKeys: ["a\n"] }],
     ["a non-ASCII letter", { attributeKeys: ["ä"] }],
+    ["flavor discourse", { flavor: "discourse" }],
+    ["flavor markdown-it", { flavor: "markdown-it", attributeKeys: ["a"] }],
+    ["an unknown flavor", { flavor: "gitlab" }],
+    ["a flavor number", { flavor: 1 }],
+    ["a flavor list", { flavor: ["discourse"] }],
   ];
 
   test.each(examples)("the schema and the loader agree on: %s", (_, value) => {
     const loader = parseConfig(JSON.stringify(value), "c.json").ok;
     expect(valid(schema, value)).toBe(loader);
+  });
+
+  test("the enum of flavor is FLAVORS", () => {
+    expect(schema.properties?.flavor?.enum).toEqual([...FLAVORS]);
   });
 
   test("both accept and both refuse some examples", () => {
