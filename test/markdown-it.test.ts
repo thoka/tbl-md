@@ -39,8 +39,14 @@ describe("the engines of the flavors", () => {
   test("an engine does not change the URL decode characters of the shared mdurl module", () => {
     const md = createEngine("discourse");
     const before = md.utils.lib.mdurl.decode.defaultChars;
-    engineOf("discourse");
+    engineOf("discourse").render("<http://a.com/x%20y>");
     expect(md.utils.lib.mdurl.decode.defaultChars).toBe(before);
+  });
+
+  test("the URL decode of a link text keeps the space only with discourse", () => {
+    const link = "<http://a.com/x%20y%3Bz%41>";
+    expect(createEngine("discourse").renderInline(link)).toBe('<a href="http://a.com/x%20y%3Bz%41">http://a.com/x%20y%3BzA</a>');
+    expect(createEngine("markdown-it").renderInline(link)).toBe('<a href="http://a.com/x%20y%3Bz%41">http://a.com/x y%3BzA</a>');
   });
 
   test("discourseEngine applies the plugins of a Discourse feature", () => {

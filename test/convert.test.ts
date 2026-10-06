@@ -267,6 +267,58 @@ describe("convert: the flavor", () => {
   });
 });
 
+describe("convert: the HTML check", () => {
+  const hint = "In a link or an image, Discourse keeps the backslash before a pipe. Write the pipe as `%7C` in a URL and as `&#124;` in a text or a title, or move a code span out of the link.";
+
+  test("an escaped pipe in a code span in a link fails the conversion to tbl with discourse", () => {
+    const source = "| A | B |\n| --- | --- |\n| x | [`a\\|b`](u) |\n";
+    expect(errors(convert(source, { to: "tbl" }))).toEqual([
+      {
+        line: 3,
+        column: 7,
+        message: `Row 1, cell "b": the conversion changes the HTML with the flavor discourse, from \`<a href="u"><code>a\\|b</code></a>\` to \`<a href="u"><code>a|b</code></a>\`. ${hint}`,
+      },
+    ]);
+    expect(output(convert(source, { to: "tbl", flavor: "markdown-it" }))).toContain("b: [`a|b`](u)\n");
+  });
+
+  test("a pipe in a code span in a link fails the conversion to GFM with discourse, at the line of the cell", () => {
+    const source = "```tbl\nk: K\n--\nk: x\n--\nk: [`a|b`](u)\n```\n";
+    expect(errors(convert(source, { to: "gfm" }))).toEqual([
+      {
+        line: 6,
+        column: 1,
+        message: `Row 2, cell "k": the conversion changes the HTML with the flavor discourse, from \`<a href="u"><code>a|b</code></a>\` to \`<a href="u"><code>a\\|b</code></a>\`. ${hint}`,
+      },
+    ]);
+    expect(output(convert(source, { to: "gfm", flavor: "markdown-it" }))).toBe("| K |\n| --- |\n| x |\n| [`a\\|b`](u) |\n");
+  });
+
+  test("a title with the same problem fails at its key line", () => {
+    const source = "> ```tbl\n> k: [`a|b`](u)\n> ```\n";
+    expect(errors(convert(source, { to: "gfm" }))).toEqual([
+      {
+        line: 2,
+        column: 3,
+        message: `The title of column "k": the conversion changes the HTML with the flavor discourse, from \`<a href="u"><code>a|b</code></a>\` to \`<a href="u"><code>a\\|b</code></a>\`. ${hint}`,
+      },
+    ]);
+  });
+
+  test("the fixes of the hint convert with discourse", () => {
+    const source = "```tbl\nk: K\n--\nk: [x](a%7Cb \"t&#124;u\") ![m&#124;n](i.png)\n```\n";
+    const there = output(convert(source, { to: "gfm" }));
+    expect(output(convert(there, { to: "tbl" }))).toBe(source);
+  });
+
+  test("a pipe in a link with no code span converts, also in a reference link with its definition", () => {
+    const source = "| A |\n| --- |\n| [x\\|y](u) |\n| [x\\|y][r] |\n\n[r]: v\n";
+    const there = output(convert(source, { to: "tbl" }));
+    expect(there).toContain("a: [x|y](u)\n--\na: [x|y][r]\n");
+    expect(output(convert(there, { to: "gfm" }))).toBe(source);
+  });
+});
+
 describe("convert: round trips", () => {
   test("to tbl and back to gfm gives the canonical GFM", () => {
     const source = "| Price ($) | Note |\n| :-- | --: |\n| 1 | a<br>b |\n|  | x \\| y {#r1} |\n";

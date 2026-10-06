@@ -1,11 +1,14 @@
 // The conversion of all tables in one Markdown text, in memory (docs/format.md, section "Conversion of a file").
 // It replaces only the source range of each converted table. Each other byte stays the same.
-import type { Flavor } from "./flavor.ts";
+import { engineOf } from "./engine.ts";
+import { DEFAULT_FLAVOR, type Flavor } from "./flavor.ts";
 import { findTables, type FindOptions, type Found, type FoundTbl } from "./markdown.ts";
 import { fromGfm, gfmView, keysFromTitles, toGfm, type ConvertError } from "./gfm.ts";
 import type { Attributes } from "./attributes.ts";
 import { locate, parse, type Row, type Table, type TblLocation } from "./parse.ts";
 import { renderBlock } from "./render.ts";
+import { htmlDifferences, parseText, type HtmlDifference, type Parsed } from "./html.ts";
+import { lineStarts } from "./markdown.ts";
 
 /** A problem of a conversion, at a 1-based line and column of the file. */
 export interface FileError {
@@ -39,6 +42,8 @@ interface Replacement {
   text: string;
   /** The table that the new text must read back as. */
   table: Table;
+  /** The keys of the columns in the source: the keys of the tbl block, or the keys from the titles of the GFM table. */
+  keys: string[];
 }
 
 /**
@@ -53,7 +58,7 @@ export function convert(source: string, options: ConvertOptions): ConvertResult 
     if (found.kind === "gfm" && options.to === "tbl") {
       const result = fromGfm(source, found);
       if (!result.ok) errors.push(...result.errors);
-      else replacements.push({ found, index, text: renderBlock(result.table), table: result.table });
+      else replacements.push({ found, index, text: renderBlock(result.table), table: result.table, keys: result.table.columns.map((c) => c.key) });
     } else if (found.kind === "tbl" && options.to === "gfm") {
       const replacement = tblToGfm(found, index, options.dropAttributes === true, errors);
       if (replacement) replacements.push(replacement);
@@ -75,6 +80,7 @@ export function convert(source: string, options: ConvertOptions): ConvertResult 
   output += source.slice(last);
 
   selfCheck(source, output, replacements, ranges, options.to, find, errors);
+  if (errors.length === 0) htmlCheck(source, output, replacements, ranges, options, errors);
   if (errors.length > 0) return { ok: false, errors: sorted(errors) };
   return { ok: true, output, count: replacements.length };
 }
@@ -110,7 +116,8 @@ function tblToGfm(found: FoundTbl, index: number, dropAttributes: boolean, error
     return null;
   }
   // The new GFM table must read back as the table that GFM can hold.
-  return { found, index, text: result.text, table: withTitleKeys(gfmView(parsed.table)) };
+  const keys = parsed.table.columns.map((c) => c.key);
+  return { found, index, text: result.text, table: withTitleKeys(gfmView(parsed.table)), keys };
 }
 
 /**
@@ -222,6 +229,65 @@ function selfCheck(
       message: "The conversion changes how Markdown reads the tables near this place. Add an empty line between the tables.",
     });
   }
+}
+
+/**
+ * The HTML check: each title and each cell of a converted table must have the same HTML in its GFM form and in its tbl
+ * form. Each difference is an error at the title or the cell in the source.
+ */
+function htmlCheck(
+  source: string,
+  output: string,
+  replacements: Replacement[],
+  ranges: [number, number][],
+  options: ConvertOptions,
+  errors: FileError[],
+): void {
+  const flavor = options.flavor ?? DEFAULT_FLAVOR;
+  const md = engineOf(flavor);
+  const outputStarts = lineStarts(output);
+  // The GFM tables are in the source for a conversion to tbl, and in the output for a conversion to GFM.
+  let parsed: Parsed | undefined;
+  const gfmText = () => (parsed ??= parseText(md, options.to === "tbl" ? source : output));
+  replacements.forEach((r, i) => {
+    const found = r.found;
+    let differences: HtmlDifference[];
+    let place: (d: HtmlDifference) => { line: number; column: number };
+    if (found.kind === "gfm") {
+      differences = htmlDifferences(md, gfmText(), found.line - 1, r.table);
+      place = (d) => {
+        const row = d.row === undefined ? found.header : found.rows[d.row]!;
+        const cell = row.cells[d.column];
+        return cell === undefined ? { line: row.line, column: found.column } : { line: cell.line, column: cell.column };
+      };
+    } else {
+      const start = ranges[i]![0];
+      const line = outputStarts.findLastIndex((offset) => offset <= start);
+      differences = htmlDifferences(md, gfmText(), line, r.table);
+      const places = locate(found.text)!;
+      place = (d) => {
+        const key = r.keys[d.column]!;
+        const blockLine = d.row === undefined ? places.headerLines[key] : (places.rows[d.row]!.cells[key] ?? places.rows[d.row]!.line);
+        return { line: found.contentLine + blockLine! - 1, column: found.column };
+      };
+    }
+    for (const d of differences) {
+      const key = r.keys[d.column]!;
+      const where = d.row === undefined ? `The title of column "${key}"` : `Row ${d.row + 1}, cell "${key}"`;
+      const [before, after] = found.kind === "gfm" ? [d.gfm, d.tbl] : [d.tbl, d.gfm];
+      let message = `${where}: the conversion changes the HTML with the flavor ${flavor}, from \`${before}\` to \`${after}\`.`;
+      if (flavor === "discourse" && cellText(r.table, d).includes("|")) {
+        message += " In a link or an image, Discourse keeps the backslash before a pipe. Write the pipe as `%7C` in a URL and as `&#124;` in a text or a title, or move a code span out of the link.";
+      }
+      errors.push({ ...place(d), message });
+    }
+  });
+}
+
+/** The text of the title or the cell of a difference. */
+function cellText(table: Table, d: HtmlDifference): string {
+  const column = table.columns[d.column]!;
+  return d.row === undefined ? column.title : (table.rows[d.row]!.cells[column.key] ?? "");
 }
 
 /**

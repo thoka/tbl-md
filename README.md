@@ -440,6 +440,8 @@ The result has `ok: true`, the new text `output`, and `count`, the number of con
 
 After the conversion, `convert` reads the new text again with `findTables`. This is the self-check. Each new table must be at the same place in the list of tables, with the new kind, and it must read back as the same table, with the same attributes. A new GFM table reads back with the keys of its titles, and as the table that GFM can hold: the `align` of the columns, the ID of the rows, and no other attributes. If the check fails, the conversion fails with an error at the first line of the table. The main case is a `tbl` block with a text line directly after it: GFM would read that line as a row of the table, so the error tells the writer to add an empty line. A `tbl` block directly after a paragraph line converts, because a GFM table can interrupt a paragraph.
 
+Then comes the HTML check of `docs/format.md`. The flavor renders each title and each cell of a converted table in its GFM form and in its tbl form, and the two must give the same HTML. If they differ, the conversion fails with an error at that title or cell, with both HTML texts. With the flavor `discourse`, the check finds a pipe in a link that Discourse shows with its backslash. A cell whose two forms are the same text needs no render, because markdown-it parses the inline content of each cell alone.
+
 Two laws hold, and the property test `test/laws.test.ts` checks them on random tables in random Markdown with paragraphs, list items, and block quotes, and with each line end. The tables have the keys of their titles:
 
 - A conversion to GFM and back to tbl gives the same text. The frame outside the tables stays byte for byte.
@@ -545,7 +547,7 @@ pre-commit:
 - A line break inside a code span becomes `<br>` in GFM, and in a code span `<br>` is text, not a line break. The round trip keeps the text, but a GFM viewer shows `<br>` in the code.
 - A literal `<br>` in a tbl cell is an HTML line break in a Markdown view. In GFM, it becomes `\<br>`, which shows the text `<br>`. A `\<br>` in a tbl cell shows the text `<br>`. In GFM, it becomes `\\<br>`, which shows `\` and a line break. The round trip keeps the text, but the view changes.
 - A tbl cell with a pipe after an odd number of backslashes, for example `a\|b`, does not convert to GFM. Write `a|b`.
-- With the flavor `discourse`, Discourse keeps the backslash before a pipe in a complete link (the link pipe rule of `docs/format.md`). So the GFM cell ``[`x\|y`](u)`` shows `x\|y` in its code span, but the conversion to tbl writes ``[`x|y`](u)``, which shows `x|y`. The conversion does not compare the HTML of each cell yet, so it does not report this change.
+- With the flavor `discourse`, a pipe in a code span in a link does not convert in either direction, because Discourse keeps the backslash before it (the link pipe rule of `docs/format.md`). For example, the GFM cell ``[`x\|y`](u)`` shows `x\|y`, and no tbl text gives the same HTML. The HTML check of the conversion reports it at the cell.
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
 - A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
 - GFM holds only the `align` of a column and the ID of a row. A conversion to GFM fails for each other attribute, or drops it with `--drop-attributes`.

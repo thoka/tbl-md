@@ -20,5 +20,7 @@ export const DISCOURSE = {
   commit: "eb46cffe81257fd48d3e18c35aaba97488fe19b5",
   markdownIt: "15.0.1",
   quotes: ["“", "”", "‘", "’"],
+  /** The characters that the URL decode of a link text keeps (`mdurl.decode.defaultChars` in Discourse). */
+  urlDecodeKeep: ";/?:@&=+$,# ",
   linkifyTlds: ["com", "net", "org", "io", "onion", "co", "tv", "ru", "cn", "us", "uk", "me", "de", "fr", "fi", "gov"],
 } as const;

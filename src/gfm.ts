@@ -192,17 +192,31 @@ function cellToGfm(text: string, report: (message: string) => void): string {
   if (edgeSpace.test(text)) {
     report(`the text starts or ends with ${trimmed}. GFM removes it, so remove it from the cell.`);
   }
-  const lines = text.split("\n");
-  lines.slice(0, -1).forEach((line, n) => {
+  text.split("\n").slice(0, -1).forEach((line, n) => {
     if (line.endsWith("\\")) {
       report(
         `line ${n + 1} ends with a backslash, and a line follows. The backslash would escape the \`<br>\` of the line break. Remove the backslash, or end the line with another character.`,
       );
     }
   });
-  // A literal `<br>` gets one backslash more. Only the exact `<br>` with no backslash before it is a line break.
-  const joined = lines.map((line) => line.replace(brRun, "\\$1<br>")).join("<br>");
-  return escapePipes(joined);
+  return escapePipes(lineBreaksToGfm(text));
+}
+
+/** A literal `<br>` gets one backslash more, and each line break becomes `<br>`. Only the exact `<br>` with no backslash before it is a line break. */
+function lineBreaksToGfm(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.replace(brRun, "\\$1<br>"))
+    .join("<br>");
+}
+
+/**
+ * The text of a cell in the form that toGfm writes, but with no pipe escape: the line breaks as `<br>`, the `<br>`
+ * escape, and in the first cell the ID marker of the row. The HTML check renders it (docs/format.md, The HTML check).
+ */
+export function gfmCellForm(text: string, r: Row, first: boolean): string {
+  const cell = lineBreaksToGfm(text);
+  return first ? firstCell(cell, r) : cell;
 }
 
 /** Each pipe gets one backslash more (the pipe rule). markdown-it never splits a cell at a pipe with a backslash before it. */

@@ -7,9 +7,8 @@ import { discourseTable } from "./discourse.ts";
 /**
  * A new markdown-it engine with the settings of a flavor, with no recorder.
  * `discourse`: the preset "default" with the options of Discourse (html, breaks, linkify, typographer), the quotes and
- * the linkify TLDs of its site settings, fuzzyLink, and the table rule with the link pipe rule (src/discourse.ts).
- * It does not change the URL decode characters, because that changes the shared mdurl module of all engines
- * (step 18c). `markdown-it`: `markdownit()`.
+ * the linkify TLDs of its site settings, fuzzyLink, the URL decode characters of Discourse, and the table rule with the
+ * link pipe rule (src/discourse.ts). `markdown-it`: `markdownit()`.
  */
 export function createEngine(flavor: Flavor): MarkdownIt {
   if (flavor === "markdown-it") return markdownit();
@@ -19,7 +18,27 @@ export function createEngine(flavor: Flavor): MarkdownIt {
   md.linkify.set({ fuzzyLink: true });
   const table = (md.block.ruler as unknown as { __rules__: RuleEntry[] }).__rules__.find((r) => r.name === "table")!;
   md.block.ruler.at("table", discourseTable, { alt: [...table.alt] });
+  keepUrlDecodeChars(md, DISCOURSE.urlDecodeKeep);
   return md;
+}
+
+/**
+ * Makes the URL decode of a link text keep these characters. markdown-it reads them from the shared mdurl module
+ * (`mdurl.decode.defaultChars`), so the wrapper sets them only for the time of its own call and then restores them.
+ * Thus the other engines and the other users of mdurl see no change.
+ */
+function keepUrlDecodeChars(md: MarkdownIt, chars: string): void {
+  const decode = md.utils.lib.mdurl.decode as { defaultChars: string };
+  const original = md.normalizeLinkText.bind(md);
+  md.normalizeLinkText = (url: string) => {
+    const saved = decode.defaultChars;
+    decode.defaultChars = chars;
+    try {
+      return original(url);
+    } finally {
+      decode.defaultChars = saved;
+    }
+  };
 }
 
 const engines = new Map<Flavor, MarkdownIt>();
