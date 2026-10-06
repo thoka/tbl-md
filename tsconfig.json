@@ -14,5 +14,5 @@
     "noUncheckedIndexedAccess": true,
     "types": ["bun"]
   },
-  "include": ["src", "test", "corpus"]
+  "include": ["src", "test", "corpus", "scripts"]
 }
