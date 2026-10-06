@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 11: format rules for attributes
+
+- Step 11: format rules for attributes. `docs/format.md` gets the rules of the spec section Scope of version 0.2.0: the attribute block, its three places, the escape, the canonical form, and the errors. The README sections Why, How to write a table, and Next exist since 2026-10-06. The step adds the attributes to How to write a table. Plan and review only, no code. Done on 2026-10-06. Status: rules 13 to 16 of `docs/format.md`, research `docs/research/attribute-block.md`, decisions in `docs/review-queue.md`.
+
 ## Step 10b: count each table in the corpus
 
 - Step 10b: count each table in the corpus. A conversion error in one table must not hide the other tables of the same document (`docs/review-queue.md`, 2026-10-06, step 10). The corpus run counts same, error, alignment, and different for each table. No change of the library API, unless the main thread agrees. Done on 2026-10-06. Status: a failing table counts as one error, and the run removes it, keeps the line count and the container prefix, and converts again. Baseline on 0.1: 586 tables, 445 same, 22 errors, 119 alignment only, 0 different.
