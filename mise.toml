@@ -33,3 +33,13 @@ run = "lefthook install"
 [tasks.pre-commit]
 description = "Run the pre-commit hook on the staged files, as git does"
 run = "lefthook run pre-commit"
+
+[tasks.corpus]
+description = "Download the corpus of corpus/sources.json into the cache (each file once), and test that a conversion to tbl and back to GFM keeps the mdast of each file. Not part of mise run test"
+depends = ["install"]
+run = "bun corpus/run.ts"
+
+[tasks.corpus-pin]
+description = "Pin corpus files: mise run corpus-pin <owner/repo> <commit> <path>... [--kind <kind>] [--license <license>] writes the size and the SHA-256 of each file into corpus/sources.json"
+depends = ["install"]
+run = "bun corpus/pin.ts"

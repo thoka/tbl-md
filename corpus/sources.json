@@ -1,0 +1,539 @@
+{
+  "$comment": "The corpus of mise run corpus. Each source is pinned to a commit. Only mise run corpus-pin writes size and sha256. Use only sources with an open license. README.md, section Development, has the rules.",
+  "sources": [
+    {
+      "repo": "github/cmark-gfm",
+      "commit": "27d942c8b0a62d192f616e5bf3578f4b6a89e180",
+      "license": "BSD-2-Clause",
+      "files": [
+        {
+          "path": "test/spec.txt",
+          "kind": "spec",
+          "size": 216680,
+          "sha256": "7d8e5814befec287ac116786d81ff14e0adc9b13295b4494649e995408fd871c",
+          "license": "CC-BY-SA-4.0"
+        },
+        {
+          "path": "test/extensions.txt",
+          "kind": "spec",
+          "size": 21274,
+          "sha256": "a2a45e98be9fca95f564f927265a0f63beea6cae5369d1cf4bde44caa51b2a3a"
+        },
+        {
+          "path": "test/extensions-table-prefer-style-attributes.txt",
+          "kind": "spec",
+          "size": 741,
+          "sha256": "3d902a4a1ce48df5dd7910647602fbae4535d8bac6700e918280fe1d928a4cee"
+        }
+      ]
+    },
+    {
+      "repo": "micromark/micromark-extension-gfm-table",
+      "commit": "1511204dae5a01e81588cee417ecd4fb8d2c8aff",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "test/fixtures/align.md",
+          "kind": "markdown",
+          "size": 575,
+          "sha256": "675216fa368d2d7111b5868c978c5d3b47798f4e974ace253fdf1c21ac48e208"
+        },
+        {
+          "path": "test/fixtures/basic.md",
+          "kind": "markdown",
+          "size": 127,
+          "sha256": "d7a99987154dfabbe6ffdae2712d4efef57f05f2862e92ed7c2df5b579121546"
+        },
+        {
+          "path": "test/fixtures/containers.md",
+          "kind": "markdown",
+          "size": 469,
+          "sha256": "c0af4d9d6be203907d4340b60e463cb44e7f692449aa5b9ab9a44b89abcb3eaa"
+        },
+        {
+          "path": "test/fixtures/double-delimiter-row.md",
+          "kind": "markdown",
+          "size": 24,
+          "sha256": "df469d78536e3a5116b60b2bb272a30a96b1ffd4e9cb6706b90f951fce05f2ec"
+        },
+        {
+          "path": "test/fixtures/gfm.md",
+          "kind": "markdown",
+          "size": 429,
+          "sha256": "52f3f3a6201e479afeecf882326a123789f1de379d26a0feb4bab0bde7ec29b0"
+        },
+        {
+          "path": "test/fixtures/grave.md",
+          "kind": "markdown",
+          "size": 431,
+          "sha256": "ca9cc6f6c2ba9b0113f1d0b2b84c805dcd9efe1b21eacb228cd75e82e7c57438"
+        },
+        {
+          "path": "test/fixtures/indent-alt.md",
+          "kind": "markdown",
+          "size": 104,
+          "sha256": "9dade69d55336a7154bf7b38df233129a42a7f853a3fa58c59e2dccd32b2f8de"
+        },
+        {
+          "path": "test/fixtures/indent.md",
+          "kind": "markdown",
+          "size": 112,
+          "sha256": "320c747841a3923360a435932154baecf58933cec2430df00208e294e189f526"
+        },
+        {
+          "path": "test/fixtures/interrupt.md",
+          "kind": "markdown",
+          "size": 849,
+          "sha256": "1c7e83171ad1909c6222323a32b5db417b38849c1af2d4c3d0b3ae5c78b6bf6e"
+        },
+        {
+          "path": "test/fixtures/loose.md",
+          "kind": "markdown",
+          "size": 164,
+          "sha256": "36ddefc9abeb892fa3989dda4b72a8131396acb2daaa1e7755759abdf114f28f"
+        },
+        {
+          "path": "test/fixtures/pierce.md",
+          "kind": "markdown",
+          "size": 35,
+          "sha256": "38b0ebe22840897c1bfc6aafb4c4fd58717519ca12c9e1a910daa798f8e254a2"
+        },
+        {
+          "path": "test/fixtures/some-escapes.md",
+          "kind": "markdown",
+          "size": 369,
+          "sha256": "bfbb45b52e1da704db9c70b71ddd85444f2a1bf40fcc852a8d335cec5b857521"
+        }
+      ]
+    },
+    {
+      "repo": "markdown-it/markdown-it",
+      "commit": "3c51991c32aaa2b002a52c009334ebe5752c84b3",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "test/fixtures/markdown-it/tables.txt",
+          "kind": "markdown-it",
+          "size": 9533,
+          "sha256": "81b5b1bc2956d478e715bf68e1ba7851bc45469674899cb9e4180ad7f020bf29"
+        }
+      ]
+    },
+    {
+      "repo": "pulldown-cmark/pulldown-cmark",
+      "commit": "c61583e33f043e926a5cbd4423252c6cb97301d2",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "pulldown-cmark/specs/table.txt",
+          "kind": "spec",
+          "size": 23884,
+          "sha256": "a236e55b78d855609dbadd23ecd5dc4ffc855f837d1e568743c98c5be799dc58"
+        }
+      ]
+    },
+    {
+      "repo": "yuin/goldmark",
+      "commit": "cbf81e953298b60401e32250ee96cff5ff8ca649",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "extension/testdata/table.txt",
+          "kind": "goldmark",
+          "size": 3778,
+          "sha256": "68d02117d5c3e3995bf9e4db4c2f059bb3246b9506d63a96dcfde33b100dd3b3"
+        }
+      ]
+    },
+    {
+      "repo": "remarkjs/remark-gfm",
+      "commit": "109972e8a773bf5dac1d6d2da0776557f36971aa",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "test/fixtures/table/input.md",
+          "kind": "markdown",
+          "size": 72,
+          "sha256": "53c7565b0c0c9bfa6742c9942706523637df3df945da8690547ab4a628e6a182"
+        },
+        {
+          "path": "test/fixtures/table-no-align/input.md",
+          "kind": "markdown",
+          "size": 40,
+          "sha256": "29f7dd21dd5c0661fdfd73f9ffe535408b75c2ae09bf767a881016ef7c21b542"
+        }
+      ]
+    },
+    {
+      "repo": "prettier/prettier",
+      "commit": "5927216227411bc2cdaf30d50559e0a475ab4832",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "tests/format/markdown/table/align.md",
+          "kind": "markdown",
+          "size": 30,
+          "sha256": "307b1190568ec5582258fcdd702d29d32545f9e12c8bdb22218a3bca558029d5"
+        },
+        {
+          "path": "tests/format/markdown/table/cjk.md",
+          "kind": "markdown",
+          "size": 78,
+          "sha256": "8c22a5bf2bb8b758a4a1e850e0fc84d6d0e6a56fad98bb6a692331d4a84f6878"
+        },
+        {
+          "path": "tests/format/markdown/table/emoji.md",
+          "kind": "markdown",
+          "size": 87,
+          "sha256": "00394fd8beb388709d7f58dbbaacff05ea979bca8350fbc5e8c30e31e6912d97"
+        },
+        {
+          "path": "tests/format/markdown/table/empty.md",
+          "kind": "markdown",
+          "size": 32,
+          "sha256": "c7a9b2c0ff4cb6d2a60cc73ff9f1a17220e09a471056810aa9a8d232a5d44829"
+        },
+        {
+          "path": "tests/format/markdown/table/escape.md",
+          "kind": "markdown",
+          "size": 160,
+          "sha256": "043a13b45378bc3c79c3af3c59da2492cc67d9a1a58f66a6eb700900dd926682"
+        },
+        {
+          "path": "tests/format/markdown/table/html.md",
+          "kind": "markdown",
+          "size": 199,
+          "sha256": "d07fad44266203808ab24869d0e1a32f40cd6bf324c077afa6fe32be91c3ebb5"
+        },
+        {
+          "path": "tests/format/markdown/table/issue-15572.md",
+          "kind": "markdown",
+          "size": 81,
+          "sha256": "90917f2d57e11f21be942d002fc3f939f4d2d290dcb1f99a13681d224e1c11cf"
+        },
+        {
+          "path": "tests/format/markdown/table/simple.md",
+          "kind": "markdown",
+          "size": 84,
+          "sha256": "739809219bf053cd63df163125c7c51a428d8750086d20663cb8fa49e30aaaab"
+        },
+        {
+          "path": "tests/format/markdown/table/table.md",
+          "kind": "markdown",
+          "size": 454,
+          "sha256": "165b33c36fa391ed8914e7b5ebae542df1ccf689f190c31e3c89a30435ec4103"
+        },
+        {
+          "path": "tests/format/markdown/table/empty-table/empty-table.md",
+          "kind": "markdown",
+          "size": 217,
+          "sha256": "3ee5d454968122317dc1005c9fe08d7037b076f8d15788e490d8f36ef15394b6"
+        },
+        {
+          "path": "tests/format/markdown/long-table/long-table.md",
+          "kind": "markdown",
+          "size": 1254,
+          "sha256": "2f62c8d5c097cf8367fd2de98dcf3ce0554486c23292976405a774d04556b26c"
+        }
+      ]
+    },
+    {
+      "repo": "DavidAnson/markdownlint",
+      "commit": "3f1f479322e863a53e56c94b01266b9785cd3bfd",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "test/blanks-around-tables.md",
+          "kind": "markdown",
+          "size": 768,
+          "sha256": "671cd6238c70e7f3fe9ded02771fcd72b564d949f6bcaad210d634e9d3cffe8a"
+        },
+        {
+          "path": "test/html-comment-in-code-and-table.md",
+          "kind": "markdown",
+          "size": 435,
+          "sha256": "623d949c59835b4da77cd4a14aaaa81e0a2ca96ed0fd3afa051b92c56eda17a2"
+        },
+        {
+          "path": "test/html-comment-in-markdown-table.md",
+          "kind": "markdown",
+          "size": 937,
+          "sha256": "18e258e0862415dfc292acf4297d5b209323c048e5bc49b332519a43799053c2"
+        },
+        {
+          "path": "test/inline_html-only_table_allowed_elements.md",
+          "kind": "markdown",
+          "size": 597,
+          "sha256": "7e9ab0862bfcead0b78bd30d699580125474c3de2f03459cf1bf8e95fd96bb8c"
+        },
+        {
+          "path": "test/inline_html-table_allowed_elements.md",
+          "kind": "markdown",
+          "size": 669,
+          "sha256": "059516d2338ddf464adeab2dd71bc2cb037d0b0fbc48d1c997fe64af9fc7a342"
+        },
+        {
+          "path": "test/simple-table.md",
+          "kind": "markdown",
+          "size": 56,
+          "sha256": "45be39fd87ddd71e5fa796096bddc182cd00be9ae63991491a54ebaaefba56a6"
+        },
+        {
+          "path": "test/table-column-count.md",
+          "kind": "markdown",
+          "size": 2154,
+          "sha256": "36f1d81522acbda2e4b9138a8e1c36fb8afed0dd525f555a415f58f279ef76f2"
+        },
+        {
+          "path": "test/table-column-style-aligned-delimiter.md",
+          "kind": "markdown",
+          "size": 2083,
+          "sha256": "454dde58e1b642c1e62b03c693591e741e66a155035366cf5df2d0448f118afc"
+        },
+        {
+          "path": "test/table-column-style-aligned.md",
+          "kind": "markdown",
+          "size": 3016,
+          "sha256": "bb3580cab18f3c17f1553ae46f622787d4768fc9882d0242ab729893cc9431ad"
+        },
+        {
+          "path": "test/table-column-style-compact.md",
+          "kind": "markdown",
+          "size": 3080,
+          "sha256": "aa3c370a0f345c292d022df056b7ced90894819b2f175e04ce11ece53a808a5f"
+        },
+        {
+          "path": "test/table-column-style-default.md",
+          "kind": "markdown",
+          "size": 2655,
+          "sha256": "cca48c241f5664b385370adc04a4d25ceb4ca7d93d092aa166f15445ff65b211"
+        },
+        {
+          "path": "test/table-column-style-emoji.md",
+          "kind": "markdown",
+          "size": 347,
+          "sha256": "520d193a2dbe17dcb2e9d22e2871de9b0777b798d6b0e5cf8e248df8f41024fa"
+        },
+        {
+          "path": "test/table-column-style-empty-cells.md",
+          "kind": "markdown",
+          "size": 960,
+          "sha256": "6fd5256a9e217271cb3fab0c3446f4b697d21646e4e0f1eb15656bdfc7b9aad2"
+        },
+        {
+          "path": "test/table-column-style-irregular-trailing-pipe.md",
+          "kind": "markdown",
+          "size": 2372,
+          "sha256": "ba0e734aa85783dfb255f0b09397e8e8be065d2458b576c915bdd4eb55eab7f8"
+        },
+        {
+          "path": "test/table-column-style-tight.md",
+          "kind": "markdown",
+          "size": 3120,
+          "sha256": "f66ac03334371b5fa72a22d0478afdc675e42983b7fdcf9abc04275f36db0e97"
+        },
+        {
+          "path": "test/table-column-style-trailing-spaces.md",
+          "kind": "markdown",
+          "size": 712,
+          "sha256": "5ddbd659e72416a327819bca9899071da2d01d637d4f1b6c64f29071bd771380"
+        },
+        {
+          "path": "test/table-column-style-wide-characters.md",
+          "kind": "markdown",
+          "size": 1234,
+          "sha256": "3d3f3c37a14527df5faa4754c60af03975a1d13c50563d577b744bed4b17adc8"
+        },
+        {
+          "path": "test/table-content-with-issues.md",
+          "kind": "markdown",
+          "size": 590,
+          "sha256": "0582d94e7af295d677e1395a27b3bc12f223a5cded00c8efc74895c6314ca2d7"
+        },
+        {
+          "path": "test/table-issue-with-markdown-it-12.md",
+          "kind": "markdown",
+          "size": 335,
+          "sha256": "8317ffd35bcfc29371f8cccd59541f70b0f4eddf2f23dcd28ef0b74716520c28"
+        },
+        {
+          "path": "test/table-pipe-style-explicit-both.md",
+          "kind": "markdown",
+          "size": 523,
+          "sha256": "acb50754cf82cb2c35d89cabd910d6698f45d8fd72acc97d01223f5e371da355"
+        },
+        {
+          "path": "test/table-pipe-style-explicit-leading.md",
+          "kind": "markdown",
+          "size": 518,
+          "sha256": "f3f905f7b958f1fea9dd196f974c842b34b23b1e8a278889083f9e02ca220455"
+        },
+        {
+          "path": "test/table-pipe-style-explicit-none.md",
+          "kind": "markdown",
+          "size": 525,
+          "sha256": "77751fd8714715da5b3f1e04c84f8932f065bf1ef224574b5e783e763da3d3b7"
+        },
+        {
+          "path": "test/table-pipe-style-explicit-trailing.md",
+          "kind": "markdown",
+          "size": 520,
+          "sha256": "a34c74125053942444d8976c5e69857e4c304c4eb2bb3e5c7b8ee615e84d8980"
+        },
+        {
+          "path": "test/table-pipe-style-implicit-both.md",
+          "kind": "markdown",
+          "size": 417,
+          "sha256": "760bc0f0bb4e23d3ff69ca623c1a596a743e982498fb3816bd2468f034961709"
+        },
+        {
+          "path": "test/table-pipe-style-implicit-leading.md",
+          "kind": "markdown",
+          "size": 420,
+          "sha256": "31bc6ebf5dae1b18388de54d4a53373b5c477e06b06502f90185523c939f3589"
+        },
+        {
+          "path": "test/table-pipe-style-implicit-none.md",
+          "kind": "markdown",
+          "size": 417,
+          "sha256": "7681666707268adc0427825a490c1f73ff85b26090fd844082894126410206aa"
+        },
+        {
+          "path": "test/table-pipe-style-implicit-trailing.md",
+          "kind": "markdown",
+          "size": 421,
+          "sha256": "f657c09c6e8236df3b805fc0669c7a781044586293352f7eb9003ab62343981a"
+        },
+        {
+          "path": "test/table-pipe-style.md",
+          "kind": "markdown",
+          "size": 2268,
+          "sha256": "12e50c0733fce0d48bc59c21c519ccab0172ee82f3c7488d86923157f305b825"
+        }
+      ]
+    },
+    {
+      "repo": "public-apis/public-apis",
+      "commit": "874e5879d20843f7c2a5822cef4c0752127b3775",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "README.md",
+          "kind": "markdown",
+          "size": 294203,
+          "sha256": "cf00cccbcba90dcb9d5541b7eb02d321a89dfe1444c2ecf617e55cd952ed682e"
+        }
+      ]
+    },
+    {
+      "repo": "kubernetes/kubernetes",
+      "commit": "e234a6f2036b550893eba6d4556b83ac5e7d2a3f",
+      "license": "Apache-2.0",
+      "files": [
+        {
+          "path": "CHANGELOG/CHANGELOG-1.33.md",
+          "kind": "markdown",
+          "size": 413039,
+          "sha256": "1d66bf92e7129d7424b3b27922447b9968388d0179ee0c2290e1ed913280be33"
+        }
+      ]
+    },
+    {
+      "repo": "nodejs/node",
+      "commit": "9a85290d86d815aca21c3fe113bbadfdf9d62b38",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "doc/api/fs.md",
+          "kind": "markdown",
+          "size": 312203,
+          "sha256": "4ff6d69267d5e978fbd0a4d1b36c8b9edecac97bcd02af80f9ab8ee609f123fd"
+        },
+        {
+          "path": "BUILDING.md",
+          "kind": "markdown",
+          "size": 43670,
+          "sha256": "212b73d35aefdcfc5078a87ce7c45c1546a1bce911d66142dfae14a31fe86026"
+        }
+      ]
+    },
+    {
+      "repo": "donnemartin/system-design-primer",
+      "commit": "ae9bbd7b02d90b9866215de185217d33f39ab733",
+      "license": "CC-BY-4.0",
+      "files": [
+        {
+          "path": "README.md",
+          "kind": "markdown",
+          "size": 109830,
+          "sha256": "390a8cad315d703c10cfbdf6832c2f320882bd4c3feaf2cea78c820995903cf1"
+        }
+      ]
+    },
+    {
+      "repo": "rust-lang/rust",
+      "commit": "db23a2d392783030c008a5fafbe6cb139d1f7707",
+      "license": "Apache-2.0 OR MIT",
+      "files": [
+        {
+          "path": "src/doc/rustc/src/platform-support.md",
+          "kind": "markdown",
+          "size": 41051,
+          "sha256": "8faa9458c8a735bf80da67c5e1814a46d3c805ca56faf4f0cb461e42b2200bc0"
+        }
+      ]
+    },
+    {
+      "repo": "ossu/computer-science",
+      "commit": "33d44a44e3526ede8e862bf1ad50ae5ae7a2f112",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "README.md",
+          "kind": "markdown",
+          "size": 29250,
+          "sha256": "b76e47cf8340e743746b968772a24de90ac33893aeb3b3e7e116067f915e073f"
+        }
+      ]
+    },
+    {
+      "repo": "microsoft/vscode-docs",
+      "commit": "279a4a77ecb41a00420244616233490944f7e706",
+      "license": "CC-BY-3.0-US",
+      "files": [
+        {
+          "path": "docs/reference/default-keybindings.md",
+          "kind": "markdown",
+          "size": 16019,
+          "sha256": "27940ff18ab7c8ce6246e1ab6b6205a16d07794810f24340daafc3545b31814d"
+        }
+      ]
+    },
+    {
+      "repo": "kubernetes/website",
+      "commit": "abc9ea495989b5660aae4bb7dafa1fb15cad0aad",
+      "license": "CC-BY-4.0",
+      "files": [
+        {
+          "path": "content/en/docs/reference/kubectl/quick-reference.md",
+          "kind": "markdown",
+          "size": 25496,
+          "sha256": "26be2bc44e26accc738c1bc689a3f372d1582de9d61a01b545ed1abfaef16056"
+        }
+      ]
+    },
+    {
+      "repo": "MicrosoftDocs/azure-docs",
+      "commit": "935661c6afeecb6d50bff36bb0cf4942d57150c4",
+      "license": "CC-BY-4.0",
+      "files": [
+        {
+          "path": "articles/azure-resource-manager/management/azure-subscription-service-limits.md",
+          "kind": "markdown",
+          "size": 27465,
+          "sha256": "9be6549d23e57260e575b04a8a47390ad76674102937ff18e07d411857295a30"
+        }
+      ]
+    }
+  ]
+}
