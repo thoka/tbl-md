@@ -615,26 +615,44 @@ describe("locate", () => {
     const text = "model: Model\nnote: Note\n--\nn: a\nb\nm: Opus\n\n-- {#x}\n--\nnote: c";
     expect(locate(text)).toEqual({
       headerLines: { model: 1, note: 2 },
+      headerAttributeLines: {},
       rows: [
-        { line: 3, cells: { note: 4, model: 6 } },
-        { line: 8, cells: {} },
-        { line: 9, cells: { note: 10 } },
+        { line: 3, cells: { note: 4, model: 6 }, cellAttributeLines: {} },
+        { line: 8, cells: {}, cellAttributeLines: {} },
+        { line: 9, cells: { note: 10 }, cellAttributeLines: {} },
       ],
     });
   });
 
   test("an escaped line is no key line", () => {
-    expect(locate("a: A\n--\na: x\na\\: y")).toEqual({ headerLines: { a: 1 }, rows: [{ line: 2, cells: { a: 3 } }] });
+    expect(locate("a: A\n--\na: x\na\\: y\n\\{.x}")).toEqual({
+      headerLines: { a: 1 },
+      headerAttributeLines: {},
+      rows: [{ line: 2, cells: { a: 3 }, cellAttributeLines: {} }],
+    });
   });
 
   test("reads CRLF and CR lines", () => {
-    expect(locate("a: A\r\n--\ra: y")).toEqual({ headerLines: { a: 1 }, rows: [{ line: 2, cells: { a: 3 } }] });
+    expect(locate("a: A\r\n{.x}\r--\ra: y\r\n{.c}")).toEqual({
+      headerLines: { a: 1 },
+      headerAttributeLines: { a: 2 },
+      rows: [{ line: 3, cells: { a: 4 }, cellAttributeLines: { a: 5 } }],
+    });
   });
 
-  test("skips the attribute lines of the header", () => {
+  test("gives the attribute lines of the columns and of the cells", () => {
     expect(locate("a: A\n{.x}\nb: B\n-- {.r}\nb: y\n{.c}\na: x")).toEqual({
       headerLines: { a: 1, b: 3 },
-      rows: [{ line: 4, cells: { b: 5, a: 7 } }],
+      headerAttributeLines: { a: 2 },
+      rows: [{ line: 4, cells: { b: 5, a: 7 }, cellAttributeLines: { b: 6 } }],
+    });
+  });
+
+  test("a cell attribute line after empty lines, a cell with no text, and a prefix key", () => {
+    expect(locate("model: Model\nnote: Note\n{align=right}\n--\nn: a\nb\n\n{.c}\nm:\n{#m}")).toEqual({
+      headerLines: { model: 1, note: 2 },
+      headerAttributeLines: { note: 3 },
+      rows: [{ line: 4, cells: { note: 5, model: 9 }, cellAttributeLines: { note: 8, model: 10 } }],
     });
   });
 

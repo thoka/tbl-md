@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm, type Table } from "../src/index.ts";
+import { findTables, fromGfm, keysFromTitles, toGfm, type Attributes, type FoundGfm, type Table } from "../src/index.ts";
+import { gfmView } from "../src/gfm.ts";
 
 /** Reads the first GFM table of a Markdown text. */
 function read(source: string) {
@@ -252,6 +253,155 @@ describe("toGfm", () => {
   });
 });
 
+const attrs = (parts: Partial<Attributes>): Attributes => ({ classes: [], pairs: [], ...parts });
+const align = (value: string): Attributes => attrs({ pairs: [{ key: "align", value }] });
+
+describe("toGfm: alignment", () => {
+  test("the delimiter row has the mark of the align of each column", () => {
+    const table: Table = {
+      columns: [
+        { key: "a", title: "A", attributes: align("left") },
+        { key: "b", title: "B", attributes: align("center") },
+        { key: "c", title: "C", attributes: align("right") },
+        { key: "d", title: "D" },
+      ],
+      rows: [{ cells: { a: "1", b: "2", c: "3", d: "4" } }],
+    };
+    expect(gfm(table)).toBe("| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |");
+    expect(read(gfm(table))).toStrictEqual({ ok: true, table });
+  });
+
+  for (const [value, mark] of [
+    ["left", ":---"],
+    ["center", ":---:"],
+    ["right", "---:"],
+  ] as const) {
+    test(`align=${value} is ${mark} and reads back`, () => {
+      const table: Table = { columns: [{ key: "a", title: "A", attributes: align(value) }], rows: [{ cells: { a: "x" } }] };
+      expect(roundTrip(table)).toBe(`| A |\n| ${mark} |\n| x |`);
+    });
+  }
+});
+
+describe("toGfm: attributes with no GFM form", () => {
+  const fix = "Remove it, or convert with --drop-attributes to drop it.";
+
+  test("a column part other than align is an error with the key of the column", () => {
+    const table: Table = { columns: [{ key: "a", title: "A", attributes: attrs({ id: "c", classes: ["w"], pairs: [{ key: "align", value: "right" }] }) }], rows: [] };
+    expect(toGfm(table)).toStrictEqual({
+      ok: false,
+      errors: [
+        {
+          key: "a",
+          attribute: "column",
+          message: 'Column "a": the attributes `#c .w` have no GFM form, because GFM keeps only the align of a column. Remove them, or convert with --drop-attributes to drop them.',
+        },
+      ],
+    });
+  });
+
+  test("a pair other than align of a column is an error", () => {
+    const table: Table = { columns: [{ key: "a", title: "A", attributes: attrs({ pairs: [{ key: "width", value: "a b" }] }) }], rows: [] };
+    const result = toGfm(table);
+    expect(result).toMatchObject({ ok: false, errors: [{ key: "a", attribute: "column" }] });
+    if (!result.ok) expect(result.errors[0]!.message).toBe(`Column "a": the attribute \`width="a b"\` has no GFM form, because GFM keeps only the align of a column. ${fix}`);
+  });
+
+  test("a class or a pair of a row is an error with the row, and the ID is no error", () => {
+    const table: Table = {
+      columns: [{ key: "a", title: "A" }],
+      rows: [{ attributes: attrs({ id: "r1" }), cells: {} }, { attributes: attrs({ id: "r2", classes: ["new"], pairs: [{ key: "k", value: "v" }] }), cells: { a: "x" } }],
+    };
+    expect(toGfm(table)).toStrictEqual({
+      ok: false,
+      errors: [
+        {
+          row: 2,
+          attribute: "row",
+          message: "Row 2: the attributes `.new k=v` have no GFM form, because GFM keeps only the ID of a row. Remove them, or convert with --drop-attributes to drop them.",
+        },
+      ],
+    });
+  });
+
+  test("each attribute of a cell is an error with the row and the key, also an ID and a cell with no text", () => {
+    const table: Table = {
+      columns: [
+        { key: "a", title: "A" },
+        { key: "b", title: "B" },
+      ],
+      rows: [{ cells: { a: "x" }, cellAttributes: { a: attrs({ id: "i" }), b: attrs({ classes: ["c"] }) } }],
+    };
+    expect(toGfm(table)).toStrictEqual({
+      ok: false,
+      errors: [
+        { row: 1, key: "a", attribute: "cell", message: `Row 1, cell "a": the attribute \`#i\` has no GFM form, because GFM has no attributes for a cell. ${fix}` },
+        { row: 1, key: "b", attribute: "cell", message: `Row 1, cell "b": the attribute \`.c\` has no GFM form, because GFM has no attributes for a cell. ${fix}` },
+      ],
+    });
+  });
+
+  test("an attribute error and a text error of the same table both come, in table order", () => {
+    const table: Table = {
+      columns: [{ key: "a", title: " A", attributes: attrs({ classes: ["x"] }) }],
+      rows: [{ attributes: attrs({ classes: ["r"] }), cells: { a: "y " }, cellAttributes: { a: attrs({ classes: ["c"] }) } }],
+    };
+    const result = toGfm(table);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.map((e) => [e.row, e.key, e.attribute])).toEqual([
+        [undefined, "a", "column"],
+        [undefined, "a", undefined],
+        [1, undefined, "row"],
+        [1, "a", "cell"],
+        [1, "a", undefined],
+      ]);
+    }
+  });
+
+  test("with dropAttributes, the align of the columns and the ID of the rows stay, and the rest goes with no error", () => {
+    const table: Table = {
+      columns: [
+        { key: "a", title: "A", attributes: attrs({ id: "c", classes: ["w"], pairs: [{ key: "k", value: "v" }, { key: "align", value: "center" }] }) },
+        { key: "b", title: "B", attributes: attrs({ classes: ["w"] }) },
+      ],
+      rows: [
+        { attributes: attrs({ id: "r1", classes: ["new"] }), cells: { a: "x" }, cellAttributes: { b: attrs({ classes: ["c"] }) } },
+        { attributes: attrs({ classes: ["old"] }), cells: { b: "y" } },
+      ],
+    };
+    const result = toGfm(table, { dropAttributes: true });
+    expect(result).toStrictEqual({ ok: true, text: "| A | B |\n| :---: | --- |\n| x {#r1} |  |\n|  | y |" });
+    if (result.ok) {
+      expect(read(result.text)).toStrictEqual({ ok: true, table: gfmView(table) });
+    }
+  });
+
+  test("dropAttributes keeps the other errors", () => {
+    const result = toGfm({ columns: [{ key: "a", title: "A", attributes: attrs({ classes: ["w"] }) }], rows: [{ cells: { a: "x " } }] }, { dropAttributes: true });
+    expect(result).toMatchObject({ ok: false, errors: [{ row: 1, key: "a" }] });
+  });
+});
+
+describe("gfmView", () => {
+  test("keeps the align of the columns and the ID of the rows, and drops the rest", () => {
+    const table: Table = {
+      columns: [
+        { key: "a", title: "A", attributes: attrs({ classes: ["w"], pairs: [{ key: "align", value: "left" }] }) },
+        { key: "b", title: "B", attributes: attrs({ id: "c" }) },
+      ],
+      rows: [{ attributes: attrs({ classes: ["r"] }), cells: { a: "x" }, cellAttributes: { a: attrs({ id: "i" }) } }, { attributes: attrs({ id: "r2", classes: ["n"] }), cells: {} }],
+    };
+    expect(gfmView(table)).toStrictEqual({
+      columns: [
+        { key: "a", title: "A", attributes: align("left") },
+        { key: "b", title: "B" },
+      ],
+      rows: [{ cells: { a: "x" } }, { attributes: attrs({ id: "r2" }), cells: {} }],
+    });
+  });
+});
+
 describe("fromGfm", () => {
   test("the keys come from the titles", () => {
     expect(read("| Price ($) | (Price) | |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n")).toStrictEqual({
@@ -267,16 +417,30 @@ describe("fromGfm", () => {
     });
   });
 
-  test("the alignment is dropped", () => {
-    expect(read("| a | b | c |\n| :-: | --: | :-- |\n| x | y | z |")).toStrictEqual({
+  test("a column with an alignment gets the attribute align", () => {
+    expect(read("| a | b | c | d |\n| :-: | --: | :-- | --- |\n| x | y | z | w |")).toStrictEqual({
       ok: true,
       table: {
         columns: [
-          { key: "a", title: "a" },
-          { key: "b", title: "b" },
-          { key: "c", title: "c" },
+          { key: "a", title: "a", attributes: { classes: [], pairs: [{ key: "align", value: "center" }] } },
+          { key: "b", title: "b", attributes: { classes: [], pairs: [{ key: "align", value: "right" }] } },
+          { key: "c", title: "c", attributes: { classes: [], pairs: [{ key: "align", value: "left" }] } },
+          { key: "d", title: "d" },
         ],
-        rows: [{ cells: { a: "x", b: "y", c: "z" } }],
+        rows: [{ cells: { a: "x", b: "y", c: "z", d: "w" } }],
+      },
+    });
+  });
+
+  test("the alignment of a table with no outer pipes and with no body rows", () => {
+    expect(read("a | b\n:- | -:\n")).toStrictEqual({
+      ok: true,
+      table: {
+        columns: [
+          { key: "a", title: "a", attributes: { classes: [], pairs: [{ key: "align", value: "left" }] } },
+          { key: "b", title: "b", attributes: { classes: [], pairs: [{ key: "align", value: "right" }] } },
+        ],
+        rows: [],
       },
     });
   });
@@ -407,7 +571,7 @@ describe("fromGfm", () => {
   test("toGfm of the result gives the canonical GFM text", () => {
     const result = read("|a|b|\n|:-|-:|\n|x\\|y|{#i}|\n|  {#j}|z\\\\\\|w|");
     expect(result.ok).toBe(true);
-    if (result.ok) expect(gfm(result.table)).toBe("| a | b |\n| --- | --- |\n| x\\|y | {#i} |\n| {#j} | z\\\\\\|w |");
+    if (result.ok) expect(gfm(result.table)).toBe("| a | b |\n| :--- | ---: |\n| x\\|y | {#i} |\n| {#j} | z\\\\\\|w |");
   });
 });
 

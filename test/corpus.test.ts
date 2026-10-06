@@ -256,11 +256,10 @@ describe("normalize", () => {
     expect(short).toEqual(full);
   });
 
-  test("keeps the alignment, unless dropAlign is given", () => {
+  test("keeps the alignment", () => {
     const left = parseTree("| a |\n| :- |\n");
     const none = parseTree("| a |\n| - |\n");
     expect(normalize(left)).not.toEqual(normalize(none));
-    expect(normalize(left, { dropAlign: true })).toEqual(normalize(none, { dropAlign: true }));
   });
 
   test("firstDifference finds the row that differs", () => {
@@ -275,8 +274,10 @@ describe("compareTexts", () => {
     expect(compareTexts("|a|b|\n|-|-|\n|1|2|\n", "| a | b |\n| --- | --- |\n| 1 | 2 |\n")).toEqual([{ kind: "same", line: 1 }]);
   });
 
-  test("a change of the alignment only counts as alignment", () => {
-    expect(compareTexts("text\n\n| a |\n| :-: |\n| 1 |\n", "text\n\n| a |\n| --- |\n| 1 |\n")).toEqual([{ kind: "alignment", line: 3 }]);
+  test("a change of the alignment only is different", () => {
+    expect(compareTexts("text\n\n| a |\n| :-: |\n| 1 |\n", "text\n\n| a |\n| --- |\n| 1 |\n")).toEqual([
+      { kind: "different", line: 3, message: "the table differs after the round trip" },
+    ]);
   });
 
   test("a change of a cell is different, also next to a change of the alignment", () => {
@@ -284,7 +285,7 @@ describe("compareTexts", () => {
     expect(compareTexts(original, "| a | b |\n| --- | :-: |\n| x | y \\| |\n")).toEqual([
       { kind: "different", line: 3, message: "the tableRow differs after the round trip" },
     ]);
-    expect(compareTexts(original, "| a | b |\n| --- | --- |\n| x | z |\n")).toEqual([
+    expect(compareTexts(original, "| a | b |\n| --- | :-: |\n| x | z |\n")).toEqual([
       { kind: "different", line: 3, message: "the tableRow differs after the round trip" },
     ]);
   });
@@ -294,7 +295,7 @@ describe("compareTexts", () => {
     const back = "| a |\n| - |\n| 1 |\n\n| b |\n| - |\n| 2 |\n\n| c |\n| - |\n| 4 |\n";
     expect(compareTexts(original, back)).toEqual([
       { kind: "same", line: 1 },
-      { kind: "alignment", line: 5 },
+      { kind: "different", line: 5, message: "the table differs after the round trip" },
       { kind: "different", line: 11, message: "the tableRow differs after the round trip" },
     ]);
   });
@@ -344,8 +345,8 @@ describe("roundTrip", () => {
     expect(roundTrip("x\n\n| a |\n| - |\n| 1 | 2 |\n")).toMatchObject([{ kind: "error", line: 5 }]);
   });
 
-  test("counts the alignment, which tbl-md 0.1 drops", () => {
-    expect(roundTrip("| a | b |\n| :- | -: |\n| 1 |\n")).toEqual([{ kind: "alignment", line: 1 }]);
+  test("keeps the alignment", () => {
+    expect(roundTrip("| a | b | c |\n| :- | -: | :-: |\n| 1 |\n")).toEqual([{ kind: "same", line: 1 }]);
   });
 
   test("a plain table is the same, also with short rows and empty excess cells", () => {
@@ -357,7 +358,7 @@ describe("roundTrip", () => {
     expect(roundTrip(text)).toMatchObject([
       { kind: "same", line: 1 },
       { kind: "error", line: 7 },
-      { kind: "alignment", line: 9 },
+      { kind: "same", line: 9 },
     ]);
   });
 
@@ -372,7 +373,7 @@ describe("roundTrip", () => {
     const text = "> | a |\n> | - |\n> | 1 | 2 |\n>\n> | b |\n> | :- |\n> | 3 |\n\n| c |\n| - |\n| 4 |\n";
     expect(roundTrip(text)).toMatchObject([
       { kind: "error", line: 3 },
-      { kind: "alignment", line: 5 },
+      { kind: "same", line: 5 },
       { kind: "same", line: 9 },
     ]);
   });

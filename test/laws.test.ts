@@ -22,6 +22,7 @@ import {
   type Row,
   type Table,
 } from "../src/index.ts";
+import { gfmView } from "../src/gfm.ts";
 
 const runs = { numRuns: 1000 };
 
@@ -204,10 +205,19 @@ const gfmCell = fc
   })
   .filter((text) => text !== "" && convertible(text));
 
-const gfmTableArb: fc.Arbitrary<Table> = fc.array(gfmTitle, { minLength: 1, maxLength: 4 }).chain((titles) => {
-  const keys = keysFromTitles(titles);
+/** A random `align` of a column, or none. */
+const alignArb = fc.option(fc.constantFrom("left", "center", "right"), { nil: undefined });
+
+const gfmTableArb: fc.Arbitrary<Table> = fc.array(fc.tuple(gfmTitle, alignArb), { minLength: 1, maxLength: 4 }).chain((parts) => {
+  const keys = keysFromTitles(parts.map(([title]) => title));
   return fc.record({
-    columns: fc.constant(titles.map((title, i) => ({ key: keys[i]!, title }))),
+    columns: fc.constant(
+      parts.map(([title, align], i) => {
+        const column: Column = { key: keys[i]!, title };
+        if (align !== undefined) column.attributes = { classes: [], pairs: [{ key: "align", value: align }] };
+        return column;
+      }),
+    ),
     rows: fc.array(
       fc
         .tuple(fc.option(id, { nil: undefined }), fc.tuple(...keys.map(() => fc.option(gfmCell, { nil: undefined }))))
@@ -218,6 +228,37 @@ const gfmTableArb: fc.Arbitrary<Table> = fc.array(gfmTitle, { minLength: 1, maxL
           });
           const row: Row = { cells };
           if (rowId !== undefined) row.attributes = { id: rowId, classes: [], pairs: [] };
+          return row;
+        }),
+      { maxLength: 4 },
+    ),
+  });
+});
+
+// Tables for the law of dropAttributes: the titles and the cells of gfmTableArb, with random attributes at each place.
+const gfmAttributesTableArb: fc.Arbitrary<Table> = fc.array(fc.tuple(gfmTitle, maybe(attributesArb("column"))), { minLength: 1, maxLength: 4 }).chain((parts) => {
+  const keys = keysFromTitles(parts.map(([title]) => title));
+  return fc.record({
+    columns: fc.constant(
+      parts.map(([title, attributes], i) => {
+        const column: Column = { key: keys[i]!, title };
+        if (attributes !== undefined) column.attributes = attributes;
+        return column;
+      }),
+    ),
+    rows: fc.array(
+      fc
+        .tuple(maybe(attributesArb("row")), fc.tuple(...keys.map(() => fc.tuple(fc.option(gfmCell, { nil: undefined }), maybe(attributesArb("cell"))))))
+        .map(([rowAttributes, cellParts]) => {
+          const cells: Record<string, string> = {};
+          const cellAttributes: Record<string, Attributes> = {};
+          cellParts.forEach(([text, attributes], i) => {
+            if (text !== undefined) cells[keys[i]!] = text;
+            if (attributes !== undefined) cellAttributes[keys[i]!] = attributes;
+          });
+          const row: Row = { cells };
+          if (rowAttributes !== undefined) row.attributes = rowAttributes;
+          if (Object.keys(cellAttributes).length > 0) row.cellAttributes = cellAttributes;
           return row;
         }),
       { maxLength: 4 },
@@ -301,6 +342,34 @@ describe("the laws of the GFM conversion", () => {
         const node = onlyGfm(toGfmText(t)).node;
         expect(node.children).toHaveLength(t.rows.length + 1);
         for (const row of node.children) expect(row.children).toHaveLength(t.columns.length);
+      }),
+      gfmRuns,
+    );
+  });
+
+  test("with dropAttributes, a table with random attributes converts and reads back as its GFM view", () => {
+    let dropped = 0;
+    fc.assert(
+      fc.property(gfmAttributesTableArb, (t) => {
+        const result = toGfm(t, { dropAttributes: true });
+        if (!result.ok) throw new Error(JSON.stringify(result.errors));
+        expect(fromGfm(result.text, onlyGfm(result.text))).toStrictEqual({ ok: true, table: gfmView(t) });
+        if (!toGfm(t).ok) dropped++;
+      }),
+      gfmRuns,
+    );
+    // Most random tables have an attribute with no GFM form, so the test is not empty.
+    expect(dropped).toBeGreaterThan(gfmRuns.numRuns / 2);
+  });
+
+  test("with dropAttributes, convert writes the GFM view of a tbl block", () => {
+    fc.assert(
+      fc.property(gfmAttributesTableArb, (t) => {
+        const there = convert(`${renderBlock(t)}\n`, { to: "gfm", dropAttributes: true });
+        if (!there.ok) throw new Error(JSON.stringify(there.errors));
+        const back = convert(there.output, { to: "tbl" });
+        if (!back.ok) throw new Error(JSON.stringify(back.errors));
+        expect(back.output).toBe(`${renderBlock(gfmView(t))}\n`);
       }),
       gfmRuns,
     );

@@ -2,7 +2,7 @@
 
 A `tbl` block is a table in a fenced code block. It replaces the GFM pipe table, because a pipe table is hard to read as text. The user decided the format on 2026-10-05. The first copy of this file came from `~/dv/markgraf/docs/tbl-format.md`. The research behind the format is `~/dv/markgraf/docs/research/readable-table-syntax.md`. The format is a variant of the record-jar and Debian control file family, with a header record and short keys.
 
-Status: version 0.1.0 is released. This file now describes version 0.2.0, which adds attributes (rules 13 to 16). Since step 12 of `docs/PLAN.md`, the parser and the renderer follow version 0.2.0. The conversion to and from GFM follows with step 13. Until then, it keeps only the row ID of the attributes, and a conversion to GFM of a table with other attributes fails. Each change of the rules has an entry in `docs/review-queue.md`. After the first release, a change of these rules that makes a valid block invalid, or that changes its content, needs a new major version. Below 1.0.0, a minor version takes the role of the major version (`bump-minor-pre-major` of release-please).
+Status: version 0.1.0 is released. This file now describes version 0.2.0, which adds attributes (rules 13 to 16). Since step 12 of `docs/PLAN.md`, the parser and the renderer follow version 0.2.0. Since step 13, the conversion to and from GFM follows version 0.2.0 too. Each change of the rules has an entry in `docs/review-queue.md`. After the first release, a change of these rules that makes a valid block invalid, or that changes its content, needs a new major version. Below 1.0.0, a minor version takes the role of the major version (`bump-minor-pre-major` of release-please).
 
 ## Example
 

@@ -8,7 +8,7 @@ import { getFile } from "./fetch.ts";
 import { Budget, cacheRoot, checkConfig, countTables, roundTrip, splitDocuments, type Config } from "./lib.ts";
 
 const CONFIG = fileURLToPath(new URL("./sources.json", import.meta.url));
-const COUNTS = ["same", "error", "alignment", "different"] as const;
+const COUNTS = ["same", "error", "different"] as const;
 type Count = (typeof COUNTS)[number];
 
 interface Row {
@@ -30,7 +30,7 @@ async function main(args: string[]): Promise<number> {
   let downloads = 0;
   let failed = false;
   for (const source of config.sources) {
-    const row: Row = { repo: source.repo, files: source.files.length, documents: 0, tables: 0, counts: { same: 0, error: 0, alignment: 0, different: 0 } };
+    const row: Row = { repo: source.repo, files: source.files.length, documents: 0, tables: 0, counts: { same: 0, error: 0, different: 0 } };
     rows.push(row);
     for (const file of source.files) {
       const { bytes, downloaded } = await getFile(source.repo, source.commit, file.path, file.sha256, options);
@@ -54,8 +54,6 @@ async function main(args: string[]): Promise<number> {
           if (outcome.kind === "different") {
             failed = true;
             console.log(`different  ${at(outcome.line)}: ${outcome.message}`);
-          } else if (verbose && outcome.kind === "alignment") {
-            console.log(`alignment  ${at(outcome.line)}`);
           } else if (verbose && outcome.kind === "error") {
             console.log(`error      ${at(outcome.line)}: ${outcome.message}`);
           }
@@ -70,16 +68,15 @@ async function main(args: string[]): Promise<number> {
   console.log(`Downloaded ${downloads} files (${options.budget.used} bytes). The cache is ${options.root}.`);
   console.log(
     '"documents" counts the documents with a GFM table. A spec file gives one document per example. ' +
-      'The other counts are per table: "same", "error", "alignment", and "different" add up to "tables", plus one "different" for each document that differs outside its tables. ' +
+      'The other counts are per table: "same", "error", and "different" add up to "tables", plus one "different" for each document that differs outside its tables. ' +
       '"error" is a conversion error by docs/format.md, not a failure. The check removes a table with an error and checks the other tables of the document. ' +
-      '"alignment" counts the tables that differ only in the column alignment, which tbl-md 0.1 drops (step 13 removes this count). ' +
-      'Only "different" and a crash fail the run. Run with --verbose to list the errors and the alignment cases.',
+      'Only "different" and a crash fail the run. Run with --verbose to list the errors.',
   );
   return failed ? 1 : 0;
 }
 
 function printSummary(rows: Row[]): void {
-  const total: Row = { repo: "total", files: 0, documents: 0, tables: 0, counts: { same: 0, error: 0, alignment: 0, different: 0 } };
+  const total: Row = { repo: "total", files: 0, documents: 0, tables: 0, counts: { same: 0, error: 0, different: 0 } };
   for (const row of rows) {
     total.files += row.files;
     total.documents += row.documents;

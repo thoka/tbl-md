@@ -215,8 +215,6 @@ export function parseTree(text: string): Root {
 }
 
 export interface NormalizeOptions {
-  /** Sets each column alignment to null, to find the differences that are not the alignment. */
-  dropAlign?: boolean;
   /** Puts an empty table node in place of each table, to find the differences outside the tables. */
   skipTables?: boolean;
 }
@@ -237,8 +235,7 @@ export function normalize(node: Nodes, options: NormalizeOptions = {}): unknown 
 
 function normalizeTable(table: Table, options: NormalizeOptions): unknown {
   const width = table.children[0]?.children.length ?? 0;
-  const align = options.dropAlign ? (table.align ?? []).map(() => null) : (table.align ?? []);
-  return { type: "table", align, children: table.children.map((row) => normalizeRow(row, width, options)) };
+  return { type: "table", align: table.align ?? [], children: table.children.map((row) => normalizeRow(row, width, options)) };
 }
 
 function normalizeRow(row: TableRow, width: number, options: NormalizeOptions): unknown {
@@ -256,7 +253,7 @@ export function firstDifference(a: Nodes, b: Nodes, options: NormalizeOptions = 
   if (a.type !== b.type || !("children" in a) || !("children" in b) || a.children.length !== b.children.length) return a;
   if (a.type === "table") {
     const t = b as Table;
-    if (!options.dropAlign && !isDeepStrictEqual(a.align ?? [], t.align ?? [])) return a;
+    if (!isDeepStrictEqual(a.align ?? [], t.align ?? [])) return a;
     const width = a.children[0]?.children.length ?? 0;
     const otherWidth = t.children[0]?.children.length ?? 0;
     for (let i = 0; i < a.children.length; i++) {
@@ -280,7 +277,6 @@ export function firstDifference(a: Nodes, b: Nodes, options: NormalizeOptions = 
 export type Outcome =
   | { kind: "same"; line: number }
   | { kind: "error"; line: number; message: string }
-  | { kind: "alignment"; line: number }
   | { kind: "different"; line: number; message: string };
 
 /** The GFM tables of a tree, in document order. */
@@ -293,8 +289,7 @@ const lineOf = (node: Nodes) => node.position?.start.line ?? 1;
 
 /**
  * Compares the mdast of the original text with the mdast of the text after the round trip, table by table.
- * A difference in the column alignment alone is "alignment", because tbl-md 0.1 drops the alignment (step 13
- * removes this case). Each other difference of a table is "different", also if the alignment differs too.
+ * Each difference of a table is "different", also a difference in the column alignment alone.
  * A difference outside the tables adds one outcome "different". If the number of tables differs, the tables
  * cannot pair, so the result is one outcome "different" for each table of the original.
  */
@@ -317,8 +312,7 @@ export function compareTexts(original: string, back: string): Outcome[] {
 
 function compareTables(a: Table, b: Table): Outcome {
   if (isDeepStrictEqual(normalize(a), normalize(b))) return { kind: "same", line: lineOf(a) };
-  if (isDeepStrictEqual(normalize(a, { dropAlign: true }), normalize(b, { dropAlign: true }))) return { kind: "alignment", line: lineOf(a) };
-  const node = firstDifference(a, b, { dropAlign: true });
+  const node = firstDifference(a, b);
   return { kind: "different", line: lineOf(node), message: `the ${node.type} differs after the round trip` };
 }
 
