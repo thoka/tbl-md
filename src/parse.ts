@@ -293,17 +293,22 @@ function finishCell(cell: Cell, error: Report): { text: string; attributes?: Att
   return attributes === undefined ? { text } : { text, attributes };
 }
 
-/** The block lines of the key lines of a valid tbl block. All lines are 1-based block lines, as in `TblError`. */
+/** The block lines of the key lines and the attribute lines of a valid tbl block. All lines are 1-based block lines, as in `TblError`. */
 export interface TblLocation {
   /** The line of each header key line, by key. */
   headerLines: Record<string, number>;
-  /** One entry per data record: the line of its `--`, and the line of each key line by the full header key. */
-  rows: { line: number; cells: Record<string, number> }[];
+  /** The line of the attribute line of each column that has one, by key. */
+  headerAttributeLines: Record<string, number>;
+  /**
+   * One entry per data record: the line of its `--` (which also holds the block of the row), the line of each key line
+   * by the full header key, and the line of the attribute line of each cell that has one, by the full header key.
+   */
+  rows: { line: number; cells: Record<string, number>; cellAttributeLines: Record<string, number> }[];
 }
 
 /**
- * Finds the line of each header key and of each cell key line of a tbl block.
- * A cell key line can have a prefix key, and `cells` maps the full header key to its line.
+ * Finds the line of each header key line, of each cell key line, and of each attribute line of a column or a cell of a tbl block.
+ * A cell key line can have a prefix key, and `cells` and `cellAttributeLines` map the full header key to its line.
  * It returns null if `parse(text)` has errors.
  */
 export function locate(text: string): TblLocation | null {
@@ -312,20 +317,34 @@ export function locate(text: string): TblLocation | null {
   const keys = parsed.table.columns.map((c) => c.key);
   const [header, ...data] = splitRecords(text);
   const headerLines: Record<string, number> = {};
+  const headerAttributeLines: Record<string, number> = {};
+  // In a valid block, an attribute line in the header describes the column of the key line before it,
+  // and an attribute line in a record describes the cell of the key line before it.
+  let last: string | undefined;
   for (const line of header!.lines) {
-    // The attribute lines of the columns are no key lines.
     const match = keyLine.exec(line.text);
-    if (match) headerLines[match[1]!] = line.number;
+    if (match) {
+      last = match[1]!;
+      headerLines[last] = line.number;
+    } else if (last !== undefined && blockOf(line) !== undefined) {
+      headerAttributeLines[last] = line.number;
+    }
   }
   const rows = data.map((record) => {
     const cells: Record<string, number> = {};
+    const cellAttributeLines: Record<string, number> = {};
+    let current: string | undefined;
     for (const line of record.lines) {
       const match = keyLine.exec(line.text);
-      if (!match) continue;
-      const resolved = resolve(match[1]!, keys);
-      if ("key" in resolved) cells[resolved.key] = line.number;
+      if (match) {
+        const resolved = resolve(match[1]!, keys);
+        current = "key" in resolved ? resolved.key : undefined;
+        if (current !== undefined) cells[current] = line.number;
+      } else if (current !== undefined && blockOf(line) !== undefined) {
+        cellAttributeLines[current] = line.number;
+      }
     }
-    return { line: record.separator!, cells };
+    return { line: record.separator!, cells, cellAttributeLines };
   });
-  return { headerLines, rows };
+  return { headerLines, headerAttributeLines, rows };
 }

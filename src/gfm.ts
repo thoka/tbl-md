@@ -1,15 +1,27 @@
 // The conversion of one table to and from a GFM pipe table (docs/format.md, section "Conversion to and from GFM").
 // The conversion has no loss: each failure is an error, never a silent change.
-import type { TableCell } from "mdast";
+import type { AlignType, TableCell } from "mdast";
+import { renderAttributes, type Attributes } from "./attributes.ts";
 import type { FoundGfm } from "./markdown.ts";
-import type { Row, Table } from "./parse.ts";
+import type { Column, Row, Table } from "./parse.ts";
 import { validate } from "./render.ts";
 
-/** A problem of toGfm. `row` counts the data rows from 1. A problem of a title has a `key` and no `row`. */
+/**
+ * A problem of toGfm. `row` counts the data rows from 1. A problem of a title has a `key` and no `row`.
+ * A problem of an attribute block has `attribute`: a column block has the `key`, a row block has the `row`,
+ * and a cell block has both.
+ */
 export interface ConvertError {
   row?: number;
   key?: string;
+  /** The kind of the attribute block with no GFM form. */
+  attribute?: "column" | "row" | "cell";
   message: string;
+}
+
+export interface ToGfmOptions {
+  /** Drops each attribute with no GFM form, with no error. `toGfm` keeps the `align` of the columns and the ID of the rows. */
+  dropAttributes?: boolean;
 }
 
 /** A problem of fromGfm, at a 1-based line and column of the Markdown source. */
@@ -59,16 +71,88 @@ export function keysFromTitles(titles: string[]): string[] {
   });
 }
 
+/** The delimiter mark of a column: `:---`, `:---:`, or `---:` for its `align`, and `---` with no `align`. */
+function delimiterOf(column: Column): string {
+  const align = alignOf(column);
+  return align === "left" ? ":---" : align === "center" ? ":---:" : align === "right" ? "---:" : "---";
+}
+
+/** The `align` of a column, or undefined. */
+function alignOf(column: Column): string | undefined {
+  return column.attributes?.pairs.find((p) => p.key === "align")?.value;
+}
+
 /**
- * Writes a table as a GFM pipe table: the header row, the delimiter row `| --- |`, and one line per row.
- * The lines join with "\n", with no final newline. The result has the errors if the table cannot convert with no loss.
+ * The table that GFM can hold: the `align` of the columns, the ID of the rows, and no cell attributes.
+ * A column or a row with nothing left has no `attributes`. `toGfm` with `dropAttributes` writes this table.
  */
-export function toGfm(table: Table): ToGfmResult {
+export function gfmView(table: Table): Table {
+  return {
+    columns: table.columns.map((c) => {
+      const column: Column = { key: c.key, title: c.title };
+      const align = alignOf(c);
+      if (align !== undefined) column.attributes = { classes: [], pairs: [{ key: "align", value: align }] };
+      return column;
+    }),
+    rows: table.rows.map((r) => {
+      const row: Row = { cells: r.cells };
+      const id = r.attributes?.id;
+      if (id !== undefined) row.attributes = { id, classes: [], pairs: [] };
+      return row;
+    }),
+  };
+}
+
+/**
+ * The parts of an attribute block with no GFM form, in the canonical form with no braces, and their number.
+ * It gives undefined if each part has a GFM form. `keep` names the parts that GFM holds at this place.
+ */
+function lossyParts(attributes: Attributes | undefined, keep: { id: boolean; align: boolean }): { text: string; count: number } | undefined {
+  if (attributes === undefined) return undefined;
+  const lossy: Attributes = {
+    classes: attributes.classes,
+    pairs: attributes.pairs.filter((p) => !(keep.align && p.key === "align")),
+  };
+  if (!keep.id && attributes.id !== undefined) lossy.id = attributes.id;
+  const count = (lossy.id === undefined ? 0 : 1) + lossy.classes.length + lossy.pairs.length;
+  if (count === 0) return undefined;
+  return { text: renderAttributes(lossy).slice(1, -1), count };
+}
+
+/**
+ * Reports the parts of an attribute block with no GFM form, with the two fixes. `where` starts the message,
+ * and `why` says what GFM holds at this place.
+ */
+function reportLossy(
+  attributes: Attributes | undefined,
+  keep: { id: boolean; align: boolean },
+  error: Omit<ConvertError, "message">,
+  where: string,
+  why: string,
+  errors: ConvertError[],
+): void {
+  const parts = lossyParts(attributes, keep);
+  if (parts === undefined) return;
+  const what = parts.count === 1 ? `the attribute \`${parts.text}\` has` : `the attributes \`${parts.text}\` have`;
+  const them = parts.count === 1 ? "it" : "them";
+  errors.push({ ...error, message: `${where}: ${what} no GFM form, because ${why}. Remove ${them}, or convert with --drop-attributes to drop ${them}.` });
+}
+
+/**
+ * Writes a table as a GFM pipe table: the header row, the delimiter row with the alignment of each column, and one line per row.
+ * The lines join with "\n", with no final newline. The result has the errors if the table cannot convert with no loss.
+ * An attribute with no GFM form is an error, unless `options.dropAttributes` is true.
+ */
+export function toGfm(table: Table, options: ToGfmOptions = {}): ToGfmResult {
   const problems = validate(table);
   if (problems.length > 0) return { ok: false, errors: problems.map((message) => ({ message })) };
 
   const errors: ConvertError[] = [];
-  const header = table.columns.map(({ key, title }) => {
+  const strict = !options.dropAttributes;
+  const header = table.columns.map(({ key, title, attributes }) => {
+    if (strict) {
+      reportLossy(attributes, { id: false, align: true }, { key, attribute: "column" }, `Column "${key}"`, "GFM keeps only the align of a column", errors);
+    }
     if (edgeSpace.test(title)) {
       errors.push({ key, message: `The title of column "${key}" starts or ends with a space or a tab. GFM removes it, so remove it from the title.` });
     }
@@ -76,11 +160,18 @@ export function toGfm(table: Table): ToGfmResult {
     return escapePipes(title);
   });
 
-  const lines = [row(header), row(table.columns.map(() => "---"))];
+  const lines = [row(header), row(table.columns.map(delimiterOf))];
   table.rows.forEach((r, i) => {
+    if (strict) {
+      reportLossy(r.attributes, { id: true, align: false }, { row: i + 1, attribute: "row" }, `Row ${i + 1}`, "GFM keeps only the ID of a row", errors);
+    }
     const cells = table.columns.map(({ key }, c) => {
       const text = r.cells[key] ?? "";
       const report = (message: string) => errors.push({ row: i + 1, key, message: `Row ${i + 1}, cell "${key}": ${message}` });
+      if (strict) {
+        const where = `Row ${i + 1}, cell "${key}"`;
+        reportLossy(r.cellAttributes?.[key], { id: false, align: false }, { row: i + 1, key, attribute: "cell" }, where, "GFM has no attributes for a cell", errors);
+      }
       const cell = cellToGfm(text, report);
       return c === 0 ? firstCell(cell, r) : cell;
     });
@@ -142,14 +233,19 @@ function firstCell(cell: string, r: Row): string {
 /**
  * Reads a GFM table of a Markdown source as a table. `found` comes from `findTables(source)`.
  * Each cell text comes from the source by the offsets of its mdast cell, so that the inline Markdown stays byte for byte.
- * The keys come from the titles by `keysFromTitles`. The column alignment is dropped.
+ * The keys come from the titles by `keysFromTitles`. A column with an alignment gets the attributes `{align=...}`.
  */
 export function fromGfm(source: string, found: FoundGfm): FromGfmResult {
   const errors: GfmError[] = [];
   const [headerRow, ...bodyRows] = found.node.children;
   const titles = headerRow!.children.map((cell) => unescapePipes(cellSource(source, cell).text));
   const keys = keysFromTitles(titles);
-  const columns = titles.map((title, i) => ({ key: keys[i]!, title }));
+  const columns = titles.map((title, i): Column => {
+    const column: Column = { key: keys[i]!, title };
+    const align: AlignType | undefined = found.node.align?.[i];
+    if (align) column.attributes = { classes: [], pairs: [{ key: "align", value: align }] };
+    return column;
+  });
 
   const rows = bodyRows.map((bodyRow, i) => {
     const cells: Record<string, string> = {};
