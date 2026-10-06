@@ -2,12 +2,14 @@
 // The type declarations of the public API never name this module, so that they do not need markdown-it types.
 import markdownit, { type MarkdownIt, type StateBlock } from "markdown-it";
 import { DISCOURSE, type Flavor } from "./flavor.ts";
+import { discourseTable } from "./discourse.ts";
 
 /**
  * A new markdown-it engine with the settings of a flavor, with no recorder.
  * `discourse`: the preset "default" with the options of Discourse (html, breaks, linkify, typographer), the quotes and
- * the linkify TLDs of its site settings, and fuzzyLink. It does not change the URL decode characters, because that
- * changes the shared mdurl module of all engines (step 18c). `markdown-it`: `markdownit()`.
+ * the linkify TLDs of its site settings, fuzzyLink, and the table rule with the link pipe rule (src/discourse.ts).
+ * It does not change the URL decode characters, because that changes the shared mdurl module of all engines
+ * (step 18c). `markdown-it`: `markdownit()`.
  */
 export function createEngine(flavor: Flavor): MarkdownIt {
   if (flavor === "markdown-it") return markdownit();
@@ -15,6 +17,8 @@ export function createEngine(flavor: Flavor): MarkdownIt {
   md.options.quotes = [...DISCOURSE.quotes];
   md.linkify.tlds([...DISCOURSE.linkifyTlds]);
   md.linkify.set({ fuzzyLink: true });
+  const table = (md.block.ruler as unknown as { __rules__: RuleEntry[] }).__rules__.find((r) => r.name === "table")!;
+  md.block.ruler.at("table", discourseTable, { alt: [...table.alt] });
   return md;
 }
 

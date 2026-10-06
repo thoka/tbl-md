@@ -1,13 +1,15 @@
 // The engines of the flavors (src/engine.ts), and the statements of docs/format.md (version 0.3.0) about them.
 // The flavor `markdown-it` is `markdownit()`. The flavor `discourse` reproduces Discourse with the table feature of
 // Discourse. That file is GPL-2.0-only, so it is not in this repository: the tests with it run only when the corpus
-// cache has it (corpus/markdown-it-lib.ts). The tests without it use the engine of the flavor alone, which has the
-// same table rule except for the link pipes (step 18b).
+// cache has it (corpus/markdown-it-lib.ts, mise run corpus-discourse). The tests without it use the engine of the
+// flavor alone, with the link pipe rule of tbl-md (src/discourse.ts).
 import { describe, expect, test } from "bun:test";
 import markdownit from "markdown-it";
 import { cachedTableFeature, discourseEngine, type DiscourseFeature } from "../corpus/markdown-it-lib.ts";
+import { linkPipes } from "../src/discourse.ts";
 import { createEngine, engineOf } from "../src/engine.ts";
 import { FLAVORS } from "../src/flavor.ts";
+import { findTables, type FoundGfm } from "../src/markdown.ts";
 
 const tableFeature = await cachedTableFeature();
 
@@ -179,16 +181,75 @@ describe("format.md: how markdown-it splits a GFM row", () => {
     expect(cellsOf(plain, "| ![x|100x50](https://example.com/a.png) | b |")).toEqual(["![x", "100x50](https://example.com/a.png)"]);
   });
 
-  test.skipIf(!tableFeature)("the flavor discourse does not split at a pipe in a complete link or image", () => {
-    const md = discourseEngine(tableFeature);
-    expect(cellsOf(md, "| [x|y](https://example.com) | b |")).toEqual(['<a href="https://example.com">x|y</a>', "b"]);
-    expect(cellsOf(md, "| [x](https://example.com/a|b) | b |")).toEqual(['<a href="https://example.com/a%7Cb">x</a>', "b"]);
-    expect(cellsOf(md, "| ![x|100x50](https://example.com/a.png) | b |")).toEqual(['<img src="https://example.com/a.png" alt="x|100x50">', "b"]);
-    expect(cellsOf(md, "| [x|y][r] | b |")).toEqual(["[x|y][r]", "b"]);
+  // The cases of docs/format.md, section The link pipe rule of `discourse`, as [row line, HTML of each cell].
+  const linkCases: [string, string[]][] = [
+    ["| [x|y](https://example.com) | b |", ['<a href="https://example.com">x|y</a>', "b"]],
+    ["| [x](https://example.com/a|b) | b |", ['<a href="https://example.com/a%7Cb">x</a>', "b"]],
+    ['| [x](https://example.com "t|u") | b |', ['<a href="https://example.com" title="t|u">x</a>', "b"]],
+    ["| ![x|100x50](https://example.com/a.png) | b |", ['<img src="https://example.com/a.png" alt="x|100x50">', "b"]],
+    ["| [x|y][r] | b |", ["[x|y][r]", "b"]],
+    ["| [x|y][] | b |", ["[x|y][]", "b"]],
+    ["| [x][r|s] | b |", ["[x][r|s]", "b"]],
     // A shortcut reference is no complete link.
-    expect(cellsOf(md, "| [x|y] | b |")).toEqual(["[x", "y]"]);
+    ["| [x|y] | b |", ["[x", "y]"]],
     // A protected pipe keeps its backslash, so a code span in a link shows it.
-    expect(cellsOf(md, "| [`x\\|y`](https://example.com) | b |")).toEqual(['<a href="https://example.com"><code>x\\|y</code></a>', "b"]);
-    expect(cellsOf(md, "| [`x|y`](https://example.com) | b |")).toEqual(['<a href="https://example.com"><code>x|y</code></a>', "b"]);
+    ["| [`x\\|y`](https://example.com) | b |", ['<a href="https://example.com"><code>x\\|y</code></a>', "b"]],
+    ["| [`x|y`](https://example.com) | b |", ['<a href="https://example.com"><code>x|y</code></a>', "b"]],
+    // A `[` in a code span, an autolink, or after a backslash starts no link.
+    ["| `[x|y](u)` | b |", ["`[x", "y](u)`"]],
+    ["| \\[x|y](u) | b |", ["[x", "y](u)"]],
+    // A link text cannot hold another link: only the inner link is complete.
+    ["| [a [b|c](u) d|e](v) | b |", ['[a <a href="u">b|c</a> d', "e](v)"]],
+    ["| [x|y] (u) | b |", ["[x", "y] (u)"]],
+  ];
+
+  test("the flavor discourse does not split at a pipe in a complete link or image", () => {
+    const md = createEngine("discourse");
+    for (const [line, cells] of linkCases) expect([line, cellsOf(md, line)]).toEqual([line, cells]);
+  });
+
+  test.skipIf(!tableFeature)("the table feature of Discourse gives the same cells for the link cases", () => {
+    const md = discourseEngine(tableFeature);
+    for (const [line, cells] of linkCases) expect([line, cellsOf(md, line)]).toEqual([line, cells]);
+  });
+
+  test("a link pipe in the header row counts no extra column with discourse", () => {
+    const doc = "| [a|b](u) | c |\n| - | - |\n| x | y |\n";
+    expect(createEngine("discourse").render(doc)).toStartWith('<table>\n<thead>\n<tr>\n<th><a href="u">a|b</a></th>');
+    expect(createEngine("markdown-it").render(doc)).not.toContain("<table>");
+  });
+
+  test("findTables gives the cells of the engine of each flavor", () => {
+    const doc = `${header}| [x|y](u) | \`a|b\` | ![i|1x1](p) |\n`;
+    const cells = (flavor: "discourse" | "markdown-it") =>
+      (findTables(doc, { flavor })[0] as FoundGfm).rows[0]!.cells.map((c) => [c.text, c.column]);
+    expect(cells("discourse")).toEqual([["[x|y](u)", 3], ["`a", 14], ["b`", 17], ["![i|1x1](p)", 22]]);
+    expect(cells("markdown-it")).toEqual([["[x", 3], ["y](u)", 6], ["`a", 14], ["b`", 17], ["![i", 22], ["1x1](p)", 26]]);
+  });
+
+  test("linkPipes gives the offsets of the kept pipes", () => {
+    const md = createEngine("discourse");
+    expect([...linkPipes(md, "[a|b](u|v) | c")]).toEqual([2, 7]);
+    expect([...linkPipes(md, "a | b")]).toEqual([]);
+    expect([...linkPipes(md, "[a|b] | c")]).toEqual([]);
+  });
+
+  test.skipIf(!tableFeature)("the table feature of Discourse renders random rows the same as the flavor discourse", () => {
+    // A fixed generator, so that a failure repeats. Discourse wraps each table in a div, which is not part of the split.
+    const theirs = discourseEngine(tableFeature);
+    const ours = createEngine("discourse");
+    const atoms = ["[", "]", "(", ")", "![", "|", "|", "\\", "`", "<", ">", "x", " ", '"', "[]", "](u)", "http://a.com", "<a>", "*"];
+    let seed = 7;
+    const next = (n: number) => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % n;
+    };
+    for (let i = 0; i < 3000; i++) {
+      let text = "";
+      for (let k = 2 + next(12); k > 0; k--) text += atoms[next(atoms.length)];
+      const doc = next(3) === 0 ? `| ${text} | h |\n| - | - |\n| ${text} | b |\n` : `${header}| ${text} | b |\n`;
+      const html = theirs.render(doc).replace(/<div class="md-table">\n|<\/div>/g, "");
+      expect([doc, ours.render(doc)]).toEqual([doc, html]);
+    }
   });
 });

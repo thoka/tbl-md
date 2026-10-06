@@ -43,3 +43,8 @@ run = "bun corpus/run.ts"
 description = "Pin corpus files: mise run corpus-pin <owner/repo> <commit> <path>... [--kind <kind>] [--license <license>] writes the size and the SHA-256 of each file into corpus/sources.json"
 depends = ["install"]
 run = "bun corpus/pin.ts"
+
+[tasks.corpus-discourse]
+description = "Download the table feature of Discourse (GPL-2.0-only) at the pinned commit into the corpus cache, once. The tests that compare the link pipe rule with it skip without it"
+depends = ["install"]
+run = "bun corpus/discourse.ts"

@@ -545,6 +545,7 @@ pre-commit:
 - A line break inside a code span becomes `<br>` in GFM, and in a code span `<br>` is text, not a line break. The round trip keeps the text, but a GFM viewer shows `<br>` in the code.
 - A literal `<br>` in a tbl cell is an HTML line break in a Markdown view. In GFM, it becomes `\<br>`, which shows the text `<br>`. A `\<br>` in a tbl cell shows the text `<br>`. In GFM, it becomes `\\<br>`, which shows `\` and a line break. The round trip keeps the text, but the view changes.
 - A tbl cell with a pipe after an odd number of backslashes, for example `a\|b`, does not convert to GFM. Write `a|b`.
+- With the flavor `discourse`, Discourse keeps the backslash before a pipe in a complete link (the link pipe rule of `docs/format.md`). So the GFM cell ``[`x\|y`](u)`` shows `x\|y` in its code span, but the conversion to tbl writes ``[`x|y`](u)``, which shows `x|y`. The conversion does not compare the HTML of each cell yet, so it does not report this change.
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
 - A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
 - GFM holds only the `align` of a column and the ID of a row. A conversion to GFM fails for each other attribute, or drops it with `--drop-attributes`.
@@ -589,6 +590,9 @@ what: Runs the corpus test (section The corpus test). It needs the network for t
 --
 task: `mise run corpus-pin <owner/repo> <commit> <path>...`
 what: Gets each file and writes its size and SHA-256 into `corpus/sources.json`. A new source needs `--license <SPDX id>`. `--kind <kind>` sets the kind of the files (default `markdown`).
+--
+task: `mise run corpus-discourse`
+what: Downloads the table feature of Discourse (`features/table.js`, GPL-2.0-only) at the pinned commit into the corpus cache, with a hash check, once. With it, `mise run test` also compares the link pipe rule of the flavor `discourse` with Discourse. Without it, these tests skip. The file never goes into the repository or the package.
 --
 task: `mise run corpus-markdown-it`
 what: Compares the GFM tables of the corpus as markdown-it with the settings of Discourse and as micromark see them (section The markdown-it measurement). With `--cases`, it prints the row-split cases as a `tbl` block. With `--verbose`, it lists all examples.

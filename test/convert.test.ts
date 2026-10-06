@@ -255,6 +255,16 @@ describe("convert: the flavor", () => {
     expect(output(convert(source, { to: "tbl" }))).toBe(source);
     expect(output(convert(source, { to: "tbl", flavor: "markdown-it" }))).toBe(`<div>\n${tbl}\n\n</div>\n`);
   });
+
+  test("a pipe in a link is text with discourse, and a delimiter with markdown-it", () => {
+    const source = "| A | B |\n| --- | --- |\n| [x|y](u) | b |\n";
+    const there = output(convert(source, { to: "tbl" }));
+    expect(there).toContain("a: [x|y](u)\n");
+    expect(output(convert(there, { to: "gfm" }))).toBe("| A | B |\n| --- | --- |\n| [x\\|y](u) | b |\n");
+    expect(errors(convert(source, { to: "tbl", flavor: "markdown-it" }))).toEqual([
+      { line: 3, column: 14, message: "Row 1 has more cells than the header (2). GFM drops cell 3, so add a column for it or remove it." },
+    ]);
+  });
 });
 
 describe("convert: round trips", () => {

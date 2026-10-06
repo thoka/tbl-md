@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import type { MarkdownIt } from "markdown-it";
+import markdownit, { type MarkdownIt } from "markdown-it";
 import { createEngine } from "../src/engine.ts";
 import { DISCOURSE as SETTINGS } from "../src/flavor.ts";
 import { cachePath, cacheRoot } from "./lib.ts";
@@ -31,11 +31,15 @@ export interface DiscourseFeature {
 
 /**
  * A new engine of the flavor `discourse` (src/engine.ts) with the plugins of a Discourse feature, as Discourse
- * applies them in setup.js. With no feature, it is the engine of the flavor.
+ * applies them in setup.js. With a feature, the engine has the table rule of markdown-it in place of the link pipe
+ * rule of tbl-md, so that only the feature decides. With no feature, it is the engine of the flavor.
  */
 export function discourseEngine(tableFeature?: DiscourseFeature): MarkdownIt {
   const md = createEngine("discourse");
   if (tableFeature) {
+    type Entry = { name: string; fn: Parameters<typeof md.block.ruler.at>[1]; alt: string[] };
+    const table = (markdownit().block.ruler as unknown as { __rules__: Entry[] }).__rules__.find((r) => r.name === "table")!;
+    md.block.ruler.at("table", table.fn, { alt: [...table.alt] });
     const plugins: ((md: MarkdownIt) => void)[] = [];
     tableFeature.setup({ registerPlugin: (plugin) => plugins.push(plugin), allowList: () => {} });
     for (const plugin of plugins) md.use(plugin);

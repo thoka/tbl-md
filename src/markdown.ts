@@ -4,6 +4,10 @@
 // by its line and its column.
 import { engineOf, type FenceMeta, type TableMeta } from "./engine.ts";
 import { DEFAULT_FLAVOR, type Flavor } from "./flavor.ts";
+import { linkPipes } from "./discourse.ts";
+import { escapedSplit } from "./split.ts";
+
+export { escapedSplit };
 
 interface Place {
   /** Source offset of the first character of the block: the fence, or the first character of the header row. */
@@ -66,7 +70,10 @@ export interface FindOptions {
 
 /** Lists the tbl blocks and the GFM tables of a Markdown text, in document order. */
 export function findTables(source: string, options: FindOptions = {}): Found[] {
-  const md = engineOf(options.flavor ?? DEFAULT_FLAVOR);
+  const flavor = options.flavor ?? DEFAULT_FLAVOR;
+  const md = engineOf(flavor);
+  // The flavor `discourse` keeps the pipes of the link pipe rule (src/discourse.ts).
+  const kept = flavor === "discourse" ? (line: string) => linkPipes(md, line) : undefined;
   const tokens = md.parse(source, {});
   const starts = lineStarts(source);
   const at = (line: number, column: number) => starts[line]! + column;
@@ -101,7 +108,7 @@ export function findTables(source: string, options: FindOptions = {}): Found[] {
         const base = at(rec.line, rec.column);
         return {
           line: rec.line + 1,
-          cells: splitRow(rec.text).map((cell) => ({
+          cells: splitRow(rec.text, kept).map((cell) => ({
             text: source.slice(base + cell.trimStart, base + cell.trimEnd),
             line: rec.line + 1,
             column: rec.column + cell.trimStart + 1,
@@ -174,36 +181,6 @@ function restoreNul(content: string, source: string, starts: number[], firstLine
     .join("\n");
 }
 
-/**
- * The split function of the markdown-it table rule (`escapedSplit` in rules_block/table, 15.0.1), with the offsets
- * of each part. A pipe is a delimiter unless the character before it is a backslash. Then the part loses that one
- * backslash. Thus a run of any number of backslashes before a pipe escapes it, also an even run.
- */
-export function escapedSplit(str: string): { start: number; end: number; text: string }[] {
-  const result: { start: number; end: number; text: string }[] = [];
-  let isEscaped = false;
-  let lastPos = 0;
-  let segStart = 0;
-  let current = "";
-  for (let pos = 0; pos < str.length; pos++) {
-    const ch = str.charCodeAt(pos);
-    if (ch === 0x7c) {
-      if (!isEscaped) {
-        result.push({ start: segStart, end: pos, text: current + str.substring(lastPos, pos) });
-        current = "";
-        lastPos = pos + 1;
-        segStart = pos + 1;
-      } else {
-        current += str.substring(lastPos, pos - 1);
-        lastPos = pos;
-      }
-    }
-    isEscaped = ch === 0x5c;
-  }
-  result.push({ start: segStart, end: str.length, text: current + str.substring(lastPos) });
-  return result;
-}
-
 /** One cell of a row line, as the table rule of markdown-it splits it. */
 export interface SplitCell {
   /** Offsets in the line of the text between the two delimiters, with no trim. */
@@ -224,11 +201,12 @@ const trailing = /\s*$/;
  * Splits one row line as the markdown-it table rule does: a trim of the line (String.prototype.trim, so also
  * Unicode spaces such as U+00A0), the escaped split, and no first part if it is empty and no last part if it is empty.
  * The offsets are offsets in the given line. The result has each cell of the source, also an excess cell.
+ * `kept` gives the offsets of the pipes in the trimmed line that are text, for the link pipe rule of `discourse`.
  */
-export function splitRow(line: string): SplitCell[] {
+export function splitRow(line: string, kept?: (trimmed: string) => ReadonlySet<number>): SplitCell[] {
   const lead = leading.exec(line)![0].length;
   const trimmed = line.trim();
-  const parts = escapedSplit(trimmed);
+  const parts = escapedSplit(trimmed, kept?.(trimmed));
   if (parts.length > 0 && parts[0]!.text === "") parts.shift();
   if (parts.length > 0 && parts[parts.length - 1]!.text === "") parts.pop();
   return parts.map((part) => {
