@@ -76,10 +76,10 @@ describe("checkConfig", () => {
 
 describe("the cache place and the URL", () => {
   test("uses $XDG_CACHE_HOME, else ~/.cache", () => {
-    expect(cacheRoot({ XDG_CACHE_HOME: "/var/cache/me" }, "/home/me")).toBe("/var/cache/me/tbl-md/corpus");
-    expect(cacheRoot({}, "/home/me")).toBe("/home/me/.cache/tbl-md/corpus");
+    expect(cacheRoot({ XDG_CACHE_HOME: "/var/cache/me" }, "/users/me")).toBe("/var/cache/me/tbl-md/corpus");
+    expect(cacheRoot({}, "/users/me")).toBe("/users/me/.cache/tbl-md/corpus");
     // The XDG spec says to ignore a relative path.
-    expect(cacheRoot({ XDG_CACHE_HOME: "cache" }, "/home/me")).toBe("/home/me/.cache/tbl-md/corpus");
+    expect(cacheRoot({ XDG_CACHE_HOME: "cache" }, "/users/me")).toBe("/users/me/.cache/tbl-md/corpus");
   });
 
   test("puts a file at <root>/<owner>/<repo>/<commit>/<path>", () => {
