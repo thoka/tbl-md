@@ -11,7 +11,9 @@ This file holds the rules of this project for agents. This project has no `CLAUD
 - `docs/spec.md`: the goal and the principles.
 - `docs/format.md`: the `tbl` format. It is the contract of the package.
 - `.plan/PLAN.md`: the open steps and the hand-off. A worktree has no `.plan/`, so read it in the main checkout.
-- `README.md`: how to use what exists, and the known gaps.
+- `README.md`: what the package is and how to start. It stays short: `test/docs.test.ts` fails above 200 lines.
+- `docs/cli.md`, `docs/api.md`, `docs/markdown-it.md`: the reference of the CLI, the library, and the plugin. `docs/known-gaps.md`: the known gaps.
+- `CONTRIBUTING.md`: development, the corpus test, the release, and the libraries.
 
 ## Stack
 
@@ -19,7 +21,7 @@ This file holds the rules of this project for agents. This project has no `CLAUD
 - `mise run test` runs the type check and all tests. The pre-push hook runs it. If it fails, the step is not complete.
 - Tests live in `test/` and use `bun:test`. Source lives in `src/`.
 - Run `mise run hooks-install` once in each new checkout, so that the hooks of `lefthook.yml` run. `mise run tbl-md <command>` runs the CLI.
-- Add a library only with a one-line reason in the section Libraries of `README.md`. The one runtime library for Markdown is markdown-it (spec principle 4).
+- Add a library only with a one-line reason in the section Libraries of `CONTRIBUTING.md`. The one runtime library for Markdown is markdown-it (spec principle 4).
 
 ## Rules for the code
 

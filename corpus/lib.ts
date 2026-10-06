@@ -80,7 +80,7 @@ export function cachePath(root: string, repo: string, commit: string, path: stri
   return join(root, ...repo.split("/"), commit, ...path.split("/"));
 }
 
-/** The URL of one file at a commit on raw.githubusercontent.com. The fallback host is jsDelivr (README.md). */
+/** The URL of one file at a commit on raw.githubusercontent.com. The fallback host is jsDelivr (CONTRIBUTING.md, section The corpus test). */
 export function rawUrl(repo: string, commit: string, path: string): string {
   return `https://raw.githubusercontent.com/${repo}/${commit}/${path.split("/").map(encodeURIComponent).join("/")}`;
 }
