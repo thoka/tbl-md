@@ -209,6 +209,9 @@ function cellSource(source: string, cell: TableCell): { text: string; line: numb
   const start = cell.position!.start;
   let text = source.slice(start.offset!, cell.position!.end.offset!);
   if (text.startsWith("|")) text = text.slice(1);
+  // micromark ends the last cell at the end of the line, so the spaces and tabs after the closing pipe belong to it.
+  // Remove them first, so that the closing pipe is at the end of the text.
+  text = text.replace(/[ \t]+$/, "");
   // The last cell can end with the closing pipe. It is a delimiter if an even number of backslashes comes before it.
   const end = /(\\*)\|$/.exec(text);
   if (end && end[1]!.length % 2 === 0) text = text.slice(0, -1);

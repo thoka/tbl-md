@@ -370,3 +370,60 @@ describe("fromGfm", () => {
     if (result.ok) expect(gfm(result.table)).toBe("| a | b |\n| --- | --- |\n| x\\|y | {#i} |\n| {#j} | z\\\\\\|w |");
   });
 });
+
+describe("fromGfm: spaces and tabs after the last pipe", () => {
+  // micromark ends the last cell at the end of the line, so these spaces and tabs come after the closing pipe (step 9b).
+  const xy: Table = {
+    columns: [
+      { key: "a", title: "A" },
+      { key: "b", title: "B" },
+    ],
+    rows: [{ cells: { a: "x", b: "y" } }],
+  };
+
+  test("spaces after the last pipe of a data row", () => {
+    expect(read("| A | B |\n| --- | --- |\n| x | y | \n")).toStrictEqual({ ok: true, table: xy });
+  });
+
+  test("a tab after the last pipe of a data row", () => {
+    expect(read("| A | B |\n| --- | --- |\n| x | y |\t\n")).toStrictEqual({ ok: true, table: xy });
+  });
+
+  test("spaces and tabs after the header row and the delimiter row", () => {
+    expect(read("| A | B |  \n| --- | --- | \t\n| x | y |\n")).toStrictEqual({ ok: true, table: xy });
+  });
+
+  test("a row with no leading pipe", () => {
+    expect(read("A | B | \n--- | --- | \nx | y |\t \n")).toStrictEqual({ ok: true, table: xy });
+  });
+
+  test("a row with no trailing pipe", () => {
+    expect(read("| A | B  \n| --- | ---\t\n| x | y \t \n")).toStrictEqual({ ok: true, table: xy });
+  });
+
+  test("a table in a list item", () => {
+    expect(read("- | A | B | \n  | --- | --- | \n  | x | y |\t\n")).toStrictEqual({ ok: true, table: xy });
+  });
+
+  test("a table in a block quote", () => {
+    expect(read("> | A | B | \n> | --- | --- | \n> | x | y |\t\n")).toStrictEqual({ ok: true, table: xy });
+  });
+
+  test("an escaped pipe at the end of the cell stays text", () => {
+    expect(read("| A | B |\n| --- | --- |\n| x | y\\| \n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "x", b: "y|" } }] } });
+  });
+
+  test("a closing pipe after two backslashes is a delimiter", () => {
+    expect(read("| A | B |\n| --- | --- |\n| x | y\\\\| \n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "x", b: "y\\\\" } }] } });
+  });
+
+  test("an ID marker in the only cell", () => {
+    expect(read("| A |\n| --- |\n| x {#i} | \n")).toMatchObject({ ok: true, table: { rows: [{ id: "i", cells: { a: "x" } }] } });
+  });
+
+  test("the conversion back to GFM gives the canonical text, with no pipe in a cell", () => {
+    const result = read("| A | B | \n| --- | --- | \n| x | y |\t\n");
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(gfm(result.table)).toBe("| A | B |\n| --- | --- |\n| x | y |");
+  });
+});

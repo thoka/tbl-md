@@ -40,6 +40,13 @@ describe("convert: places of a table", () => {
     expect(output(convert(out, { to: "gfm" }))).toBe(source);
   });
 
+  test("a table with spaces and tabs after the last pipe of each row", () => {
+    const source = "| Model | Price | \n| --- | --- |\t\n| Opus | $15 | \n\ntail\n";
+    const out = output(convert(source, { to: "tbl" }));
+    expect(out).toBe(`${tbl}\n\ntail\n`);
+    expect(output(convert(out, { to: "gfm" }))).toBe(`${gfm}\n\ntail\n`);
+  });
+
   test("a table in a list item", () => {
     const source = `- item\n\n  ${indent(gfm, "  ")}\n- next\n`;
     const out = output(convert(source, { to: "tbl" }));
