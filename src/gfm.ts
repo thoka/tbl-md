@@ -153,9 +153,14 @@ export function fromGfm(source: string, found: FoundGfm): FromGfmResult {
   const rows = bodyRows.map((bodyRow, i) => {
     const cells: Record<string, string> = {};
     const r: Row = { cells };
+    let excessReported = false;
     bodyRow.children.forEach((cell, c) => {
       const { text: raw, line, column } = cellSource(source, cell);
       if (c >= keys.length) {
+        // GFM hides an excess cell. One with no text holds no content, so it is dropped.
+        // The first one with text is an error, because GFM would hide that text.
+        if (raw === "" || excessReported) return;
+        excessReported = true;
         errors.push({
           line,
           column,

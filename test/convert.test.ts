@@ -251,6 +251,18 @@ describe("convert: round trips", () => {
     expect(output(convert(there, { to: "gfm" }))).toBe(canonical);
   });
 
+  test("to tbl and back to gfm drops the empty excess cells", () => {
+    const source = "# APIs\n\n| API | Auth |\n|---|---|\n| Cats | no | |\n| Dogs | key | \t | |\n\nEnd.\n";
+    const canonical = "# APIs\n\n| API | Auth |\n| --- | --- |\n| Cats | no |\n| Dogs | key |\n\nEnd.\n";
+    const there = output(convert(source, { to: "tbl" }));
+    expect(output(convert(there, { to: "gfm" }))).toBe(canonical);
+  });
+
+  test("a table in a list item with an empty excess cell converts", () => {
+    const source = "- | A |\n  | - |\n  | x | |\n";
+    expect(output(convert(source, { to: "tbl" }))).toBe("- ```tbl\n  a: A\n  --\n  a: x\n  ```\n");
+  });
+
   test("to gfm and back to tbl gives the canonical tbl when the keys come from the titles", () => {
     const source = "```tbl\nprice: Price ($)\nnote: Note\n--\nn: a\nb\np: 1\n-- {#r1}\nnote: x | y\n```\n";
     const canonical = "```tbl\nprice: Price ($)\nnote: Note\n--\nprice: 1\nnote: a\nb\n-- {#r1}\nnote: x | y\n```\n";

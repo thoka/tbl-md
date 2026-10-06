@@ -358,6 +358,46 @@ describe("fromGfm", () => {
     });
   });
 
+  const ab = { columns: [{ key: "a", title: "a" }, { key: "b", title: "b" }], rows: [{ cells: { a: "x", b: "y" } }] };
+
+  test("an empty excess cell is dropped", () => {
+    expect(read("| a | b |\n| --- | --- |\n| x | y | |")).toStrictEqual({ ok: true, table: ab });
+  });
+
+  test("an excess cell of only spaces and tabs is dropped", () => {
+    expect(read("| a | b |\n| --- | --- |\n| x | y |  \t \t |")).toStrictEqual({ ok: true, table: ab });
+  });
+
+  test("two empty excess cells are dropped", () => {
+    expect(read("| a | b |\n| --- | --- |\n| x | y | | |")).toStrictEqual({ ok: true, table: ab });
+  });
+
+  test("an empty excess cell and then an excess cell with text fail at the cell with text", () => {
+    expect(read("| a | b |\n| --- | --- |\n| x | y | | z |")).toStrictEqual({
+      ok: false,
+      errors: [
+        {
+          line: 3,
+          column: 11,
+          message: "Row 1 has more cells than the header (2). GFM drops cell 4, so add a column for it or remove it.",
+        },
+      ],
+    });
+  });
+
+  test("two excess cells with text give one error at the first of them", () => {
+    expect(read("| a |\n| --- |\n| x | y | z |")).toStrictEqual({
+      ok: false,
+      errors: [
+        {
+          line: 3,
+          column: 5,
+          message: "Row 1 has more cells than the header (1). GFM drops cell 2, so add a column for it or remove it.",
+        },
+      ],
+    });
+  });
+
   test("text before the ID marker that ends with a space fails", () => {
     const result = read("| a |\n| --- |\n| x  {#i} |");
     expect(result.ok).toBe(false);

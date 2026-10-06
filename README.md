@@ -280,7 +280,7 @@ fn: `fromGfm`
 when: A cell ends with `<br>`. A tbl cell never ends with a line break.
 --
 fn: `fromGfm`
-when: A row has more cells than the header. GFM drops the extra cells.
+when: A row has an excess cell with text, after the last column of the header. GFM drops it. The error names the first such cell of the row. An excess cell with no text, or with only spaces and tabs, is dropped with no error.
 --
 fn: `fromGfm`
 when: The text before the ID marker of a first cell ends with a space or a tab. The cell could not convert back.

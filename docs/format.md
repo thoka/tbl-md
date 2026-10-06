@@ -74,7 +74,7 @@ The conversion goes both ways with no loss of content. If a table cannot convert
 - GFM column alignment is dropped.
 - GFM removes the spaces and the tabs at the start and at the end of a cell. Thus the conversion to GFM fails for a title or a cell that starts or ends with a space or a tab.
 - A tbl cell never ends with a line break (rule 7). Thus the conversion to tbl fails for a GFM cell that ends with `<br>`.
-- A GFM row with fewer cells than the header has empty cells. A GFM row with more cells than the header fails the conversion to tbl, because GFM drops the extra cells.
+- A GFM row with fewer cells than the header has empty cells. A cell after the last column of the header is an excess cell. GFM drops excess cells. The conversion to tbl drops an excess cell with no text: its text between the pipes is empty or only spaces and tabs. An excess cell with text fails the conversion to tbl, because GFM hides that text. The error names the first excess cell with text of the row.
 - The conversion to tbl reads each cell text from the source, so that the inline Markdown stays byte for byte. It removes the pipes of the cell and the spaces and the tabs at its edges.
 
 ### How micromark splits a GFM row
