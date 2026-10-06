@@ -32,3 +32,30 @@ The goal of these steps is version 0.2.0. `docs/spec.md`, section Scope of versi
 - Plugins for remark and markdown-it that show a `tbl` block as a table in a preview.
 - `tbl-md fmt <files>`: rewrites each `tbl` block in its canonical form.
 - Markgraf step 6a uses the package for its table views, and its step 6b runs the lint in its hook. The markgraf session does both after the first release.
+
+## Plan of step 14
+
+The design is in `docs/research/lint-configuration.md`, and the decision is in `docs/review-queue.md` (step 14). Branch `feature/14-lint-keys`, worktree `.worktrees/14-lint-keys`.
+
+### Library (`src/lint.ts`, new `src/config.ts`)
+
+- A problem gets `severity: "error" | "warning"`. Each existing problem is an error. A new warning code `unknown-attribute-key` covers a pair whose key is not `align` and not in the list. Its line and column are those of the key in the block. A column, a row, and a cell count the same.
+- `lint(source, options?)` takes `{ attributeKeys?: string[] }`. Without the option, each key other than `align` is unknown.
+- `src/config.ts` finds and reads `.tbl-md.json`. The file has `$schema` (the loader ignores it) and `attributeKeys`, a list of strings in the key form of rule 14. Each other top-level key, a value of a wrong type, a key that does not have the key form, and invalid JSON are configuration errors. A configuration error names the file, and the line where `JSON.parse` gives a position.
+- The search starts in the folder of the linted file and goes up. It stops at the first folder with `.tbl-md.json`, at the first folder with a `.git` entry (a folder or a file), or at the root. The nearest file wins, with no merge. For stdin, the search starts in the current folder.
+
+### Command line (`src/cli.ts`)
+
+- The output marks each warning as a warning. The summary counts errors and warnings apart.
+- Exit code 0 if no file has an error and the warnings are not more than `--max-warnings <n>` (no limit by default). Exit code 1 for an error, or for more warnings than the limit. Exit code 2 for a usage error and for a configuration error.
+- `--config <file>` replaces the search. `--config` and `--max-warnings` are usage errors with `convert`.
+- The pre-commit hook of tbl-md in `lefthook.yml` gets `--max-warnings 0`.
+
+### Schema
+
+- `schema/tbl-md.schema.json`: a JSON Schema (draft 2020-12) of the file, in the package (`files` of `package.json`). A test makes sure that the schema and the loader accept and refuse the same example files.
+
+### Tests and documentation
+
+- Tests for the warning in each place, for the list, for each configuration error, for the search (nearest file, the stop at `.git`, stdin, `--config`), and for each exit code.
+- `README.md`: the configuration file, the warning, the two options, and the exit codes. `docs/format.md` rule 15 already says that the lint warns. Its words "step 14 of `docs/PLAN.md` decides where that configuration lives" become a pointer to the README.
