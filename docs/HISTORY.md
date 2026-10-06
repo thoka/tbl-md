@@ -4,7 +4,39 @@ Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
 ## Step 13: attributes in the conversion
 
+- Step 13: attributes in the conversion. `align` maps to the GFM alignment in both directions. Any other attribute makes the conversion to GFM fail, unless `--drop-attributes` is given. The corpus test of step 10 then passes for the alignment. Done on 2026-10-06. Status: `toGfm` writes the alignment and reports each attribute with no GFM form at its line, `fromGfm` reads the alignment, and `convert --to gfm --drop-attributes` drops the rest. Decisions in `docs/review-queue.md`. 480 tests pass.
 - Corpus baseline after step 13 (`mise run corpus`, 2026-10-06): 586 tables in 142 documents, 564 same, 22 errors, 0 different. The count `alignment` is gone, because the alignment now converts. The 119 tables that differed only in the alignment on 0.1 are now `same`.
+
+### Plan of step 13
+
+The rules are the section Conversion to and from GFM of `docs/format.md`, the two items on `align` and `--drop-attributes`. Branch `feature/13-conversion`, worktree `.worktrees/13-conversion`.
+
+#### Library (`src/gfm.ts`)
+
+- `toGfm(table, options?)` takes `{ dropAttributes?: boolean }`. The delimiter row gets the mark of the `align` of each column: `:---`, `:---:`, `---:`, or `---` with no `align`.
+- Without `dropAttributes`, `toGfm` gives one error for each attribute block that has a part with no GFM form: a column block with a part other than `align`, a row block with a class or a pair, and each cell block. The error names the part and the two fixes: remove it, or convert with `--drop-attributes`. `ConvertError` gets a field `attribute?: "column" | "row" | "cell"`, so that `convert` can find the line.
+- With `dropAttributes`, `toGfm` keeps the `align` of the columns and the ID of the rows, and drops the rest with no error.
+- `fromGfm` reads the alignment of the mdast table. A column with an alignment gets `attributes: { classes: [], pairs: [{ key: "align", value }] }`. A column with no alignment gets no `attributes`.
+
+#### Places of the errors (`src/parse.ts`, `src/convert.ts`)
+
+- `locate` gives the line of each attribute line too: `headerAttributeLines` by column key, and `cellAttributeLines` by full header key in each row. The block of a row is on its `--` line, which `rows[i].line` gives already.
+- `convert` maps an error with `attribute` to that line, at the column of the fence. A row error goes to the `--` line of the row.
+- `ConvertOptions` gets `dropAttributes?: boolean`. The read-back check compares with the table that GFM can hold: the `align` of the columns, the ID of the rows, and no cell attributes.
+
+#### Command line (`src/cli.ts`)
+
+- `tbl-md convert --to gfm --drop-attributes <files...>`. The option is a usage error with `lint` and with `--to tbl`. The usage text names it.
+
+#### Corpus (`corpus/`)
+
+- The count `alignment` goes away, because the alignment now converts. A table that differs only in its alignment counts as `different`, so the run fails on it. Run `mise run corpus` and write the new baseline into the history of step 13. Expected: 0 different and 0 alignment.
+
+#### Tests and documentation
+
+- Tests for each alignment in both directions, for each kind of attribute with no GFM form (with its file line through `convert` and the CLI), for `--drop-attributes`, and for the usage errors.
+- The laws of the GFM conversion in `test/laws.test.ts` hold with a random `align`. A new law: with `dropAttributes`, a table with random attributes converts, and it reads back as its GFM view.
+- `README.md`: `toGfm` options, `fromGfm` alignment, `ConvertError.attribute`, `locate`, `ConvertOptions`, and the CLI option. `docs/format.md`: the status line says that the conversion follows 0.2.0 too.
 
 ## Step 12: parse and render attributes
 
