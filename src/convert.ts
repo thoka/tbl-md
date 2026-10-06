@@ -1,6 +1,7 @@
 // The conversion of all tables in one Markdown text, in memory (docs/format.md, section "Conversion of a file").
 // It replaces only the source range of each converted table. Each other byte stays the same.
-import { findTables, type Found, type FoundTbl } from "./markdown.ts";
+import type { Flavor } from "./flavor.ts";
+import { findTables, type FindOptions, type Found, type FoundTbl } from "./markdown.ts";
 import { fromGfm, gfmView, keysFromTitles, toGfm, type ConvertError } from "./gfm.ts";
 import type { Attributes } from "./attributes.ts";
 import { locate, parse, type Row, type Table, type TblLocation } from "./parse.ts";
@@ -23,6 +24,11 @@ export interface ConvertOptions {
    * of the columns and the ID of the rows, and drops the rest. Without it, each such attribute is an error at its line.
    */
   dropAttributes?: boolean;
+  /**
+   * The flavor whose markdown-it settings find and read the tables, also in the check of the new text
+   * (docs/format.md, section Flavors). The default is `discourse`.
+   */
+  flavor?: Flavor;
 }
 
 /** A converted table: its place in the source, and the text that replaces it (lines joined with "\n", no prefix). */
@@ -42,7 +48,8 @@ interface Replacement {
 export function convert(source: string, options: ConvertOptions): ConvertResult {
   const errors: FileError[] = [];
   const replacements: Replacement[] = [];
-  findTables(source).forEach((found, index) => {
+  const find = { flavor: options.flavor };
+  findTables(source, find).forEach((found, index) => {
     if (found.kind === "gfm" && options.to === "tbl") {
       const result = fromGfm(source, found);
       if (!result.ok) errors.push(...result.errors);
@@ -67,7 +74,7 @@ export function convert(source: string, options: ConvertOptions): ConvertResult 
   }
   output += source.slice(last);
 
-  selfCheck(source, output, replacements, ranges, options.to, errors);
+  selfCheck(source, output, replacements, ranges, options.to, find, errors);
   if (errors.length > 0) return { ok: false, errors: sorted(errors) };
   return { ok: true, output, count: replacements.length };
 }
@@ -165,9 +172,17 @@ function withPrefix(text: string, first: string, eol: string): string {
  * Reads the output again. Each converted table must have the same place in the list of tables, the target kind,
  * and the same content. Each other table must keep its kind and its text.
  */
-function selfCheck(source: string, output: string, replacements: Replacement[], ranges: [number, number][], to: "tbl" | "gfm", errors: FileError[]): void {
-  const before = findTables(source);
-  const after = findTables(output);
+function selfCheck(
+  source: string,
+  output: string,
+  replacements: Replacement[],
+  ranges: [number, number][],
+  to: "tbl" | "gfm",
+  find: FindOptions,
+  errors: FileError[],
+): void {
+  const before = findTables(source, find);
+  const after = findTables(output, find);
   replacements.forEach((r, i) => {
     const error = (message: string) => errors.push({ line: r.found.line, column: r.found.column, message });
     const [start, end] = ranges[i]!;

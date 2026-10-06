@@ -1,15 +1,13 @@
 // The pure parts of the corpus test: the configuration, the cache place, the hash and size checks, the split of
-// fixture files into documents, and the comparison of two mdast trees. No part here uses the network.
+// fixture files into documents, and the comparison of the HTML that markdown-it gives for two texts.
+// No part here uses the network.
 // The corpus code lives outside src/, so it never ships in the package.
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { isDeepStrictEqual } from "node:util";
-import type { Nodes, Root, Table, TableRow } from "mdast";
-import { fromMarkdown } from "mdast-util-from-markdown";
-import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
-import { gfmTable } from "micromark-extension-gfm-table";
+import type { Token } from "markdown-it";
 import { convert, type FileError } from "../src/convert.ts";
+import { engineOf } from "../src/engine.ts";
 import { findTables, type FoundGfm } from "../src/markdown.ts";
 
 /** The cap for one file: 512 KiB. */
@@ -209,65 +207,69 @@ function splitBetween(text: string, isSeparator: (line: string) => boolean, isOu
   return docs;
 }
 
-/** Parses Markdown as tbl-md does: CommonMark with the GFM table extension. */
-export function parseTree(text: string): Root {
-  return fromMarkdown(text, { extensions: [gfmTable()], mdastExtensions: [gfmTableFromMarkdown()] });
+/** The env of a markdown-it parse: it holds the link references of the text. */
+type Env = Record<string, unknown>;
+
+/** The flavor of the corpus test: the default flavor of tbl-md. */
+const md = engineOf("discourse");
+
+/** One table of a text as markdown-it reads it: its tokens and the 1-based line of its header row. */
+interface ReadTable {
+  line: number;
+  tokens: Token[];
 }
 
-export interface NormalizeOptions {
-  /** Puts an empty table node in place of each table, to find the differences outside the tables. */
-  skipTables?: boolean;
+/** A text as markdown-it reads it: its tables, and its tokens with no table tokens, in document order. */
+interface ReadText {
+  env: Env;
+  tables: ReadTable[];
+  outside: Token[];
 }
 
-/**
- * A copy of a node with no positions and no data, as GFM shows it: each table row has the width of the header,
- * so a short row gets empty cells, and the excess cells go away.
- */
-export function normalize(node: Nodes, options: NormalizeOptions = {}): unknown {
-  if (node.type === "table") return options.skipTables ? { type: "table" } : normalizeTable(node, options);
-  const copy: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(node)) {
-    if (key === "position" || key === "data") continue;
-    copy[key] = key === "children" ? (value as Nodes[]).map((child) => normalize(child, options)) : value;
-  }
-  return copy;
-}
-
-function normalizeTable(table: Table, options: NormalizeOptions): unknown {
-  const width = table.children[0]?.children.length ?? 0;
-  return { type: "table", align: table.align ?? [], children: table.children.map((row) => normalizeRow(row, width, options)) };
-}
-
-function normalizeRow(row: TableRow, width: number, options: NormalizeOptions): unknown {
-  const cells = row.children.slice(0, width).map((cell) => normalize(cell, options));
-  while (cells.length < width) cells.push({ type: "tableCell", children: [] });
-  return { type: "tableRow", children: cells };
-}
-
-/**
- * The first node of `a` that differs from `b`. It descends into nodes with the same type and the same number of
- * children. It stops at a table row, or at a table whose alignment or row count differs. With `skipTables`, two
- * tables never differ.
- */
-export function firstDifference(a: Nodes, b: Nodes, options: NormalizeOptions = {}): Nodes {
-  if (a.type !== b.type || !("children" in a) || !("children" in b) || a.children.length !== b.children.length) return a;
-  if (a.type === "table") {
-    const t = b as Table;
-    if (!isDeepStrictEqual(a.align ?? [], t.align ?? [])) return a;
-    const width = a.children[0]?.children.length ?? 0;
-    const otherWidth = t.children[0]?.children.length ?? 0;
-    for (let i = 0; i < a.children.length; i++) {
-      if (!isDeepStrictEqual(normalizeRow(a.children[i]!, width, options), normalizeRow(t.children[i]!, otherWidth, options))) return a.children[i]!;
+function read(text: string): ReadText {
+  const env: Env = {};
+  const tables: ReadTable[] = [];
+  const outside: Token[] = [];
+  let table: ReadTable | undefined;
+  for (const token of md.parse(text, env)) {
+    if (token.type === "table_open") {
+      table = { line: token.map![0] + 1, tokens: [] };
+      tables.push(table);
     }
-    return a;
+    if (table) table.tokens.push(token);
+    else outside.push(token);
+    if (token.type === "table_close") table = undefined;
   }
-  const children = b.children as Nodes[];
-  for (let i = 0; i < a.children.length; i++) {
-    const x = a.children[i] as Nodes;
-    const y = children[i]!;
-    if (!isDeepStrictEqual(normalize(x, options), normalize(y, options))) return firstDifference(x, y, options);
+  return { env, tables, outside };
+}
+
+const html = (tokens: Token[], env: Env) => md.renderer.render(tokens, md.options, env);
+
+/** The rows of a table: the tokens from each `tr_open` to its `tr_close`. */
+function rowsOf(table: ReadTable): Token[][] {
+  const rows: Token[][] = [];
+  for (const token of table.tokens) {
+    if (token.type === "tr_open") rows.push([]);
+    rows[rows.length - 1]?.push(token);
   }
-  return a;
+  return rows;
+}
+
+/** The alignment of each column: the style of each `th_open`. */
+function alignOf(table: ReadTable): string[] {
+  return table.tokens.filter((t) => t.type === "th_open").map((t) => String(t.attrGet("style") ?? ""));
+}
+
+/** The top-level blocks of a token list: each token of level 0 with nesting 0, or from a level-0 open token to its close. */
+function blocksOf(tokens: Token[]): Token[][] {
+  const blocks: Token[][] = [];
+  let depth = 0;
+  for (const token of tokens) {
+    if (depth === 0) blocks.push([]);
+    blocks[blocks.length - 1]!.push(token);
+    depth += token.nesting;
+  }
+  return blocks;
 }
 
 /**
@@ -279,46 +281,53 @@ export type Outcome =
   | { kind: "error"; line: number; message: string }
   | { kind: "different"; line: number; message: string };
 
-/** The GFM tables of a tree, in document order. */
-function tablesOf(node: Nodes): Table[] {
-  if (node.type === "table") return [node];
-  return "children" in node ? (node.children as Nodes[]).flatMap(tablesOf) : [];
-}
-
-const lineOf = (node: Nodes) => node.position?.start.line ?? 1;
-
 /**
- * Compares the mdast of the original text with the mdast of the text after the round trip, table by table.
+ * Compares what markdown-it (flavor `discourse`) gives for the original text and for the text after the round trip,
+ * table by table: the HTML of each table, and the HTML of the text outside the tables. markdown-it pads a short row
+ * with empty cells and drops the excess cells, so only a change that a reader sees counts.
  * Each difference of a table is "different", also a difference in the column alignment alone.
  * A difference outside the tables adds one outcome "different". If the number of tables differs, the tables
  * cannot pair, so the result is one outcome "different" for each table of the original.
  */
 export function compareTexts(original: string, back: string): Outcome[] {
-  const a = parseTree(original);
-  const b = parseTree(back);
-  const before = tablesOf(a);
-  const after = tablesOf(b);
-  if (before.length !== after.length) {
-    const message = `the document has ${after.length} tables after the round trip, not ${before.length}`;
-    return before.map((t) => ({ kind: "different", line: lineOf(t), message }));
+  const a = read(original);
+  const b = read(back);
+  if (a.tables.length !== b.tables.length) {
+    const message = `the document has ${b.tables.length} tables after the round trip, not ${a.tables.length}`;
+    return a.tables.map((t) => ({ kind: "different", line: t.line, message }));
   }
-  const outcomes: Outcome[] = before.map((t, i) => compareTables(t, after[i]!));
-  if (!isDeepStrictEqual(normalize(a, { skipTables: true }), normalize(b, { skipTables: true }))) {
-    const node = firstDifference(a, b, { skipTables: true });
-    outcomes.push({ kind: "different", line: lineOf(node), message: `the text outside the tables differs after the round trip (first at a ${node.type})` });
+  const outcomes: Outcome[] = a.tables.map((t, i) => compareTables(t, a.env, b.tables[i]!, b.env));
+  const blocksA = blocksOf(a.outside);
+  const blocksB = blocksOf(b.outside);
+  const n = Math.max(blocksA.length, blocksB.length);
+  for (let i = 0; i < n; i++) {
+    const x = blocksA[i];
+    const y = blocksB[i];
+    if (x && y && html(x, a.env) === html(y, b.env)) continue;
+    const first = (x ?? blocksA[blocksA.length - 1] ?? [])[0];
+    const line = first?.map ? first.map[0] + 1 : 1;
+    const type = first ? first.type.replace(/_open$/, "") : "end of the document";
+    outcomes.push({ kind: "different", line, message: `the text outside the tables differs after the round trip (first at a ${type})` });
+    break;
   }
   return outcomes;
 }
 
-function compareTables(a: Table, b: Table): Outcome {
-  if (isDeepStrictEqual(normalize(a), normalize(b))) return { kind: "same", line: lineOf(a) };
-  const node = firstDifference(a, b);
-  return { kind: "different", line: lineOf(node), message: `the ${node.type} differs after the round trip` };
+function compareTables(a: ReadTable, envA: Env, b: ReadTable, envB: Env): Outcome {
+  if (html(a.tokens, envA) === html(b.tokens, envB)) return { kind: "same", line: a.line };
+  const rowsA = rowsOf(a);
+  const rowsB = rowsOf(b);
+  if (alignOf(a).join("|") !== alignOf(b).join("|") || rowsA.length !== rowsB.length) {
+    return { kind: "different", line: a.line, message: "the table differs after the round trip" };
+  }
+  const row = rowsA.findIndex((r, i) => html(r, envA) !== html(rowsB[i]!, envB));
+  const line = row >= 0 && rowsA[row]![0]!.map ? rowsA[row]![0]!.map[0] + 1 : a.line;
+  return { kind: "different", line, message: "a row of the table differs after the round trip" };
 }
 
 /** The number of GFM tables in a text. */
 export function countTables(text: string): number {
-  return tablesOf(parseTree(text)).length;
+  return read(text).tables.length;
 }
 
 /**
@@ -334,13 +343,13 @@ export function blankTable(text: string, found: FoundGfm): string {
   return text.slice(0, lineStart) + blanked + text.slice(found.end);
 }
 
-/** The 1-based line of the last character of a table. */
-function endLine(text: string, found: FoundGfm): number {
-  return found.line + (text.slice(found.start, found.end).match(/\n/g)?.length ?? 0);
+/** The 1-based line of the last line of a table: its last body row, or its delimiter row. */
+function endLine(found: FoundGfm): number {
+  return found.rows[found.rows.length - 1]?.line ?? found.line + 1;
 }
 
 /**
- * Converts a document to tbl and back to GFM, and compares the mdast before and after, table by table.
+ * Converts a document to tbl and back to GFM, and compares the HTML of markdown-it before and after, table by table.
  * It returns one outcome for each GFM table, and none for a document with no table.
  * If a table fails the conversion, it counts as "error". The check removes that table from the text (blankTable)
  * and converts again, so that one error does not hide the other tables of the document.
@@ -361,7 +370,7 @@ export function roundTrip(text: string): Outcome[] {
     const failing = new Map<FoundGfm, FileError>();
     for (const e of toTbl.errors) {
       const table =
-        tables.find((t) => t.line <= e.line && e.line <= endLine(work, t)) ?? tables.findLast((t) => t.line <= e.line) ?? tables[0]!;
+        tables.find((t) => t.line <= e.line && e.line <= endLine(t)) ?? tables.findLast((t) => t.line <= e.line) ?? tables[0]!;
       if (!failing.has(table)) failing.set(table, e);
     }
     for (const [table, e] of failing) errors.push({ kind: "error", line: e.line, message: e.message });
@@ -373,7 +382,7 @@ export function roundTrip(text: string): Outcome[] {
     // The tbl text of a successful conversion must convert back. If not, the switch is not reversible.
     const e = toGfm.errors[0]!;
     const message = `the conversion back to GFM fails at line ${e.line} of the tbl text: ${e.message}`;
-    return [...errors, ...tablesOf(parseTree(work)).map((t): Outcome => ({ kind: "different", line: lineOf(t), message }))];
+    return [...errors, ...read(work).tables.map((t): Outcome => ({ kind: "different", line: t.line, message }))];
   }
   return [...errors, ...compareTexts(work, toGfm.output)].sort((x, y) => x.line - y.line);
 }

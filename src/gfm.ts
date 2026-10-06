@@ -1,8 +1,7 @@
 // The conversion of one table to and from a GFM pipe table (docs/format.md, section "Conversion to and from GFM").
 // The conversion has no loss: each failure is an error, never a silent change.
-import type { AlignType, TableCell } from "mdast";
 import { renderAttributes, type Attributes } from "./attributes.ts";
-import type { FoundGfm } from "./markdown.ts";
+import type { FoundGfm, GfmCell } from "./markdown.ts";
 import type { Column, Row, Table } from "./parse.ts";
 import { validate } from "./render.ts";
 
@@ -34,10 +33,13 @@ export interface GfmError {
 export type ToGfmResult = { ok: true; text: string } | { ok: false; errors: ConvertError[] };
 export type FromGfmResult = { ok: true; table: Table } | { ok: false; errors: GfmError[] };
 
-/** A space or a tab: the characters that GFM trims at the start and the end of a cell. */
-const edgeSpace = /^[ \t]|[ \t]$/;
-/** A run of backslashes and the pipe after it. */
-const pipeRun = /(\\*)\|/g;
+/**
+ * A character at the start or the end of a text that markdown-it trims at the edges of a cell: each character that
+ * String.prototype.trim removes (`\s`), but not a line feed, because a line break of a cell becomes `<br>`.
+ */
+const edgeSpace = /^(?!\n)\s|(?!\n)\s$/;
+/** The message part that names the characters of the trim. */
+const trimmed = "a space, a tab, or another character that markdown-it trims, such as a no-break space (U+00A0)";
 /** A run of backslashes and the `<br>` after it. */
 const brRun = /(\\*)<br>/g;
 /** The ID marker at the end of the first GFM cell, at the start or after one space. */
@@ -154,9 +156,8 @@ export function toGfm(table: Table, options: ToGfmOptions = {}): ToGfmResult {
       reportLossy(attributes, { id: false, align: true }, { key, attribute: "column" }, `Column "${key}"`, "GFM keeps only the align of a column", errors);
     }
     if (edgeSpace.test(title)) {
-      errors.push({ key, message: `The title of column "${key}" starts or ends with a space or a tab. GFM removes it, so remove it from the title.` });
+      errors.push({ key, message: `The title of column "${key}" starts or ends with ${trimmed}. GFM removes it, so remove it from the title.` });
     }
-    oddPipeRuns(title, (message) => errors.push({ key, message: `The title of column "${key}" ${message}` }));
     return escapePipes(title);
   });
 
@@ -189,7 +190,7 @@ function row(cells: string[]): string {
 /** Maps a tbl cell text to a GFM cell text, and reports each part that would get lost. */
 function cellToGfm(text: string, report: (message: string) => void): string {
   if (edgeSpace.test(text)) {
-    report("the text starts or ends with a space or a tab. GFM removes it, so remove it from the cell.");
+    report(`the text starts or ends with ${trimmed}. GFM removes it, so remove it from the cell.`);
   }
   const lines = text.split("\n");
   lines.slice(0, -1).forEach((line, n) => {
@@ -199,28 +200,14 @@ function cellToGfm(text: string, report: (message: string) => void): string {
       );
     }
   });
-  oddPipeRuns(text, report);
   // A literal `<br>` gets one backslash more. Only the exact `<br>` with no backslash before it is a line break.
   const joined = lines.map((line) => line.replace(brRun, "\\$1<br>")).join("<br>");
   return escapePipes(joined);
 }
 
-/** Reports a pipe after an odd number of backslashes: one backslash more gives an even run, and GFM splits the cell there. */
-function oddPipeRuns(text: string, report: (message: string) => void): void {
-  for (const match of text.matchAll(pipeRun)) {
-    const k = match[1]!.length;
-    if (k % 2 === 1) {
-      report(
-        `has a pipe after ${k} backslash${k === 1 ? "" : "es"}. In GFM, this pipe would split the cell. Write the pipe with no backslash (\`|\`), or with one backslash more (\`${"\\".repeat(k + 1)}|\`).`,
-      );
-      return;
-    }
-  }
-}
-
-/** A pipe after k backslashes (k even) gets one backslash more. */
+/** Each pipe gets one backslash more (the pipe rule). markdown-it never splits a cell at a pipe with a backslash before it. */
 function escapePipes(text: string): string {
-  return text.replace(pipeRun, "\\$1|");
+  return text.replaceAll("|", "\\|");
 }
 
 /** The ID marker goes to the end of the first cell. With no ID, a text that ends with the marker form gets one backslash more. */
@@ -231,31 +218,30 @@ function firstCell(cell: string, r: Row): string {
 }
 
 /**
- * Reads a GFM table of a Markdown source as a table. `found` comes from `findTables(source)`.
- * Each cell text comes from the source by the offsets of its mdast cell, so that the inline Markdown stays byte for byte.
+ * Reads a GFM table of a Markdown source as a table. `found` comes from `findTables(source)` with the same flavor.
+ * Each cell text is the source cell of `found`, so that the inline Markdown stays byte for byte. `source` is the text
+ * that `found` comes from; the cells of `found` already hold its text.
  * The keys come from the titles by `keysFromTitles`. A column with an alignment gets the attributes `{align=...}`.
  */
 export function fromGfm(source: string, found: FoundGfm): FromGfmResult {
   const errors: GfmError[] = [];
-  const [headerRow, ...bodyRows] = found.node.children;
-  const titles = headerRow!.children.map((cell) => unescapePipes(cellSource(source, cell).text));
+  const titles = found.header.cells.map((cell) => unescapePipes(cell.text));
   const keys = keysFromTitles(titles);
   const columns = titles.map((title, i): Column => {
     const column: Column = { key: keys[i]!, title };
-    const align: AlignType | undefined = found.node.align?.[i];
+    const align = found.align[i];
     if (align) column.attributes = { classes: [], pairs: [{ key: "align", value: align }] };
     return column;
   });
 
-  const rows = bodyRows.map((bodyRow, i) => {
+  const rows = found.rows.map((bodyRow, i) => {
     const cells: Record<string, string> = {};
     const r: Row = { cells };
     let excessReported = false;
-    bodyRow.children.forEach((cell, c) => {
-      const { text: raw, line, column } = cellSource(source, cell);
+    bodyRow.cells.forEach(({ text: raw, line, column }: GfmCell, c) => {
       if (c >= keys.length) {
-        // GFM hides an excess cell. One with no text holds no content, so it is dropped.
-        // The first one with text is an error, because GFM would hide that text.
+        // markdown-it drops an excess cell. One with no text holds no content, so it is dropped.
+        // The first one with text is an error, because markdown-it would hide that text.
         if (raw === "" || excessReported) return;
         excessReported = true;
         errors.push({
@@ -271,11 +257,11 @@ export function fromGfm(source: string, found: FoundGfm): FromGfmResult {
         if (id) {
           r.attributes = { id: id[2]!, classes: [], pairs: [] };
           text = text.slice(0, id.index);
-          if (/[ \t]$/.test(text)) {
+          if (/\s$/.test(text)) {
             errors.push({
               line,
               column,
-              message: `Row ${i + 1}, cell "${keys[0]}": the text before the ID marker ends with a space or a tab. Keep only one space before the marker, so that the cell converts back to GFM.`,
+              message: `Row ${i + 1}, cell "${keys[0]}": the text before the ID marker ends with ${trimmed}. Keep only one space before the marker, so that the cell converts back to GFM.`,
             });
           }
         } else {
@@ -301,21 +287,7 @@ function cellFromGfm(text: string, report: (message: string) => void): string {
   return unescapePipes(text).replace(brRun, (_, run: string) => (run === "" ? "\n" : `${run.slice(1)}<br>`));
 }
 
-/** A pipe in a GFM cell always has an odd number of backslashes before it. It loses one. */
+/** The pipe rule: each pipe with a backslash directly before it loses that one backslash, as markdown-it removes it. */
 function unescapePipes(text: string): string {
-  return text.replace(/\\(\\*)\|/g, "$1|");
-}
-
-/** The text of a cell in the source, with no pipe and no space or tab at its edges, and the place where the cell starts. */
-function cellSource(source: string, cell: TableCell): { text: string; line: number; column: number } {
-  const start = cell.position!.start;
-  let text = source.slice(start.offset!, cell.position!.end.offset!);
-  if (text.startsWith("|")) text = text.slice(1);
-  // micromark ends the last cell at the end of the line, so the spaces and tabs after the closing pipe belong to it.
-  // Remove them first, so that the closing pipe is at the end of the text.
-  text = text.replace(/[ \t]+$/, "");
-  // The last cell can end with the closing pipe. It is a delimiter if an even number of backslashes comes before it.
-  const end = /(\\*)\|$/.exec(text);
-  if (end && end[1]!.length % 2 === 0) text = text.slice(0, -1);
-  return { text: text.replace(/^[ \t]+|[ \t]+$/g, ""), line: start.line, column: start.column };
+  return text.replaceAll("\\|", "|");
 }

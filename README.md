@@ -285,9 +285,9 @@ locate("model: Model\nnote: Note\n{align=right}\n--\nn: a\n{.c}\nm: Opus");
 
 `src/syntax.ts` holds the line forms that the parser and the renderer share: the key line, the separator, the attribute line, their escaped forms, `escapeLine`, and `unescapeLine`.
 
-`findTables(source)` reads a Markdown text and lists its `tbl` blocks and its GFM tables in document order. It parses CommonMark with only the GFM table extension, and it walks the whole tree, also into list items and block quotes. A `tbl` block is a fenced code block with the language `tbl`, with backticks or tildes. An indented code block, a code block with another language (also `tbl-x` or `TBL`), and the text inside another code block or an HTML block are not `tbl` blocks.
+`findTables(source, options?)` reads a Markdown text with markdown-it and lists its `tbl` blocks and its GFM tables in document order, also in list items and block quotes. The option `flavor` (`"discourse"` or `"markdown-it"`, the type `Flavor`) picks the markdown-it settings (section Flavors of `docs/format.md`). The default is `"discourse"`. A `tbl` block is a fenced code block whose info string starts with the word `tbl`, with backticks or tildes. An indented code block, a code block with another language (also `tbl-x` or `TBL`), and the text inside another code block or an HTML block are not `tbl` blocks. With the flavor `"markdown-it"`, HTML is off, so `<div>` starts no HTML block.
 
-Each entry has a `kind` (`"tbl"` or `"gfm"`), the mdast `node`, the source offsets `start` and `end` of the node, and the `line` and `column` of its start, both from 1. Thus `source.slice(start, end)` is the exact source of the node. A `tbl` entry also has `contentLine`, the file line of the first line inside the fence, `text`, the text inside the fence, and `meta`, the text after `tbl` in the info string, or `null`.
+Each entry has a `kind` (`"tbl"` or `"gfm"`), the source offsets `start` and `end`, and the `line` and `column` of its start, both from 1. `start` is the first character of the fence or of the header row, and `end` is the end of the last line of the block, before its line end. Thus `source.slice(start, end)` is the exact source of the block. The offsets, lines, and columns refer to the original text, also with CRLF or CR line ends. A `tbl` entry also has `contentLine`, the file line of the first line inside the fence, `text`, the text inside the fence (with LF line ends and no final line end), and `meta`, the text after `tbl` in the info string, or `null`. A `gfm` entry (the type `FoundGfm`) also has `align`, the alignment of each column (`"left"`, `"center"`, `"right"`, or `null`), `header`, the header row, and `rows`, the body rows. A row (`GfmRow`) has its `line` and its `cells`: each cell of the source as the table rule of markdown-it splits it, also an excess cell. A cell (`GfmCell`) has its `text` with no pipe and no character of the trim at its edges, but with its escapes, and the `line` and `column` of the first character of that text.
 
 `lint(source, options?)` lists the problems of a Markdown text, sorted by line and then by column. A problem has a `line` and a `column` in the file, a `severity` (`"error"` or `"warning"`), a `code`, and a `message`. An error of a `tbl` block has its line in the file, and the column of the fence, because the block content starts there in a list item or a block quote.
 
@@ -325,7 +325,7 @@ Each code other than `unknown-attribute-key` is an error.
 
 `findConfig(folder)`, `readConfig(file)`, and `parseConfig(text, file)` are the loader of the configuration file that the CLI uses (section Configuration). `findConfig` gives the absolute path of the configuration file for a folder, or `null`. `readConfig` and `parseConfig` give `{ ok: true, config: { attributeKeys } }`, or `{ ok: false, error: { file, line?, message } }`. `CONFIG_FILE` is the name `.tbl-md.json`.
 
-`toGfm(table, options?)` writes one table as a GFM pipe table, by the section "Conversion to and from GFM" of `docs/format.md`. `fromGfm(source, found)` reads one GFM table of a Markdown source back as a table. `found` is a `"gfm"` entry of `findTables(source)`. `fromGfm` reads each cell text from the source by the offsets of its mdast cell, so the inline Markdown stays byte for byte. The keys come from the titles by `keysFromTitles(titles)`.
+`toGfm(table, options?)` writes one table as a GFM pipe table, by the section "Conversion to and from GFM" of `docs/format.md`. `fromGfm(source, found)` reads one GFM table of a Markdown source back as a table. `found` is a `"gfm"` entry of `findTables(source)`. `fromGfm` takes each cell text from the cells of `found`, so the inline Markdown stays byte for byte. The keys come from the titles by `keysFromTitles(titles)`.
 
 ```ts
 import { findTables, fromGfm, keysFromTitles, toGfm, type FoundGfm } from "tbl-md";
@@ -682,12 +682,7 @@ The workflow runs no tests, because the pre-push hook runs them before each push
 - `@types/node`: the types of the `node:` modules, at the oldest Node that the package supports (22).
 - `@types/bun`: the types of `bun:test`.
 - `fast-check`: the property test of the round-trip laws on random tables. It is the established property test library for TypeScript.
-- `mdast-util-from-markdown`: parses a Markdown text into an mdast tree with source positions, so that the lint finds each table at its line.
-- `micromark-extension-gfm-table`: the GFM table syntax for the parser, so that the lint finds GFM pipe tables. It is the only GFM extension that the parse uses.
-- `mdast-util-gfm-table`: turns the GFM table tokens into `table` nodes of the mdast tree.
-- `markdown-it` (dev, exactly 15.0.1, the version that Discourse pins): the reference parser of the markdown-it measurement, `corpus/markdown-it.ts`. It is not a runtime dependency yet.
-- `micromark` (dev): renders the hand-written row-split cases of `corpus/markdown-it.ts` to HTML, to compare them with markdown-it. It is already in the tree as a dependency of `mdast-util-from-markdown`.
-- `@types/mdast`: the types of the mdast nodes. It is a runtime dependency, because the type declarations of the package use these types, for example the `node` of `findTables`.
+- `markdown-it` (exactly 15.0.1, the version that Discourse pins): the only Markdown parser (spec principle 4). It finds the code blocks and the GFM tables and splits each GFM row, as the target renderer of each flavor does. It ships its own types, and the type declarations of tbl-md do not use them.
 
 ## Research
 

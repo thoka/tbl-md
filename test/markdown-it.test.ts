@@ -1,117 +1,47 @@
-// Unit tests of the pure parts of the markdown-it measurement (corpus/markdown-it-lib.ts, tbl-md step 16).
-// They need no network: they use markdown-it with the options of Discourse, without the table feature of Discourse.
-// The measurement itself is `mise run corpus-markdown-it`, not part of `mise run test`.
+// The engines of the flavors (src/engine.ts), and the statements of docs/format.md (version 0.3.0) about them.
+// The flavor `markdown-it` is `markdownit()`. The flavor `discourse` reproduces Discourse with the table feature of
+// Discourse. That file is GPL-2.0-only, so it is not in this repository: the tests with it run only when the corpus
+// cache has it (corpus/markdown-it-lib.ts). The tests without it use the engine of the flavor alone, which has the
+// same table rule except for the link pipes (step 18b).
 import { describe, expect, test } from "bun:test";
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
 import markdownit from "markdown-it";
-import { cachePath, cacheRoot } from "../corpus/lib.ts";
-import {
-  compareTables,
-  DISCOURSE,
-  discourseEngine,
-  escapedSplit,
-  lineStarts,
-  markdownItTables,
-  micromarkTables,
-  splitRow,
-  type DiscourseFeature,
-  type SeenTable,
-} from "../corpus/markdown-it-lib.ts";
+import { cachedTableFeature, discourseEngine, type DiscourseFeature } from "../corpus/markdown-it-lib.ts";
+import { createEngine, engineOf } from "../src/engine.ts";
+import { FLAVORS } from "../src/flavor.ts";
 
-describe("escapedSplit", () => {
-  test("splits at each pipe with no backslash before it", () => {
-    expect(escapedSplit("a|b|c").map((p) => p.text)).toEqual(["a", "b", "c"]);
+const tableFeature = await cachedTableFeature();
+
+describe("the engines of the flavors", () => {
+  test("discourse has the options of Discourse: html, breaks, linkify, typographer, the quotes, and the TLDs", () => {
+    const md = createEngine("discourse");
+    expect(md.options).toMatchObject({ html: true, xhtmlOut: false, breaks: true, linkify: true, typographer: true });
+    expect(md.render('"q" \'s\'')).toBe("<p>“q” ‘s’</p>\n");
+    expect(md.render("a\nb")).toBe("<p>a<br>\nb</p>\n");
+    expect(md.render("see example.de and example.xyz")).toBe('<p>see <a href="http://example.de">example.de</a> and example.xyz</p>\n');
   });
 
-  test("a pipe after any run of backslashes is no delimiter, and the part loses one backslash", () => {
-    expect(escapedSplit("x\\|y").map((p) => p.text)).toEqual(["x|y"]);
-    expect(escapedSplit("x\\\\|y").map((p) => p.text)).toEqual(["x\\|y"]);
-    expect(escapedSplit("x\\\\\\|y").map((p) => p.text)).toEqual(["x\\\\|y"]);
+  test("markdown-it has the default options of markdownit()", () => {
+    const md = createEngine("markdown-it");
+    expect(md.options).toEqual(markdownit().options);
+    expect(md.render("a\nb <br>")).toBe("<p>a\nb &lt;br&gt;</p>\n");
   });
 
-  test("gives the offsets of the raw part", () => {
-    expect(escapedSplit("ab|c\\|d|").map(({ start, end }) => [start, end])).toEqual([
-      [0, 2],
-      [3, 7],
-      [8, 8],
-    ]);
-  });
-});
-
-describe("splitRow", () => {
-  const contents = (line: string) => splitRow(line).map((c) => c.content);
-
-  test("drops an empty first and an empty last part", () => {
-    expect(contents("| a | b |")).toEqual(["a", "b"]);
-    expect(contents("a | b")).toEqual(["a", "b"]);
-    expect(contents("| a | b |   ")).toEqual(["a", "b"]);
-    expect(contents("|")).toEqual([]);
-  });
-
-  test("keeps an excess cell and an empty cell in the middle", () => {
-    expect(contents("| a | b | c |")).toEqual(["a", "b", "c"]);
-    expect(contents("|  | b |")).toEqual(["", "b"]);
-  });
-
-  test("the trim offsets point at the cell text in the line", () => {
-    const line = "  | a  |\tb\\|c | ";
-    for (const cell of splitRow(line)) {
-      expect(line.slice(cell.trimStart, cell.trimEnd).replace("\\|", "|")).toBe(cell.content);
+  test("engineOf caches one engine per flavor, and its recorders change no output", () => {
+    const doc = '| a | b |\n| :-- | --: |\n| `x\\|y` | [l](u) |\n\n```tbl\na: "A"\n```\n> | c |\n> | - |\n';
+    for (const flavor of FLAVORS) {
+      expect(engineOf(flavor)).toBe(engineOf(flavor));
+      expect(engineOf(flavor).render(doc)).toBe(createEngine(flavor).render(doc));
     }
   });
 
-  test("an empty cell has an empty trimmed range", () => {
-    const [cell] = splitRow("|   | b |");
-    expect(cell!.trimStart).toBe(cell!.trimEnd);
+  test("an engine does not change the URL decode characters of the shared mdurl module", () => {
+    const md = createEngine("discourse");
+    const before = md.utils.lib.mdurl.decode.defaultChars;
+    engineOf("discourse");
+    expect(md.utils.lib.mdurl.decode.defaultChars).toBe(before);
   });
 
-  test("trims Unicode spaces such as U+00A0, as String.prototype.trim does", () => {
-    expect(contents("| a | b |")).toEqual(["a", "b"]);
-  });
-});
-
-describe("lineStarts", () => {
-  test("knows LF, CRLF, and CR", () => {
-    expect(lineStarts("a\nb\r\nc\rd")).toEqual([0, 2, 5, 7]);
-  });
-});
-
-describe("markdownItTables", () => {
-  const md = discourseEngine({ record: true });
-  const cells = (text: string) => markdownItTables(md, text).tables.map((t) => t.rows.map((r) => r.cells));
-
-  test("the recorder changes no output", () => {
-    const doc = "| a | b |\n| :-- | --: |\n| `x\\|y` | [l](u) |\n";
-    expect(md.render(doc)).toBe(discourseEngine().render(doc));
-  });
-
-  test("the cell text comes from the source, and the check finds no mismatch", () => {
-    const doc = "| a | b |\n| --- | --- |\n| x\\|y | `c\\\\|d` |\n";
-    const result = markdownItTables(md, doc);
-    expect(result.mismatches).toEqual([]);
-    expect(result.tables[0]!.rows.map((r) => r.cells)).toEqual([
-      ["a", "b"],
-      ["x\\|y", "`c\\\\|d`"],
-    ]);
-  });
-
-  test("finds the source in a block quote, in a list item, and with CRLF line ends", () => {
-    expect(cells("> | a | b |\n> | - | - |\n> |  c | d |\n")).toEqual([[["a", "b"], ["c", "d"]]]);
-    expect(cells("- x\n\n  | a | b |\n  | - | - |\n  | c | d |\n")).toEqual([[["a", "b"], ["c", "d"]]]);
-    expect(cells("| a | b |\r\n| - | - |\r\n| c | d |\r\n")).toEqual([[["a", "b"], ["c", "d"]]]);
-    expect(markdownItTables(md, "> | a | b |\r\n> | - | - |\r\n> | c | d |\r\n").mismatches).toEqual([]);
-  });
-
-  test("gives the alignment and the 1-based lines", () => {
-    const [table] = markdownItTables(md, "text\n\n| a | b | c |\n| :-- | :-: | --: |\n| 1 | 2 | 3 |\n").tables;
-    expect(table!.align).toEqual(["left", "center", "right"]);
-    expect(table!.line).toBe(3);
-    expect(table!.rows.map((r) => r.line)).toEqual([3, 5]);
-  });
-
-  test("applies the plugins of a Discourse feature", () => {
+  test("discourseEngine applies the plugins of a Discourse feature", () => {
     let used = false;
     const feature: DiscourseFeature = {
       setup(helper) {
@@ -121,60 +51,10 @@ describe("markdownItTables", () => {
         });
       },
     };
-    discourseEngine({ tableFeature: feature });
+    discourseEngine(feature);
     expect(used).toBe(true);
   });
-
-  test("uses the options of Discourse: html, breaks, linkify, typographer", () => {
-    const engine = discourseEngine();
-    expect(engine.options).toMatchObject({ html: true, breaks: true, linkify: true, typographer: true });
-    expect(engine.render('"q"')).toBe("<p>“q”</p>\n");
-    expect(engine.render("a\nb")).toBe("<p>a<br>\nb</p>\n");
-    expect(markdownit().render("a\nb")).toBe("<p>a\nb</p>\n");
-  });
 });
-
-describe("compareTables", () => {
-  const table = (line: number, rows: string[][], align: string[] = rows[0]!.map(() => "")): SeenTable => ({
-    line,
-    align,
-    rows: rows.map((cells, i) => ({ line: line + (i === 0 ? 0 : i + 1), cells })),
-  });
-
-  test("pairs by line and reports the kinds", () => {
-    const a = [table(1, [["a", "b"], ["x\\", "y"]]), table(10, [["c"]]), table(20, [["d"]], ["left"])];
-    const b = [table(1, [["a", "b"], ["x\\|y"]]), table(20, [["d"]], ["right"]), table(30, [["e"]])];
-    const { paired, diffs } = compareTables(a, b);
-    expect(paired).toBe(2);
-    expect(diffs.map((d) => [d.line, d.kinds])).toEqual([
-      [1, ["cells", "content"]],
-      [10, ["only-micromark"]],
-      [20, ["align"]],
-      [30, ["only-markdown-it"]],
-    ]);
-    expect(diffs[0]!.example).toEqual({ line: 3, micromark: ["x\\", "y"], markdownIt: ["x\\|y"] });
-  });
-
-  test("micromark and markdown-it differ on a pipe after two backslashes", () => {
-    const doc = "| a | b |\n| - | - |\n| x\\\\|y | z |\n";
-    const { diffs } = compareTables(micromarkTables(doc), markdownItTables(discourseEngine({ record: true }), doc).tables);
-    expect(diffs.map((d) => d.kinds)).toEqual([["cells", "content"]]);
-  });
-});
-
-// The statements of docs/format.md (version 0.3.0) about the two flavors. The flavor `markdown-it` is `markdownit()`.
-// The flavor `discourse` is discourseEngine() with the table feature of Discourse. That file is GPL-2.0-only, so it is
-// not in this repository: the tests with it run only when `mise run corpus-markdown-it` put it into the cache.
-// The tests without it use discourseEngine() alone, which has the same table rule except for the link pipes.
-
-async function cachedTableFeature(): Promise<DiscourseFeature | undefined> {
-  const place = cachePath(cacheRoot(), DISCOURSE.repo, DISCOURSE.commit, DISCOURSE.tablePath);
-  if (!existsSync(place)) return undefined;
-  if (createHash("sha256").update(readFileSync(place)).digest("hex") !== DISCOURSE.tableSha256) return undefined;
-  return (await import(pathToFileURL(place).href)) as DiscourseFeature;
-}
-
-const tableFeature = await cachedTableFeature();
 
 /** The HTML of each body cell of the first table, or null if the text has no table. */
 function bodyCells(html: string): string[][] | null {
@@ -190,8 +70,8 @@ describe("format.md: where a new GFM table can stand", () => {
   const table = "| A |\n| --- |\n| x |\n";
   const quoted = (prefix: string) => table.replace(/^/gm, prefix).slice(0, -prefix.length);
   const engines = [
-    ["discourse without the table feature", discourseEngine()],
-    ["markdown-it", markdownit()],
+    ["discourse without the table feature", createEngine("discourse")],
+    ["markdown-it", createEngine("markdown-it")],
   ] as const;
 
   for (const [name, md] of engines) {
@@ -257,7 +137,7 @@ describe("format.md: where a new GFM table can stand", () => {
 
   test.skipIf(!tableFeature)("the table feature of Discourse gives the same results for these cases", () => {
     const plain = discourseEngine();
-    const discourse = discourseEngine({ tableFeature });
+    const discourse = discourseEngine(tableFeature);
     const docs = [
       `text\n${table}`,
       `- item\n${table}`,
@@ -276,7 +156,7 @@ describe("format.md: where a new GFM table can stand", () => {
 describe("format.md: how markdown-it splits a GFM row", () => {
   const header = "| h1 | h2 |\n| --- | --- |\n";
   const cellsOf = (md: { render(text: string): string }, line: string) => bodyCells(md.render(`${header}${line}\n`))![0];
-  const plain = markdownit();
+  const plain = createEngine("markdown-it");
 
   test("a pipe after one, two, or three backslashes never splits, and the cell loses one backslash", () => {
     expect(cellsOf(plain, "| x\\|y | b |")).toEqual(["x|y", "b"]);
@@ -300,7 +180,7 @@ describe("format.md: how markdown-it splits a GFM row", () => {
   });
 
   test.skipIf(!tableFeature)("the flavor discourse does not split at a pipe in a complete link or image", () => {
-    const md = discourseEngine({ tableFeature });
+    const md = discourseEngine(tableFeature);
     expect(cellsOf(md, "| [x|y](https://example.com) | b |")).toEqual(['<a href="https://example.com">x|y</a>', "b"]);
     expect(cellsOf(md, "| [x](https://example.com/a|b) | b |")).toEqual(['<a href="https://example.com/a%7Cb">x</a>', "b"]);
     expect(cellsOf(md, "| ![x|100x50](https://example.com/a.png) | b |")).toEqual(['<img src="https://example.com/a.png" alt="x|100x50">', "b"]);

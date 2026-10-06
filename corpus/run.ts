@@ -1,6 +1,6 @@
 // mise run corpus [--verbose]
 // Gets each file of corpus/sources.json (from the cache when it can), splits it into Markdown documents,
-// converts each document to tbl and back to GFM, and compares the mdast before and after, table by table.
+// converts each document to tbl and back to GFM, and compares the HTML of markdown-it before and after, table by table.
 // Only "different" and a crash fail the run. The output names the file and the line, never the content.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";

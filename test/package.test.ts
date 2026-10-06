@@ -184,20 +184,40 @@ describe("the type declarations", () => {
     );
     writeFileSync(
       join(consumer, "consumer.ts"),
-      `import { convert, findTables, parse, render, type FoundGfm, type Table } from "tbl-md";
+      `import { convert, findTables, parse, render, type Flavor, type FoundGfm, type Table } from "tbl-md";
 const result = parse("a: A");
 const table: Table | undefined = result.ok ? result.table : undefined;
 const text: string | undefined = table && render(table);
-const found = findTables("| A |\\n| --- |\\n")[0] as FoundGfm;
-const kind: "table" = found.node.type;
-const count: number = convert("", { to: "gfm" }).ok ? 1 : 0;
+const flavor: Flavor = "markdown-it";
+const found = findTables("| A |\\n| --- |\\n", { flavor })[0] as FoundGfm;
+const kind: "gfm" = found.kind;
+const titles: string[] = found.header.cells.map((cell) => cell.text);
+const count: number = convert("", { to: "gfm", flavor: "discourse" }).ok ? 1 : 0;
 // @ts-expect-error The library has no default export.
 import def from "tbl-md";
-export { text, kind, count, def };
+export { text, kind, titles, count, def };
 `,
     );
     const result = run(TSC, ["-p", "tsconfig.json"], consumer);
     expect(result.stdout + result.stderr).toBe("");
     expect(result.status).toBe(0);
+  });
+
+  test("do not need the types of markdown-it", () => {
+    // Each declaration file that index.d.ts reaches, by its relative imports.
+    const dist = join(consumer, "node_modules", "tbl-md", "dist");
+    const seen = new Set<string>();
+    const visit = (name: string) => {
+      if (seen.has(name)) return;
+      seen.add(name);
+      const text = readFileSync(join(dist, name), "utf8");
+      const importsMarkdownIt = /from "markdown-it"|import\("markdown-it"\)/.test(text);
+      expect({ name, importsMarkdownIt }).toEqual({ name, importsMarkdownIt: false });
+      for (const match of text.matchAll(/from "\.\/([a-z]+)\.(?:js|ts)"/g)) visit(`${match[1]}.d.ts`);
+    };
+    visit("index.d.ts");
+    expect(seen.has("markdown.d.ts")).toBe(true);
+    expect(seen.has("flavor.d.ts")).toBe(true);
+    expect(seen.has("engine.d.ts")).toBe(false);
   });
 });

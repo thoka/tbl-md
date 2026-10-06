@@ -3,8 +3,6 @@
 // The second part checks the laws of the GFM conversion.
 import { describe, expect, test } from "bun:test";
 import fc from "fast-check";
-import type { Paragraph } from "mdast";
-import { fromMarkdown } from "mdast-util-from-markdown";
 import {
   convert,
   findTables,
@@ -23,6 +21,8 @@ import {
   type Table,
 } from "../src/index.ts";
 import { gfmView } from "../src/gfm.ts";
+import { engineOf } from "../src/engine.ts";
+import { FLAVORS, type Flavor } from "../src/flavor.ts";
 
 const runs = { numRuns: 1000 };
 
@@ -184,16 +184,14 @@ describe("the laws of render", () => {
 const gfmRuns = { numRuns: 500 };
 
 // Pieces that build the forms of the conversion: pipes after backslashes, `<br>`, the ID marker, code spans.
-const plainPieces = ["a", "B", "r", " ", "\t", "\\", "|", "\\\\|", "<", ">", "{", "#", "}", "`", "*", "é", ":", "-", "&amp;", "[a](b)"];
+const plainPieces = ["a", "B", "r", " ", "\t", "\u00a0", "\\", "|", "\\|", "\\\\|", "<", ">", "{", "#", "}", "`", "*", "é", ":", "-", "&amp;", "[a](b)"];
 const piece = fc.constantFrom(...plainPieces, "<br>", "{#x}");
 const gfmLine = fc.array(piece, { maxLength: 7 }).map((p) => p.join(""));
 
-/** True if toGfm can convert the text: no space or tab at an edge, no pipe after an odd backslash run, no backslash before a line break. */
+/** True if toGfm can convert the text: no character of the trim at an edge (a line break is none), no backslash before a line break. */
 function convertible(text: string): boolean {
-  if (/^[ \t]|[ \t]$/.test(text)) return false;
-  if (/\\\n/.test(text)) return false;
-  for (const m of text.matchAll(/(\\*)\|/g)) if (m[1]!.length % 2 === 1) return false;
-  return true;
+  if (/^(?!\n)\s|(?!\n)\s$/.test(text)) return false;
+  return !/\\\n/.test(text);
 }
 
 const gfmTitle = gfmLine.filter(convertible);
@@ -295,18 +293,24 @@ function toGfmText(t: Table): string {
   return result.text;
 }
 
-function onlyGfm(text: string): FoundGfm {
-  const found = findTables(text);
+function onlyGfm(text: string, flavor?: Flavor): FoundGfm {
+  const found = findTables(text, { flavor });
   expect(found.map((f) => f.kind)).toEqual(["gfm"]);
   return found[0] as FoundGfm;
 }
 
-/** Removes the positions of an mdast tree, so that two trees compare by content. */
-function strip(node: unknown): unknown {
-  if (Array.isArray(node)) return node.map(strip);
-  if (node === null || typeof node !== "object") return node;
-  const { position: _, ...rest } = node as Record<string, unknown>;
-  return Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, strip(v)]));
+/** The HTML of each cell of the first GFM table of a text, as the flavor renders the whole text: the header row first. */
+function cellHtml(text: string, flavor: Flavor): string[][] {
+  const md = engineOf(flavor);
+  const env = {};
+  const tokens = md.parse(text, env);
+  const rows: string[][] = [];
+  for (const token of tokens) {
+    if (token.type === "tr_open") rows.push([]);
+    if (token.type === "inline" && rows.length > 0) rows[rows.length - 1]!.push(md.renderer.renderInline(token.children!, md.options, env));
+    if (token.type === "table_close") break;
+  }
+  return rows;
 }
 
 describe("the laws of the GFM conversion", () => {
@@ -339,9 +343,11 @@ describe("the laws of the GFM conversion", () => {
   test("the GFM text is one table with the header width and the row count", () => {
     fc.assert(
       fc.property(gfmTableArb, (t) => {
-        const node = onlyGfm(toGfmText(t)).node;
-        expect(node.children).toHaveLength(t.rows.length + 1);
-        for (const row of node.children) expect(row.children).toHaveLength(t.columns.length);
+        const found = onlyGfm(toGfmText(t));
+        expect(found.align).toHaveLength(t.columns.length);
+        expect(found.header.cells).toHaveLength(t.columns.length);
+        expect(found.rows).toHaveLength(t.rows.length);
+        for (const row of found.rows) expect(row.cells).toHaveLength(t.columns.length);
       }),
       gfmRuns,
     );
@@ -375,34 +381,35 @@ describe("the laws of the GFM conversion", () => {
     );
   });
 
-  // The meaning test: the inline mdast of each GFM cell equals the mdast of the paragraph
-  // that the tbl cell text gives, with each line break written as `<br>`. Both trees have no positions.
+  // The meaning test, for each flavor: the HTML of each GFM cell, as the flavor renders the whole GFM table,
+  // equals the HTML that the flavor gives for the tbl cell text as inline Markdown, with each line break written as `<br>`.
   // Its tables have no literal `<br>` (it gets a backslash on purpose) and no row ID.
   // It skips a first cell with the marker form, which gets a backslash on purpose.
-  // A cell text starts with a letter, so that it parses as a paragraph and not as another block.
-  test("a GFM cell has the same inline Markdown as the tbl cell", () => {
-    const markerForm = /(^| )\\*\{#[A-Za-z0-9_-]+\}$/;
-    let compared = 0;
-    fc.assert(
-      fc.property(meaningTableArb, (t) => {
-        const node = onlyGfm(toGfmText(t)).node;
-        t.rows.forEach((row, r) => {
-          t.columns.forEach(({ key }, c) => {
-            const text = row.cells[key];
-            if (text === undefined || (c === 0 && markerForm.test(text))) return;
-            const paragraph = fromMarkdown(text.replaceAll("\n", "<br>")).children;
-            expect(paragraph.map((n) => n.type)).toEqual(["paragraph"]);
-            const expected = strip((paragraph[0] as Paragraph).children);
-            expect(strip(node.children[r + 1]!.children[c]!.children)).toStrictEqual(expected);
-            compared++;
+  // A cell text starts with a letter, so that it is no other block.
+  for (const flavor of FLAVORS) {
+    test(`a GFM cell has the same HTML as the tbl cell with the flavor ${flavor}`, () => {
+      const markerForm = /(^| )\\*\{#[A-Za-z0-9_-]+\}$/;
+      const md = engineOf(flavor);
+      let compared = 0;
+      fc.assert(
+        fc.property(meaningTableArb, (t) => {
+          const html = cellHtml(toGfmText(t), flavor);
+          expect(html).toHaveLength(t.rows.length + 1);
+          t.rows.forEach((row, r) => {
+            t.columns.forEach(({ key }, c) => {
+              const text = row.cells[key];
+              if (text === undefined || (c === 0 && markerForm.test(text))) return;
+              expect(html[r + 1]![c]).toBe(md.renderInline(text.replaceAll("\n", "<br>")));
+              compared++;
+            });
           });
-        });
-      }),
-      gfmRuns,
-    );
-    // Most random tables have cells to compare, so the test is not empty.
-    expect(compared).toBeGreaterThan(gfmRuns.numRuns);
-  });
+        }),
+        gfmRuns,
+      );
+      // Most random tables have cells to compare, so the test is not empty.
+      expect(compared).toBeGreaterThan(gfmRuns.numRuns);
+    });
+  }
 });
 
 // Property tests of the conversion of a file: random tables in a random Markdown frame.
