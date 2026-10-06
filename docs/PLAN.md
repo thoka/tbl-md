@@ -10,7 +10,7 @@ State: steps 0 to 8 are done. `tbl-md@0.1.0` is on npm with provenance (SLSA v1)
 
 Known gap: `.handover.toml` still has `local_only = true`, although the remote exists. The auto mode classifier blocked its removal on 2026-10-06. Remove the line when the user allows it, so that `handover check` checks the push again.
 
-Next step: step 9c. Steps 9 and 9b are done. Step 9b fixed the last pipe of a row in `cellSource` of `src/gfm.ts`, with 12 regression tests, and release-please makes 0.1.1 with it. Step 9: `docs/research/table-corpus.md` recommends 30 pinned sources (about 1.6 MB) from raw.githubusercontent.com with SHA-256 pins, and a small own downloader, because no tool fits. A coding subagent runs step 9c in `.worktrees/9c-excess-cells`. Review and merge it, then step 10.
+Next step: step 10. Steps 9, 9b, and 9c are done. Step 9c drops an excess GFM cell with no text (`fix:`, so it goes into 0.1.1). Step 9b fixed the last pipe of a row in `cellSource` of `src/gfm.ts`, with 12 regression tests, and release-please makes 0.1.1 with it. Step 9: `docs/research/table-corpus.md` recommends 30 pinned sources (about 1.6 MB) from raw.githubusercontent.com with SHA-256 pins, and a small own downloader, because no tool fits. A coding subagent runs step 10 in `.worktrees/10-corpus`. Review and merge it, then plan step 11.
 
 Open tasks of the user: none.
 
@@ -24,7 +24,6 @@ Each step plans and reviews first, then implements in its own branch `feature/<s
 
 The goal of these steps is version 0.2.0. `docs/spec.md`, section Scope of version 0.2.0, has the decisions of the user from 2026-10-06.
 
-- Step 9c: an excess GFM cell with no text. The conversion to tbl drops it and does not fail (`docs/review-queue.md`, 2026-10-06, step 9). An excess cell with text stays an error. `docs/format.md` gets the rule.
 - Step 10: corpus downloader and baseline. Follow the recommendation of `docs/research/table-corpus.md`. A configuration file lists each source with its repository, a pinned commit, and its files. The downloader fetches only these files, with a size cap per file and in total, into `~/.cache/tbl-md/corpus/`, and it never fetches a file twice. `mise run corpus` converts each file to `tbl` and back to GFM and compares the mdast with no positions, with short rows padded and excess cells removed. The first run measures the baseline of 0.1, so the known loss of the column alignment shows up. Not in the pre-push hook.
 - Step 11: format rules for attributes. `docs/format.md` gets the rules of the spec section Scope of version 0.2.0: the attribute block, its three places, the escape, the canonical form, and the errors. The README sections Why, How to write a table, and Next exist since 2026-10-06. The step adds the attributes to How to write a table. Plan and review only, no code.
 - Step 12: parse and render attributes. The parser keeps the attributes of the columns, the rows, and the cells, and the renderer writes them in the canonical form. Tests for each error.

@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 9c: excess cells with no text
+
+- Step 9c: an excess GFM cell with no text. The conversion to tbl drops it and does not fail (`docs/review-queue.md`, 2026-10-06, step 9). An excess cell with text stays an error. `docs/format.md` gets the rule. Done on 2026-10-06. Status: `fromGfm` drops an excess cell whose text is empty or only spaces and tabs. The first excess cell with text of a row is the error, and the row gives only one error.
+
 ## Step 9b: the last pipe of a row
 
 - Step 9b: fix the last pipe of a row. If a GFM row has spaces or tabs after its last pipe, the conversion to tbl keeps that pipe in the last cell: `| x | y | ` gives the cell `y |`. This changes content with no error and breaks principle 1. Fix it with a hand-written regression test. A `fix:` commit, so that release-please makes 0.1.1 with it. Done on 2026-10-06. Status: root cause: micromark ends the last cell at the end of the line, so the spaces and tabs after the closing pipe belong to it, and `cellSource` looked for the pipe only at the very end. The fix removes them first. `docs/format.md` did not change, because the code now follows its rule.
