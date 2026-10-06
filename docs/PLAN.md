@@ -4,13 +4,13 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 ## Hand-off
 
-Next step: 17b. `docs/format.md` follows the spec of 0.3.0.
+Next step: 18. markdown-it as the only parser, with the flavors of `docs/format.md`.
 Waits for: nothing
-New context: no. Step 17b builds directly on the report of step 16 and the spec text of step 17.
+New context: yes. Step 18 is code work with a new topic, and this context holds the long spec discussion.
 
-2026-10-06, interactive session in `~/dv/tbl-md`, after step 17.
+2026-10-06, interactive session in `~/dv/tbl-md`, after step 17b.
 
-State: the spec has the new principles 1, 4, and 5 with flavors (default `discourse`) and the section "Scope of version 0.3.0", approved by the user in a grilling round. The product docs name no local path and no private project, and `test/public.test.ts` checks the paths. The outbox holds the rule and the task for private planning repositories. Step 17c waits for meta.
+State: `docs/format.md` describes 0.3.0: the flavors `discourse` and `markdown-it`, the new pipe rule, the trim of each Unicode space, the HTML check after each conversion, the link pipe rule, and the measured row split and table places (tested in `test/markdown-it.test.ts`). The code still follows 0.2.0. Step 17c (planning files to `thoka/tbl-md-plan` in `.plan/`) waits for the message "plan_dir ready" from the supervisor.
 
 Open tasks of the user: none.
 
@@ -33,9 +33,8 @@ The user decided this in the grilling interview of 2026-10-06. The far goal: the
 
 ## Open steps
 
-- Step 17b: `docs/format.md` follows the spec of 0.3.0. It defines the flavors `discourse` and `markdown-it`: the markdown-it version, the settings, and the pinned Discourse commit, with no local path. It gives the new pipe rule, the trim of each Unicode space at the edges of a cell, the read-back check after each conversion, and the link pipe rule of `discourse`. It replaces the section "How micromark splits a GFM row" with the measurement of markdown-it, and measures the section "Where a new GFM table can stand" again with markdown-it. An entry in `docs/review-queue.md`. The rules apply from 0.3.0; the code follows in step 18. No change of `src/`.
 - Step 17c: the planning files leave the public repository. `docs/PLAN.md`, `docs/HISTORY.md`, `docs/review-queue.md`, `docs/research/`, and `docs/outbox/` move to the private repository `thoka/tbl-md-plan`, cloned into the git-ignored folder `.plan/`. Waits for the outbox task `2026-10-06-task-plan-path-for-public-repos.md` in meta (plan path setting of `handover`, the outbox scan, and the creation of the repository). Then `AGENTS.md` and `test/public.test.ts` drop the exception for these files.
-- Step 18: markdown-it as the only parser. `findTables`, `lint`, `fromGfm`, and the corpus test use markdown-it with the settings of Discourse. The mdast and micromark dependencies go.
+- Step 18: markdown-it as the only parser. `findTables`, `lint`, `fromGfm`, and the corpus test use markdown-it with the settings of Discourse. The mdast and micromark dependencies go. The CLI and `.tbl-md.json` get the flavor (`--flavor`, key `flavor`, default `discourse`), and the conversion gets the HTML check of `docs/format.md`. The link pipe rule of `discourse` is own MIT code. `README.md` follows (it still describes the micromark split and the odd-backslash error of 0.2.0).
 - Step 19: the markdown-it plugin. A separate entry point, for example `tbl-md/markdown-it`, renders a `tbl` block as a table, with the attributes. It has its own tests and bundles to one file with no `node:` module.
 - Step 20 and later, in the repository `discourse-tbl` (the supervisor creates it on an outbox task when step 19 is done): an automatic Discourse development instance in Docker; the server plugin with `discourse-markdown/*.js`, the allow list, and an email fallback; a composer item that converts a GFM table to `tbl`; the rich editor extension that saves each table as `tbl`.
 

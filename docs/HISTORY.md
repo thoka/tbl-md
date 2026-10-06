@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 17b: format.md follows the spec of 0.3.0
+
+- Step 17b: `docs/format.md` follows the spec of 0.3.0. It defines the flavors `discourse` and `markdown-it`: the markdown-it version, the settings, and the pinned Discourse commit, with no local path. It gives the new pipe rule, the trim of each Unicode space at the edges of a cell, the read-back check after each conversion, and the link pipe rule of `discourse`. It replaces the section "How micromark splits a GFM row" with the measurement of markdown-it, and measures the section "Where a new GFM table can stand" again with markdown-it. An entry in `docs/review-queue.md`. The rules apply from 0.3.0; the code follows in step 18. No change of `src/`. Done on 2026-10-06. Status: all old statements on table places stay true. New: a `tbl` block after a lazy paragraph line in a list or quote fails, and an HTML block ends a table only in `discourse` (`html: true`). The flavor `markdown-it` uses the defaults of `markdownit()` (review queue). 601 tests pass.
+
 ## Step 17: spec change
 
 - Step 17: spec change. The user approves the new text of principles 1, 4, and 5. `docs/format.md` follows, with an entry in `docs/review-queue.md`. If a valid block changes its content, this is a new minor version (0.3.0). Done on 2026-10-06. Status: the user decided in a grilling round: flavors instead of Discourse in each principle, the flavor in `.tbl-md.json` or `--flavor`, the default `discourse`, MIT stays, and the link pipe rule as own code. The user also decided that the public repository holds no private context (step 17a, `test/public.test.ts`) and that the planning files leave it (step 17c). `docs/format.md` follows in step 17b.
