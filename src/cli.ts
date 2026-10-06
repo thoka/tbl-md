@@ -1,17 +1,21 @@
 #!/usr/bin/env node
-// The command line of tbl-md: `tbl-md lint <files...>` and `tbl-md convert [--to tbl|gfm] [--drop-attributes] <files...>`.
+// The command line of tbl-md: `tbl-md lint [--config <file>] [--max-warnings <n>] <files...>`
+// and `tbl-md convert [--to tbl|gfm] [--drop-attributes] <files...>`.
 // It uses only `node:` modules and the library, so that it runs on Node and on Bun.
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { dirname, isAbsolute, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { convert, type ConvertOptions } from "./convert.ts";
+import { CONFIG_FILE, findConfig, readConfig, type Config, type ConfigError } from "./config.ts";
 import { lint } from "./lint.ts";
 
 export const USAGE = `Usage: tbl-md <command> [options] <files...>
 
 Commands:
-  lint <files...>                    Report each GFM pipe table and each error of a tbl block.
+  lint <files...>                    Report each GFM pipe table and each error of a tbl block as an error,
+                                     and each attribute key that .tbl-md.json does not list as a warning.
   convert [--to tbl|gfm] <files...>  Convert the tables of each file in place. --to defaults to tbl:
                                      each GFM table becomes a tbl block. --to gfm converts back.
 
@@ -22,8 +26,11 @@ Options:
   --version          Print the version.
   --drop-attributes  Only with convert --to gfm. Drop each attribute that GFM cannot hold,
                      with no error. The align of the columns and the IDs of the rows stay.
+  --config <file>    Only with lint. Use this configuration file, and do not search for .tbl-md.json.
+  --max-warnings <n> Only with lint. Fail if there are more than n warnings. No limit by default.
 
-Exit codes: 0 no problem, 1 a problem in a file, 2 a usage error.`;
+Exit codes: 0 no error, and not more warnings than --max-warnings. 1 an error in a file, or more
+warnings than --max-warnings. 2 a usage error or an error in the configuration file.`;
 
 const HINT = "Run `tbl-md --help` for the usage.";
 const BOM = "﻿";
@@ -37,6 +44,13 @@ export interface Io {
 }
 
 class UsageError extends Error {}
+
+/** A configuration file that cannot be read or is not valid. The run stops with exit code 2. */
+class ConfigFailure extends Error {
+  constructor(readonly error: ConfigError) {
+    super(error.message);
+  }
+}
 
 /** One input: its name, its text with no BOM, and whether it had a BOM. */
 interface Input {
@@ -52,6 +66,11 @@ export async function main(argv: string[], io: Io): Promise<number> {
   } catch (error) {
     if (error instanceof UsageError) {
       io.stderr(`tbl-md: ${error.message} ${HINT}\n`);
+      return 2;
+    }
+    if (error instanceof ConfigFailure) {
+      const { file, line, message } = error.error;
+      io.stderr(`tbl-md: ${file}${line === undefined ? "" : `:${line}`}: ${message}\n`);
       return 2;
     }
     throw error;
@@ -70,6 +89,8 @@ async function run(argv: string[], io: Io): Promise<number> {
         version: { type: "boolean" },
         to: { type: "string" },
         "drop-attributes": { type: "boolean" },
+        config: { type: "string" },
+        "max-warnings": { type: "string" },
       },
     });
   } catch (error) {
@@ -95,6 +116,9 @@ async function run(argv: string[], io: Io): Promise<number> {
   if (dropAttributes && (command === "lint" || to === "tbl")) {
     throw new UsageError("The option --drop-attributes is only for convert --to gfm.");
   }
+  if (command === "convert" && values.config !== undefined) throw new UsageError("The option --config is only for lint.");
+  if (command === "convert" && values["max-warnings"] !== undefined) throw new UsageError("The option --max-warnings is only for lint.");
+  const maxWarnings = values["max-warnings"] === undefined ? undefined : count(values["max-warnings"]);
   if (files.length === 0) throw new UsageError(`No files. Give one or more Markdown files after ${command}.`);
   if (files.filter((f) => f === "-").length > 1) throw new UsageError("The file name - can come only once.");
 
@@ -102,18 +126,91 @@ async function run(argv: string[], io: Io): Promise<number> {
   const inputs: Input[] = [];
   for (const name of files) inputs.push(await read(name, io));
 
-  return command === "lint" ? runLint(inputs, io) : runConvert(inputs, { to, dropAttributes }, io);
+  if (command === "convert") return runConvert(inputs, { to, dropAttributes }, io);
+  // Read the configuration of all inputs first, so that an error in a configuration file stops the run before any output.
+  const configs = configurations(inputs, values.config);
+  return runLint(inputs, configs, maxWarnings, io);
 }
 
-function runLint(inputs: Input[], io: Io): number {
-  let found = false;
-  for (const input of inputs) {
-    for (const p of lint(input.text)) {
-      found = true;
-      io.stdout(`${input.name}:${p.line}:${p.column}: ${p.message} (${p.code})\n`);
+/** The value of --max-warnings: a whole number, 0 or more. */
+function count(value: string): number {
+  if (!/^\d+$/.test(value)) throw new UsageError(`Bad value "${value}" for --max-warnings. Give a whole number, 0 or more.`);
+  return Number(value);
+}
+
+/** The configuration of one input: the file that gives it (null if none), and its content. */
+interface Configured {
+  file: string | null;
+  config: Config;
+}
+
+/**
+ * Finds and reads the configuration of each input. `--config` gives one file for all inputs. Else the search starts in the
+ * folder of each file, and in the current folder for stdin. Each folder and each file is read once.
+ */
+function configurations(inputs: Input[], option: string | undefined): Configured[] {
+  const loaded = new Map<string, Config>();
+  const load = (file: string): Config => {
+    let config = loaded.get(file);
+    if (config === undefined) {
+      const result = readConfig(file);
+      if (!result.ok) throw new ConfigFailure({ ...result.error, file: show(file) });
+      config = result.config;
+      loaded.set(file, config);
     }
+    return config;
+  };
+  const found = new Map<string, string | null>();
+  return inputs.map((input) => {
+    if (option !== undefined) return { file: option, config: load(option) };
+    const folder = input.name === "-" ? process.cwd() : dirname(input.name);
+    let file = found.get(folder);
+    if (file === undefined) {
+      file = findConfig(folder);
+      found.set(folder, file);
+    }
+    return file === null ? { file: null, config: { attributeKeys: [] } } : { file: show(file), config: load(file) };
+  });
+}
+
+/** A path for a message: relative to the current folder if the file is in it, else as it is. */
+function show(file: string): string {
+  if (!isAbsolute(file)) return file;
+  const path = relative(process.cwd(), file);
+  return path === "" || path.startsWith("..") || isAbsolute(path) ? file : path;
+}
+
+function runLint(inputs: Input[], configs: Configured[], maxWarnings: number | undefined, io: Io): number {
+  let errors = 0;
+  let warnings = 0;
+  inputs.forEach((input, i) => {
+    const { file, config } = configs[i]!;
+    for (const p of lint(input.text, config)) {
+      if (p.severity === "error") {
+        errors++;
+        io.stdout(`${input.name}:${p.line}:${p.column}: ${p.message} (${p.code})\n`);
+        continue;
+      }
+      warnings++;
+      const where =
+        p.code !== "unknown-attribute-key"
+          ? ""
+          : file === null
+            ? ` No ${CONFIG_FILE} was found, so only "align" is known.`
+            : ` The configuration file is ${file}.`;
+      io.stdout(`${input.name}:${p.line}:${p.column}: warning: ${p.message}${where} (${p.code})\n`);
+    }
+  });
+  const tooMany = maxWarnings !== undefined && warnings > maxWarnings;
+  if (errors + warnings > 0) {
+    const limit = tooMany ? ` The warnings are more than --max-warnings ${maxWarnings}.` : "";
+    io.stdout(`${plural(errors, "error")} and ${plural(warnings, "warning")}.${limit}\n`);
   }
-  return found ? 1 : 0;
+  return errors > 0 || tooMany ? 1 : 0;
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
 function runConvert(inputs: Input[], options: ConvertOptions, io: Io): number {
