@@ -24,7 +24,7 @@ A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cel
 
 ## Status
 
-Work in progress. The library (section Library) and the CLI `tbl-md` with `lint` and `convert` (section CLI) exist. The build makes a package for Node 22 or later and for Bun. The package is not published yet, so the install lines below work only after the first release. The plan is in `docs/PLAN.md`.
+Work in progress. The library (section Library) and the CLI `tbl-md` with `lint` and `convert` (section CLI) exist. The build makes a package for Node 22 or later and for Bun. The package is on npm as `tbl-md`, with provenance. Before 1.0.0, a breaking change of the format gives a new minor version. The plan is in `docs/PLAN.md`.
 
 ## Install
 
@@ -370,7 +370,6 @@ pre-commit:
 - `<br/>` and `<BR>` in a GFM cell stay text and do not become line breaks.
 - A `tbl` block with a text line directly after it does not convert to GFM. Add an empty line after the block.
 - The keys of a GFM table come from its titles. The keys of a tbl block do not survive a round trip through GFM if they differ from `keysFromTitles` of the titles.
-- The package is not published yet. `npm install tbl-md` and `npx tbl-md` work only after the first release.
 - The package test needs the npm registry, because npm installs the mdast libraries of the tarball. With no network, `mise run test` fails.
 - The package has no CommonJS entry. Its `exports` has only the condition `import`, so `require("tbl-md")` fails. A CommonJS module loads it with `import("tbl-md")`.
 - The pre-commit hook lints the file in the working tree. If a file has unstaged changes, the lint can differ from the staged text.
