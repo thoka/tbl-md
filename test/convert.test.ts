@@ -246,7 +246,7 @@ describe("convert: the self-check", () => {
 describe("convert: round trips", () => {
   test("to tbl and back to gfm gives the canonical GFM", () => {
     const source = "| Price ($) | Note |\n| :-- | --: |\n| 1 | a<br>b |\n|  | x \\| y {#r1} |\n";
-    const canonical = "| Price ($) | Note |\n| --- | --- |\n| 1 | a<br>b |\n|  | x \\| y {#r1} |\n";
+    const canonical = "| Price ($) | Note |\n| :--- | ---: |\n| 1 | a<br>b |\n|  | x \\| y {#r1} |\n";
     const there = output(convert(source, { to: "tbl" }));
     expect(output(convert(there, { to: "gfm" }))).toBe(canonical);
   });
@@ -271,24 +271,71 @@ describe("convert: round trips", () => {
   });
 });
 
-// Until step 13 maps the attributes to GFM, toGfm keeps only the row ID. The self-check compares all attributes,
-// so a conversion to GFM of a table with other attributes fails at the read-back check and changes nothing.
-describe("convert: attributes before step 13", () => {
-  const readBack = "The new table does not read back as the same table. Add an empty line before and after this table.";
+describe("convert: attributes", () => {
+  const fix = (n: number) => (n === 1 ? "Remove it, or convert with --drop-attributes to drop it." : "Remove them, or convert with --drop-attributes to drop them.");
 
-  for (const [name, block] of [
-    ["a column attribute", "```tbl\na: A\n{align=right}\n--\na: x\n```"],
-    ["a class of a row", "```tbl\na: A\n-- {#r1 .new}\na: x\n```"],
-    ["an attribute of a cell", "```tbl\na: A\n--\na: x\n{.c}\n```"],
-  ] as const) {
-    test(`${name} fails the conversion to GFM at the first line of the table`, () => {
-      const source = `Intro\n\n${block}\n`;
-      expect(errors(convert(source, { to: "gfm" }))).toEqual([{ line: 3, column: 1, message: readBack }]);
-    });
-  }
+  test("align converts to the GFM alignment and back", () => {
+    const source = "```tbl\na: A\n{align=left}\nb: B\n{align=center}\nc: C\n{align=right}\nd: D\n--\na: 1\nd: 4\n```\n";
+    const there = output(convert(source, { to: "gfm" }));
+    expect(there).toBe("| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 |  |  | 4 |\n");
+    expect(output(convert(there, { to: "tbl" }))).toBe(source);
+  });
+
+  test("a GFM alignment becomes the attribute line of the column", () => {
+    const source = "> | Price ($) | Note |\n> |--:|:-:|\n> | 1 | x |\n";
+    expect(output(convert(source, { to: "tbl" }))).toBe("> ```tbl\n> price: Price ($)\n> {align=right}\n> note: Note\n> {align=center}\n> --\n> price: 1\n> note: x\n> ```\n");
+  });
 
   test("a row ID alone converts, as in 0.1", () => {
     expect(output(convert("```tbl\na: A\n-- {#r1}\na: x\n```\n", { to: "gfm" }))).toBe("| A |\n| --- |\n| x {#r1} |\n");
+  });
+
+  test("a column attribute with no GFM form is at its attribute line, at the column of the fence", () => {
+    const source = "- ```tbl\n  a: A\n  {.wide align=right}\n  --\n  a: x\n  ```\n";
+    expect(errors(convert(source, { to: "gfm" }))).toEqual([
+      {
+        line: 3,
+        column: 3,
+        message: `Column "a": the attribute \`.wide\` has no GFM form, because GFM keeps only the align of a column. ${fix(1)}`,
+      },
+    ]);
+  });
+
+  test("a row attribute with no GFM form is at the -- line of the row", () => {
+    const source = "Intro\n\n```tbl\na: A\n--\na: x\n-- {#r2 .new k=v}\na: y\n```\n";
+    expect(errors(convert(source, { to: "gfm" }))).toEqual([
+      { line: 7, column: 1, message: `Row 2: the attributes \`.new k=v\` have no GFM form, because GFM keeps only the ID of a row. ${fix(2)}` },
+    ]);
+  });
+
+  test("a cell attribute is at the attribute line of the cell, also for a prefix key and a cell with no text", () => {
+    const source = "> ```tbl\n> model: Model\n> note: Note\n> --\n> n: a\n>\n> {.c}\n> m:\n> {#i}\n> ```\n";
+    expect(errors(convert(source, { to: "gfm" }))).toEqual([
+      { line: 7, column: 3, message: `Row 1, cell "note": the attribute \`.c\` has no GFM form, because GFM has no attributes for a cell. ${fix(1)}` },
+      { line: 9, column: 3, message: `Row 1, cell "model": the attribute \`#i\` has no GFM form, because GFM has no attributes for a cell. ${fix(1)}` },
+    ]);
+  });
+
+  test("the errors of all attributes and of the text come sorted by line", () => {
+    const source = "```tbl\na: A\n{.w}\n-- {.r}\na: x \n{.c}\n```\n";
+    expect(errors(convert(source, { to: "gfm" })).map((e) => e.line)).toEqual([3, 4, 5, 6]);
+  });
+
+  test("with dropAttributes, the align and the row IDs stay, and the rest goes", () => {
+    const source = "```tbl\na: A\n{#c .wide align=right}\nb: B\n{.x}\n-- {#r1 .new}\na: x\n{.c}\nb:\n{k=v}\n-- {.old}\nb: y\n```\n";
+    const result = convert(source, { to: "gfm", dropAttributes: true });
+    expect(result).toEqual({ ok: true, count: 1, output: "| A | B |\n| ---: | --- |\n| x {#r1} |  |\n|  | y |\n" });
+    expect(output(convert(output(result), { to: "tbl" }))).toBe("```tbl\na: A\n{align=right}\nb: B\n-- {#r1}\na: x\n--\nb: y\n```\n");
+  });
+
+  test("dropAttributes changes nothing for a table with no attributes, and nothing for the conversion to tbl", () => {
+    expect(output(convert(`${tbl}\n`, { to: "gfm", dropAttributes: true }))).toBe(`${gfm}\n`);
+    expect(output(convert("| A |\n| :- |\n", { to: "tbl", dropAttributes: true }))).toBe("```tbl\na: A\n{align=left}\n```\n");
+  });
+
+  test("dropAttributes keeps the other errors", () => {
+    const [error] = errors(convert("```tbl\na: A\n{.w}\n--\na: x \n```\n", { to: "gfm", dropAttributes: true }));
+    expect(error).toMatchObject({ line: 5, column: 1 });
   });
 
   test("an attribute error is at its line and column in the file", () => {

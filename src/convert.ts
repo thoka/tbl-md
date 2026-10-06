@@ -1,9 +1,9 @@
 // The conversion of all tables in one Markdown text, in memory (docs/format.md, section "Conversion of a file").
 // It replaces only the source range of each converted table. Each other byte stays the same.
 import { findTables, type Found, type FoundTbl } from "./markdown.ts";
-import { fromGfm, keysFromTitles, toGfm } from "./gfm.ts";
+import { fromGfm, gfmView, keysFromTitles, toGfm, type ConvertError } from "./gfm.ts";
 import type { Attributes } from "./attributes.ts";
-import { locate, parse, type Row, type Table } from "./parse.ts";
+import { locate, parse, type Row, type Table, type TblLocation } from "./parse.ts";
 import { renderBlock } from "./render.ts";
 
 /** A problem of a conversion, at a 1-based line and column of the file. */
@@ -18,6 +18,11 @@ export type ConvertResult = { ok: true; output: string; count: number } | { ok: 
 export interface ConvertOptions {
   /** `"tbl"` converts each GFM table to a tbl block. `"gfm"` converts each tbl block to a GFM table. */
   to: "tbl" | "gfm";
+  /**
+   * Only for `to: "gfm"`. Drops each attribute with no GFM form, with no error: the conversion keeps the `align`
+   * of the columns and the ID of the rows, and drops the rest. Without it, each such attribute is an error at its line.
+   */
+  dropAttributes?: boolean;
 }
 
 /** A converted table: its place in the source, and the text that replaces it (lines joined with "\n", no prefix). */
@@ -43,7 +48,7 @@ export function convert(source: string, options: ConvertOptions): ConvertResult 
       if (!result.ok) errors.push(...result.errors);
       else replacements.push({ found, index, text: renderBlock(result.table), table: result.table });
     } else if (found.kind === "tbl" && options.to === "gfm") {
-      const replacement = tblToGfm(found, index, errors);
+      const replacement = tblToGfm(found, index, options.dropAttributes === true, errors);
       if (replacement) replacements.push(replacement);
     }
   });
@@ -68,7 +73,7 @@ export function convert(source: string, options: ConvertOptions): ConvertResult 
 }
 
 /** Parses a tbl block and writes it as GFM. It maps each error to its file line. */
-function tblToGfm(found: FoundTbl, index: number, errors: FileError[]): Replacement | null {
+function tblToGfm(found: FoundTbl, index: number, dropAttributes: boolean, errors: FileError[]): Replacement | null {
   const at = (blockLine: number, blockColumn = 1) => ({
     line: found.contentLine + blockLine - 1,
     column: found.column + blockColumn - 1,
@@ -88,18 +93,35 @@ function tblToGfm(found: FoundTbl, index: number, errors: FileError[]): Replacem
   }
   if (errors.length > before) return null;
 
-  const result = toGfm(parsed.table);
+  const result = toGfm(parsed.table, { dropAttributes });
   if (!result.ok) {
     const places = locate(found.text)!;
     for (const e of result.errors) {
-      let line: number | undefined;
-      if (e.key !== undefined && e.row === undefined) line = places.headerLines[e.key];
-      else if (e.key !== undefined && e.row !== undefined) line = places.rows[e.row - 1]?.cells[e.key];
+      const line = lineOf(e, places);
       errors.push(line === undefined ? { line: found.line, column: found.column, message: e.message } : { ...at(line), message: e.message });
     }
     return null;
   }
-  return { found, index, text: result.text, table: withTitleKeys(parsed.table) };
+  // The new GFM table must read back as the table that GFM can hold.
+  return { found, index, text: result.text, table: withTitleKeys(gfmView(parsed.table)) };
+}
+
+/**
+ * The block line of an error of toGfm: the attribute line of a column or a cell, the `--` line of a row,
+ * the header key line of a title, or the key line of a cell. It gives undefined for an error with no place.
+ */
+function lineOf(e: ConvertError, places: TblLocation): number | undefined {
+  const row = e.row === undefined ? undefined : places.rows[e.row - 1];
+  switch (e.attribute) {
+    case "column":
+      return places.headerAttributeLines[e.key!];
+    case "row":
+      return row?.line;
+    case "cell":
+      return row?.cellAttributeLines[e.key!];
+  }
+  if (e.key === undefined) return undefined;
+  return row === undefined ? places.headerLines[e.key] : row.cells[e.key];
 }
 
 /** The same table with the keys of keysFromTitles, as fromGfm reads it back. */
