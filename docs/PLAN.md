@@ -4,7 +4,7 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 ## Hand-off
 
-Next step: none. Steps 0 to 15 are done. The next work is in the section Later, and the user picks it.
+Next step: none. Steps 0 to 15 are done. The user named a big plan: a Discourse plugin for `tbl` (section Later). Interview the user on it with the skill `grilling` first.
 Waits for: user (the choice of the next step from the section Later)
 New context: yes. The release ends the goal of 0.2.0, and the next step has a new topic.
 
@@ -12,7 +12,7 @@ New context: yes. The release ends the goal of 0.2.0, and the next step has a ne
 
 State: tbl-md 0.2.0 is on npm (tag `v0.2.0`, release workflow run 37429065614 passed). The outbox task `docs/outbox/2026-10-06-task-markgraf-tbl-md-0-2-0.md` asks the supervisor to tell the markgraf session that 0.2.0 exists and that its hook can run `tbl-md lint --max-warnings 0`. `.handover.toml` is removed, so `handover check` checks the push again (`docs/review-queue.md`).
 
-No step is planned. The user picks one item of the section Later, for example `tbl-md fmt` or the preview plugins, and the session then plans it as step 16.
+No step is planned. The user named the Discourse plugin as the big plan (section Later). Start with an interview with the skill `grilling` on its goal and scope, then plan the steps toward it, probably first the markdown-it plugin, as step 16 and later.
 
 Open tasks of the user: pick the next step from the section Later.
 
@@ -27,5 +27,6 @@ None. The goal of 0.2.0 is reached.
 ## Later
 
 - Plugins for remark and markdown-it that show a `tbl` block as a table in a preview.
+- A Discourse plugin or theme component for `tbl` tables (user, 2026-10-06: "big plan would be: write a discourse theme / plugin, that replaces tables inside markdown with tb[l]"). The design is open, so the session interviews the user with the skill `grilling` before a proposal. Open points: does it show a `tbl` block as a table in a post, or does it give the writer `tbl` in the composer in place of a GFM table, or both. Discourse renders posts with markdown-it, so it can build on the markdown-it plugin above. A plugin can change the server-side rendering, and a theme component probably cannot (to research).
 - `tbl-md fmt <files>`: rewrites each `tbl` block in its canonical form.
 - Markgraf step 6a uses the package for its table views, and its step 6b runs the lint in its hook. The markgraf session does both after the first release.
