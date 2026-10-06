@@ -1,4 +1,4 @@
-// The configuration file of the lint: `.tbl-md.json` (README.md, section Configuration).
+// The configuration file of the lint: `.tbl-md.json` (docs/cli.md, section Configuration).
 // Only `node:` modules, so that it runs on Node and on Bun.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";

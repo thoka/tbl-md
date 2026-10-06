@@ -1,5 +1,5 @@
-// The markdown-it plugin of tbl-md: it renders each valid tbl block as an HTML table (README, section The markdown-it
-// plugin). It works on the engine of the host and imports markdown-it only as types, so a bundle of this module has
+// The markdown-it plugin of tbl-md: it renders each valid tbl block as an HTML table (docs/markdown-it.md).
+// It works on the engine of the host and imports markdown-it only as types, so a bundle of this module has
 // no markdown-it in it. It must not import index.ts or any module that reaches a `node:` module, because the IIFE
 // bundle runs in a browser and in the server context of Discourse (scripts/bundle.ts fails on a `node:` import).
 import type { MarkdownIt, StateCore, Token } from "markdown-it";

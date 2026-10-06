@@ -1,5 +1,5 @@
 {
-  "$comment": "The corpus of mise run corpus. Each source is pinned to a commit. Only mise run corpus-pin writes size and sha256. Use only sources with an open license. README.md, section Development, has the rules.",
+  "$comment": "The corpus of mise run corpus. Each source is pinned to a commit. Only mise run corpus-pin writes size and sha256. Use only sources with an open license. CONTRIBUTING.md, section The corpus test, has the rules.",
   "sources": [
     {
       "repo": "github/cmark-gfm",
