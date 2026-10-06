@@ -10,11 +10,13 @@ State: steps 0 to 8 are done. `tbl-md@0.1.0` is on npm with provenance (SLSA v1)
 
 Known gap: `.handover.toml` still has `local_only = true`, although the remote exists. The auto mode classifier blocked its removal on 2026-10-06. Remove the line when the user allows it, so that `handover check` checks the push again.
 
-Next step: step 10b. Steps 9, 9b, 9c, and 10 are done. Step 10: `mise run corpus` tests 142 documents with tables from 17 sources (69 files, 1.6 MB, cached): 106 same, 15 errors by the format, 21 alignment only, 0 different. A check with the old code of step 9b gave 3 differences, so the test can fail. Step 9c drops an excess GFM cell with no text (`fix:`, so it goes into 0.1.1). Step 9b fixed the last pipe of a row in `cellSource` of `src/gfm.ts`, with 12 regression tests, and release-please makes 0.1.1 with it. Step 9: `docs/research/table-corpus.md` recommends 30 pinned sources (about 1.6 MB) from raw.githubusercontent.com with SHA-256 pins, and a small own downloader, because no tool fits. Then step 11.
+Next step: step 11, the format rules for attributes. Steps 9 to 10b are done. `mise run corpus` now counts each table: 586 tables in 142 documents from 17 sources, 445 same, 22 errors by the format (19 excess cells with text, 3 cells that end with `<br>`), 119 alignment only, 0 different. With the old code of step 9b, it reports more than 6 differences, so the test can fail. Step 11 writes the rules of the spec section Scope of version 0.2.0 into `docs/format.md` and the README section How to write a table, with an entry in `docs/review-queue.md`. It is plan and review only, no code. Open details for step 11: the exact grammar of the attribute block (quoted values, allowed key characters), the canonical order of `#id`, `.class`, and `key=value`, and the errors.
+
+Release PR #2 (0.1.1) holds the fixes of steps 9b and 9c. The user merges it when they want.
 
 Open tasks of the user: none.
 
-New context: no. The design talk of 0.2.0 is in this context, and step 9 runs.
+New context: yes. The context is long, and step 11 has a new topic: the grammar of the attribute block. The decisions of the user are in the spec, so a new session can start from the files.
 
 ## Rules for each step
 
@@ -24,7 +26,6 @@ Each step plans and reviews first, then implements in its own branch `feature/<s
 
 The goal of these steps is version 0.2.0. `docs/spec.md`, section Scope of version 0.2.0, has the decisions of the user from 2026-10-06.
 
-- Step 10b: count each table in the corpus. A conversion error in one table must not hide the other tables of the same document (`docs/review-queue.md`, 2026-10-06, step 10). The corpus run counts same, error, alignment, and different for each table. No change of the library API, unless the main thread agrees.
 - Step 11: format rules for attributes. `docs/format.md` gets the rules of the spec section Scope of version 0.2.0: the attribute block, its three places, the escape, the canonical form, and the errors. The README sections Why, How to write a table, and Next exist since 2026-10-06. The step adds the attributes to How to write a table. Plan and review only, no code.
 - Step 12: parse and render attributes. The parser keeps the attributes of the columns, the rows, and the cells, and the renderer writes them in the canonical form. Tests for each error.
 - Step 13: attributes in the conversion. `align` maps to the GFM alignment in both directions. Any other attribute makes the conversion to GFM fail, unless `--drop-attributes` is given. The corpus test of step 10 then passes for the alignment.

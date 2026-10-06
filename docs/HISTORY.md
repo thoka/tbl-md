@@ -2,6 +2,10 @@
 
 Finished steps of `docs/PLAN.md`, moved word for word, newest first.
 
+## Step 10b: count each table in the corpus
+
+- Step 10b: count each table in the corpus. A conversion error in one table must not hide the other tables of the same document (`docs/review-queue.md`, 2026-10-06, step 10). The corpus run counts same, error, alignment, and different for each table. No change of the library API, unless the main thread agrees. Done on 2026-10-06. Status: a failing table counts as one error, and the run removes it, keeps the line count and the container prefix, and converts again. Baseline on 0.1: 586 tables, 445 same, 22 errors, 119 alignment only, 0 different.
+
 ## Step 10: corpus downloader and baseline
 
 - Step 10: corpus downloader and baseline. Follow the recommendation of `docs/research/table-corpus.md`. A configuration file lists each source with its repository, a pinned commit, and its files. The downloader fetches only these files, with a size cap per file and in total, into `~/.cache/tbl-md/corpus/`, and it never fetches a file twice. `mise run corpus` converts each file to `tbl` and back to GFM and compares the mdast with no positions, with short rows padded and excess cells removed. The first run measures the baseline of 0.1, so the known loss of the column alignment shows up. Not in the pre-push hook. Done on 2026-10-06. Status: `corpus/` has the sources, the downloader, `corpus-pin`, and the run, and it is not in the package. Baseline on 0.1: 142 documents, 106 same, 15 errors (12 excess cells with text, 3 cells that end with `<br>`), 21 alignment only, 0 different.
