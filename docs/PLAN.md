@@ -4,15 +4,15 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 ## Hand-off
 
-Next step: step 16, the measurement of markdown-it with the settings of Discourse against micromark.
-Waits for: nothing. Step 16 needs no Docker.
-New context: yes. The interview is done, and step 16 starts a new topic.
+Next step: 17. The user approves the new text of principles 1, 4, and 5 of `docs/spec.md`.
+Waits for: user
+New context: no. The context is short, and step 17 builds directly on the report of step 16.
 
-2026-10-06, interactive session in `~/dv/tbl-md`, after the grilling interview on the Discourse plugin.
+2026-10-06, interactive session in `~/dv/tbl-md`, after step 16.
 
-State: the user decided the far goal and the order (section Goal of the Discourse work). The research is `docs/research/discourse-integration.md`. The supervisor imported the lesson (the spec names the target renderer) and the task for arch-helper (the user joins the group `docker`).
+State: step 16 is merged into `main`. The report is `docs/research/markdown-it-reference.md`. Discourse eb46cffe uses markdown-it 15.0.1 with the preset default, `html`, `breaks`, `linkify`, and `typographer`, and a table feature that does not split at a pipe inside a link. `mise run corpus-markdown-it` finds 45 tables that differ, all in parser fixtures, and 0 in the 9 real files. The section "Proposal for step 17" of the report has the new spec text and two open points: the pipe rule (Discourse before GitHub) and the link pipe protection (GPL code, so tbl-md must reimplement it or leave it out).
 
-Open tasks of the user: none. The spec change of step 17 will need the approval of the user.
+Open tasks of the user: step 17, the approval of the spec text, with the two open points.
 
 ## Rules for each step
 
@@ -33,7 +33,6 @@ The user decided this in the grilling interview of 2026-10-06. The far goal: the
 
 ## Open steps
 
-- Step 16: measurement of markdown-it as the reference. A research agent finds the markdown-it version and the settings and rules that Discourse uses to cook a post, from the Discourse source, pinned to a commit. A script renders the corpus of step 10 with that markdown-it and with micromark and counts the tables that differ, with examples. It also measures how markdown-it splits a GFM row (pipes, backslashes, code spans, excess cells), and how `fromGfm` can find the exact source of each cell, because markdown-it gives only line numbers. Result: `docs/research/markdown-it-reference.md` with a proposal for the change of principles 1, 4, and 5 of `docs/spec.md` and of the GFM rules of `docs/format.md`. No change of `src/` in this step.
 - Step 17: spec change. The user approves the new text of principles 1, 4, and 5. `docs/format.md` follows, with an entry in `docs/review-queue.md`. If a valid block changes its content, this is a new minor version (0.3.0).
 - Step 18: markdown-it as the only parser. `findTables`, `lint`, `fromGfm`, and the corpus test use markdown-it with the settings of Discourse. The mdast and micromark dependencies go.
 - Step 19: the markdown-it plugin. A separate entry point, for example `tbl-md/markdown-it`, renders a `tbl` block as a table, with the attributes. It has its own tests and bundles to one file with no `node:` module.
