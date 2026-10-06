@@ -6,7 +6,7 @@ tbl-md gives the readable `tbl` table format and its tools. `docs/spec.md` has t
 
 2026-10-06, interactive session in `~/dv/tbl-md`, after step 14.
 
-State: steps 0 to 14 are done and merged into `main`. release-please opened the release PR #3 (`chore(main): release 0.2.0`). Its changelog names the breaking change of `Row.id` and the three kinds of 0.1 text that change their meaning, so step 15 needs no more work from an agent.
+State: steps 0 to 14 are done and merged into `main`. release-please opened the release PR #3 (`chore(main): release 0.2.0`). Its changelog names the breaking change of `Row.id` and the three kinds of 0.1 text that change their meaning, so step 15 needs no more work from an agent. The old user step `tbl-md-publish` is closed (`docs/review-queue.md`).
 
 Known gap: `.handover.toml` still has `local_only = true`, although the remote exists. If the user allows it, remove the line, so that `handover check` checks the push again.
 
