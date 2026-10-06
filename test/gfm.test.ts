@@ -105,9 +105,12 @@ describe("toGfm", () => {
     roundTrip(table);
   });
 
-  test("a pipe after an even number of backslashes gets one backslash more", () => {
+  test("each pipe gets one backslash more, after any number of backslashes", () => {
     expect(roundTrip(one("x|y"))).toEndWith("| x\\|y |");
+    expect(roundTrip(one("x\\|y"))).toEndWith("| x\\\\|y |");
     expect(roundTrip(one("x\\\\|y"))).toEndWith("| x\\\\\\|y |");
+    expect(roundTrip(one("x\\\\\\|y"))).toEndWith("| x\\\\\\\\|y |");
+    expect(roundTrip(one("`x\\|y`"))).toEndWith("| `x\\\\|y` |");
     expect(roundTrip(one("`x|y`"))).toEndWith("| `x\\|y` |");
     expect(roundTrip(one("|"))).toEndWith("| \\| |");
   });
@@ -116,6 +119,9 @@ describe("toGfm", () => {
     const table: Table = { columns: [{ key: "a-b", title: "a|b" }], rows: [] };
     expect(gfm(table)).toBe("| a\\|b |\n| --- |");
     roundTrip(table);
+    const escaped: Table = { columns: [{ key: "x-y", title: "x\\|y" }], rows: [] };
+    expect(gfm(escaped)).toBe("| x\\\\|y |\n| --- |");
+    roundTrip(escaped);
   });
 
   test("the ID goes to the end of the first cell, after one space", () => {
@@ -181,53 +187,38 @@ describe("toGfm", () => {
     expect(result).toStrictEqual({ ok: false, errors: [{ message: "The table has no columns. A table needs one column at least." }] });
   });
 
-  test("a title that starts or ends with a space or a tab fails", () => {
-    for (const title of [" A", "A ", "\tA", "A\t"]) {
+  test("a title that starts or ends with a character of the trim fails", () => {
+    for (const title of [" A", "A ", "\tA", "A\t", "\u00a0A", "A\u00a0", "\ufeffA", "A\u3000", "A\v"]) {
       const result = toGfm({ columns: [{ key: "a", title }], rows: [] });
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0]).toMatchObject({ key: "a" });
         expect(result.errors[0]!.row).toBeUndefined();
-        expect(result.errors[0]!.message).toContain("space or a tab");
+        expect(result.errors[0]!.message).toBe(
+          'The title of column "a" starts or ends with a space, a tab, or another character that markdown-it trims, such as a no-break space (U+00A0). GFM removes it, so remove it from the title.',
+        );
       }
     }
   });
 
-  test("a cell that starts or ends with a space or a tab fails, with the row and the key", () => {
-    for (const text of [" x", "x ", "\tx", "x\t", "x\n "]) {
+  test("a cell that starts or ends with a character of the trim fails, with the row and the key", () => {
+    for (const text of [" x", "x ", "\tx", "x\t", "x\n ", "\u00a0x", "x\u00a0", "x\n\u2003", "\ufeffx"]) {
       const result = toGfm(one(text));
       expect(result.ok).toBe(false);
       if (!result.ok) {
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0]).toMatchObject({ row: 1, key: "a" });
-        expect(result.errors[0]!.message).toStartWith('Row 1, cell "a": the text starts or ends with a space or a tab.');
+        expect(result.errors[0]!.message).toBe(
+          'Row 1, cell "a": the text starts or ends with a space, a tab, or another character that markdown-it trims, such as a no-break space (U+00A0). GFM removes it, so remove it from the cell.',
+        );
       }
     }
   });
 
-  test("a pipe after an odd number of backslashes fails and names the fix", () => {
-    const result = toGfm(one("x\\|y"));
-    expect(result).toStrictEqual({
-      ok: false,
-      errors: [
-        {
-          row: 1,
-          key: "a",
-          message:
-            'Row 1, cell "a": has a pipe after 1 backslash. In GFM, this pipe would split the cell. Write the pipe with no backslash (`|`), or with one backslash more (`\\\\|`).',
-        },
-      ],
-    });
-    const three = toGfm(one("x\\\\\\|y"));
-    expect(three.ok).toBe(false);
-    if (!three.ok) expect(three.errors[0]!.message).toContain("after 3 backslashes");
-  });
-
-  test("a pipe after an odd number of backslashes in a title fails", () => {
-    const result = toGfm({ columns: [{ key: "a", title: "x\\|y" }], rows: [] });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.errors[0]).toMatchObject({ key: "a" });
+  test("a line break at the start or the end of a cell is no error of the trim", () => {
+    expect(roundTrip(one("\nx"))).toEndWith("| <br>x |");
+    expect(roundTrip(one("x\n\ny"))).toEndWith("| x<br><br>y |");
   });
 
   test("a line that ends with a backslash before a line break fails", () => {
@@ -245,7 +236,7 @@ describe("toGfm", () => {
         { key: "a", title: " A" },
         { key: "b", title: "B" },
       ],
-      rows: [{ cells: { a: "x ", b: "y" } }, { cells: { b: "\\|" } }],
+      rows: [{ cells: { a: "x ", b: "y" } }, { cells: { b: "z\u00a0" } }],
     };
     const result = toGfm(table);
     expect(result.ok).toBe(false);
@@ -492,7 +483,7 @@ describe("fromGfm", () => {
       errors: [
         {
           line: 5,
-          column: 5,
+          column: 7,
           message: 'Row 1, cell "b": the text ends with `<br>`. A tbl cell never ends with a line break, so remove the last `<br>`.',
         },
       ],
@@ -515,7 +506,7 @@ describe("fromGfm", () => {
       errors: [
         {
           line: 3,
-          column: 5,
+          column: 7,
           message: "Row 1 has more cells than the header (1). GFM drops cell 2, so add a column for it or remove it.",
         },
       ],
@@ -542,7 +533,7 @@ describe("fromGfm", () => {
       errors: [
         {
           line: 3,
-          column: 11,
+          column: 13,
           message: "Row 1 has more cells than the header (2). GFM drops cell 4, so add a column for it or remove it.",
         },
       ],
@@ -555,7 +546,7 @@ describe("fromGfm", () => {
       errors: [
         {
           line: 3,
-          column: 5,
+          column: 7,
           message: "Row 1 has more cells than the header (1). GFM drops cell 2, so add a column for it or remove it.",
         },
       ],
@@ -568,6 +559,34 @@ describe("fromGfm", () => {
     if (!result.ok) expect(result.errors[0]!.message).toContain("before the ID marker ends with a space");
   });
 
+  test("a pipe after two backslashes is no delimiter: the cell keeps it and loses one backslash", () => {
+    expect(read("| a | b |\n| --- | --- |\n| x\\\\|y | z |\n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "x\\|y", b: "z" } }] } });
+    expect(read("| a |\n| --- |\n| `x\\\\|y` |\n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "`x\\|y`" } }] } });
+  });
+
+  test("the trim removes U+00A0 and the other characters of String.prototype.trim at the edges of a cell", () => {
+    expect(read("| a\u00a0| b |\n| --- | --- |\n|\u00a0x\u2003|\ufeffy\u00a0|\n")).toStrictEqual({
+      ok: true,
+      table: {
+        columns: [
+          { key: "a", title: "a" },
+          { key: "b", title: "b" },
+        ],
+        rows: [{ cells: { a: "x", b: "y" } }],
+      },
+    });
+  });
+
+  test("an excess cell of only U+00A0 is dropped", () => {
+    expect(read("| a |\n| --- |\n| x |\u00a0|\n")).toStrictEqual({ ok: true, table: { columns: [{ key: "a", title: "a" }], rows: [{ cells: { a: "x" } }] } });
+  });
+
+  test("text before the ID marker that ends with U+00A0 fails", () => {
+    const result = read("| a |\n| --- |\n| x\u00a0 {#i} |");
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors[0]!.message).toStartWith('Row 1, cell "a": the text before the ID marker ends with a space, a tab, or another character');
+  });
+
   test("toGfm of the result gives the canonical GFM text", () => {
     const result = read("|a|b|\n|:-|-:|\n|x\\|y|{#i}|\n|  {#j}|z\\\\\\|w|");
     expect(result.ok).toBe(true);
@@ -576,7 +595,7 @@ describe("fromGfm", () => {
 });
 
 describe("fromGfm: spaces and tabs after the last pipe", () => {
-  // micromark ends the last cell at the end of the line, so these spaces and tabs come after the closing pipe (step 9b).
+  // The table rule of markdown-it trims the row line before the split, so these spaces and tabs belong to no cell.
   const xy: Table = {
     columns: [
       { key: "a", title: "A" },
@@ -617,8 +636,8 @@ describe("fromGfm: spaces and tabs after the last pipe", () => {
     expect(read("| A | B |\n| --- | --- |\n| x | y\\| \n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "x", b: "y|" } }] } });
   });
 
-  test("a closing pipe after two backslashes is a delimiter", () => {
-    expect(read("| A | B |\n| --- | --- |\n| x | y\\\\| \n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "x", b: "y\\\\" } }] } });
+  test("a closing pipe after two backslashes is text, and loses one backslash", () => {
+    expect(read("| A | B |\n| --- | --- |\n| x | y\\\\| \n")).toMatchObject({ ok: true, table: { rows: [{ cells: { a: "x", b: "y\\|" } }] } });
   });
 
   test("an ID marker in the only cell", () => {

@@ -230,7 +230,7 @@ describe("convert", () => {
     expect(run.err).toBe("");
     const lines = run.out.trimEnd().split("\n");
     expect(lines).toHaveLength(2);
-    expect(lines[0]).toMatch(new RegExp(`^${escape(bad!)}:3:1: \\S`));
+    expect(lines[0]).toMatch(new RegExp(`^${escape(bad!)}:3:3: \\S`));
     expect(lines[0]).not.toMatch(/\([a-z-]+\)$/);
     expect(lines[1]).toBe(`${good}: converted 1 table`);
     expect(readFileSync(bad!, "utf8")).toBe(BAD_GFM);
@@ -275,7 +275,7 @@ describe("convert", () => {
     const [a, b] = files({ "a.md": "﻿" + GFM, "b.md": "﻿" + BAD_GFM });
     const run = await cli(["convert", a!, b!]);
     expect(readFileSync(a!, "utf8")).toBe("﻿" + GFM_AS_TBL);
-    expect(run.out).toContain(`${b}:3:1: `);
+    expect(run.out).toContain(`${b}:3:3: `);
   });
 
   test("the file name - reads stdin, writes the result to stdout, and reports on stderr", async () => {
@@ -290,7 +290,7 @@ describe("convert", () => {
     const run = await cli(["convert", "-"], BAD_GFM);
     expect(run.code).toBe(1);
     expect(run.out).toBe("");
-    expect(run.err).toMatch(/^-:3:1: \S/);
+    expect(run.err).toMatch(/^-:3:3: \S/);
   });
 
   test("- keeps the BOM and CRLF of stdin", async () => {
