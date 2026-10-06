@@ -1,8 +1,8 @@
 # The tbl table format
 
-A `tbl` block is a table in a fenced code block. It replaces the GFM pipe table, because a pipe table is hard to read as text. The user decided the format on 2026-10-05. The first copy of this file came from `~/dv/markgraf/docs/tbl-format.md`. The research behind the format is `~/dv/markgraf/docs/research/readable-table-syntax.md`. The format is a variant of the record-jar and Debian control file family, with a header record and short keys.
+A `tbl` block is a table in a fenced code block. It replaces the GFM pipe table, because a pipe table is hard to read as text. The format was decided on 2026-10-05. The format is a variant of the record-jar and Debian control file family, with a header record and short keys.
 
-Status: version 0.1.0 is released. This file now describes version 0.2.0, which adds attributes (rules 13 to 16). Since step 12 of `docs/PLAN.md`, the parser and the renderer follow version 0.2.0. Since step 13, the conversion to and from GFM follows version 0.2.0 too. Each change of the rules has an entry in `docs/review-queue.md`. After the first release, a change of these rules that makes a valid block invalid, or that changes its content, needs a new major version. Below 1.0.0, a minor version takes the role of the major version (`bump-minor-pre-major` of release-please).
+Status: version 0.1.0 is released. This file now describes version 0.2.0, which adds attributes (rules 13 to 16). The parser, the renderer, and the conversion to and from GFM follow version 0.2.0. After the first release, a change of these rules that makes a valid block invalid, or that changes its content, needs a new major version. Below 1.0.0, a minor version takes the role of the major version (`bump-minor-pre-major` of release-please).
 
 ## Example
 
@@ -59,7 +59,7 @@ p: $1
     - The `--` line of a row takes the block of the row after one space: `-- {#a1 .new}`.
 
     A column, a row, or a cell has one attribute block at most. A line in the attribute form at another place is an error: in the middle of a cell, directly after `--`, or as a second attribute line. It never falls back to text, so that a typo gives an error and not silent text. A text line in the attribute form needs the escape of rule 10. An attribute block on a key line is text: `price: $15 {.x}` is the cell text `$15 {.x}`.
-14. The grammar of an attribute block. It is the subset of the attribute block that Pandoc, djot, and kramdown read the same, with the ID of rule 4 and a bare value. The research is `docs/research/attribute-block.md`.
+14. The grammar of an attribute block. It is the subset of the attribute block that Pandoc, djot, and kramdown read the same, with the ID of rule 4 and a bare value.
 
     ```
     block   = "{" sp* part (sp+ part)* sp* "}"
@@ -167,7 +167,7 @@ The conversion goes both ways with no loss of content. If a table cannot convert
 - A cell line that ends with a backslash and has a next line cannot convert to GFM, because the backslash would come directly before the `<br>` of the line break. The conversion to GFM fails for it.
 - A title has no line break, so a `<br>` in a title stays as it is in both directions.
 - A pipe after an even number of backslashes (also none) gets one backslash more: `|` becomes `\|`, and `\\|` becomes `\\\|`. The conversion to tbl removes one backslash before each pipe. A pipe after an odd number of backslashes cannot convert to GFM, because one backslash more gives an even number, and GFM splits the cell there. The conversion to GFM fails for it, and the error tells the writer to write `|` or one backslash more.
-- An ID marker of a row goes to the end of the first cell in GFM, after one space if the cell has text, as in the table views of Markgraf. The marker form is `{#id}` with an ID of the form `[A-Za-z0-9_-]+`, at the start of the cell or after a space, and with zero or more backslashes before the `{`. A first cell of a row with no ID that ends with the marker form gets one backslash more before the `{`, by the same rule. With an ID, the text needs no escape, because the conversion to tbl removes only the last marker. The conversion to tbl fails if the text before the marker ends with a space or a tab, because the text could not convert back.
+- An ID marker of a row goes to the end of the first cell in GFM, after one space if the cell has text. The marker form is `{#id}` with an ID of the form `[A-Za-z0-9_-]+`, at the start of the cell or after a space, and with zero or more backslashes before the `{`. A first cell of a row with no ID that ends with the marker form gets one backslash more before the `{`, by the same rule. With an ID, the text needs no escape, because the conversion to tbl removes only the last marker. The conversion to tbl fails if the text before the marker ends with a space or a tab, because the text could not convert back.
 - The attribute `align` of a column maps to the GFM alignment, in both directions: `left` is `:---`, `center` is `:---:`, `right` is `---:`, and a column with no `align` is `---`. A GFM column with an alignment gets the attribute line `{align=...}` after its header key line.
 - The ID of a row goes to GFM by the ID marker rule above. Each other attribute has no GFM form: a class or a pair of a row, any attribute of a cell, and any attribute of a column other than `align`. The conversion to GFM fails for each of them, with an error at its line, unless the user gives `--drop-attributes`. With `--drop-attributes`, the conversion drops them and keeps the rest.
 - GFM removes the spaces and the tabs at the start and at the end of a cell. Thus the conversion to GFM fails for a title or a cell that starts or ends with a space or a tab.

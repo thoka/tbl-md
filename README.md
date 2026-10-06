@@ -43,13 +43,13 @@ The switch is reversible. `tbl-md convert --to gfm` converts each `tbl` block ba
 
 ## Next: version 0.2.0
 
-Version 0.2.0 adds attributes (section How to write a table). `docs/format.md` has their rules since step 11. Since step 12, the parser and the renderer follow them, and since step 13 the conversion follows them too. A conversion to GFM keeps `align` and the row ID, and fails for each other attribute unless you give `--drop-attributes`. The decisions are in `docs/spec.md`, section Scope of version 0.2.0, and the steps are in `docs/PLAN.md`.
+Version 0.2.0 adds attributes (section How to write a table). `docs/format.md` has their rules, and the parser, the renderer, and the conversion follow them. A conversion to GFM keeps `align` and the row ID, and fails for each other attribute unless you give `--drop-attributes`. The decisions are in `docs/spec.md`, section Scope of version 0.2.0.
 
 A `tbl` block is unrelated to the troff preprocessor `tbl` and to the `tbl-` cell options of Quarto.
 
 ## Status
 
-Work in progress. The library (section Library) and the CLI `tbl-md` with `lint` and `convert` (section CLI) exist. The build makes a package for Node 22 or later and for Bun. The package is on npm as `tbl-md`, with provenance. Before 1.0.0, a breaking change of the format gives a new minor version. The plan is in `docs/PLAN.md`.
+Work in progress. The library (section Library) and the CLI `tbl-md` with `lint` and `convert` (section CLI) exist. The build makes a package for Node 22 or later and for Bun. The package is on npm as `tbl-md`, with provenance. Before 1.0.0, a breaking change of the format gives a new minor version. The goal and the scope of each version are in `docs/spec.md`.
 
 ## Install
 
@@ -598,7 +598,7 @@ what: Compares the GFM tables of the corpus as markdown-it with the settings of 
 
 ### The corpus test
 
-Principle 1 of `docs/spec.md` says that a switch to tbl-md must be reversible. The corpus test checks this on tables that other people wrote. The corpus is a list of real Markdown files and of the table fixtures of established Markdown parsers, in `corpus/sources.json`. The research behind the list is `docs/research/table-corpus.md`. The files are not part of the repository, and the code in `corpus/` is not part of the package.
+Principle 1 of `docs/spec.md` says that a switch to tbl-md must be reversible. The corpus test checks this on tables that other people wrote. The corpus is a list of real Markdown files and of the table fixtures of established Markdown parsers, in `corpus/sources.json`. The list holds the table fixtures of cmark-gfm, micromark, markdown-it, pulldown-cmark, goldmark, and remark-gfm, and real Markdown files from large open source projects, such as Node.js, Kubernetes, and Rust. Each source is pinned to a commit. The files are not part of the repository, and the code in `corpus/` is not part of the package.
 
 `mise run corpus` does these steps:
 
@@ -658,7 +658,7 @@ Licenses: each source in `corpus/sources.json` has its license, and a file with 
 
 ### The markdown-it measurement
 
-Discourse renders a post with markdown-it, and markdown-it is to become the reference parser of tbl-md (`docs/PLAN.md`, steps 16 to 18). `mise run corpus-markdown-it` measures how markdown-it with the settings of Discourse and micromark, the current parser of tbl-md, see the GFM tables of the corpus. The report is `docs/research/markdown-it-reference.md`.
+Discourse renders a post with markdown-it, and markdown-it is to become the reference parser of tbl-md (`docs/spec.md`, section Scope of version 0.3.0). `mise run corpus-markdown-it` measures how markdown-it with the settings of Discourse and micromark, the current parser of tbl-md, see the GFM tables of the corpus.
 
 - The engine is markdown-it at the version that Discourse pins, with the options and the site setting defaults of Discourse (`corpus/markdown-it-lib.ts`, `discourseEngine`).
 - The table feature of Discourse (`features/table.js`, GPL-2.0-only) goes into the cache at the pinned Discourse commit, with a hash check, as a corpus file does. The script loads it from the cache. It is not part of the repository.
@@ -674,7 +674,7 @@ A merge of the release PR makes a release. release-please keeps one release PR o
 2. It builds the package and publishes it to npm with trusted publishing. No npm token is stored, and npm adds provenance.
 3. It moves the branch `stable` to the release tag. The push cannot force, so `stable` only moves forward.
 
-The workflow runs no tests, because the pre-push hook runs them before each push. Before 1.0.0, `feat:` gives a minor version and `fix:` gives a patch version. The research is `docs/research/npm-release.md`.
+The workflow runs no tests, because the pre-push hook runs them before each push. Before 1.0.0, `feat:` gives a minor version and `fix:` gives a patch version.
 
 ## Libraries
 
@@ -685,13 +685,13 @@ The workflow runs no tests, because the pre-push hook runs them before each push
 - `mdast-util-from-markdown`: parses a Markdown text into an mdast tree with source positions, so that the lint finds each table at its line.
 - `micromark-extension-gfm-table`: the GFM table syntax for the parser, so that the lint finds GFM pipe tables. It is the only GFM extension that the parse uses.
 - `mdast-util-gfm-table`: turns the GFM table tokens into `table` nodes of the mdast tree.
-- `markdown-it` (dev, exactly 15.0.1, the version that Discourse pins): the reference parser of the step 16 measurement, `corpus/markdown-it.ts`. It is not a runtime dependency yet.
+- `markdown-it` (dev, exactly 15.0.1, the version that Discourse pins): the reference parser of the markdown-it measurement, `corpus/markdown-it.ts`. It is not a runtime dependency yet.
 - `micromark` (dev): renders the hand-written row-split cases of `corpus/markdown-it.ts` to HTML, to compare them with markdown-it. It is already in the tree as a dependency of `mdast-util-from-markdown`.
 - `@types/mdast`: the types of the mdast nodes. It is a runtime dependency, because the type declarations of the package use these types, for example the `node` of `findTables`.
 
 ## Research
 
-The format comes from the research `~/dv/markgraf/docs/research/readable-table-syntax.md` in the Markgraf project. No established format had a header record with short keys and a maintained TypeScript parser.
+The format comes from a survey of readable table formats. No established format had a header record with short keys and a maintained TypeScript parser.
 
 ## License
 
