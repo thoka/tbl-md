@@ -48,3 +48,7 @@ run = "bun corpus/pin.ts"
 description = "Download the table feature of Discourse (GPL-2.0-only) at the pinned commit into the corpus cache, once. The tests that compare the link pipe rule with it skip without it"
 depends = ["install"]
 run = "bun corpus/discourse.ts"
+
+[tasks.doctor]
+description = "Check with no model that tbl-md is installed and configured on this machine: the command, the skill links, and the git hooks. One line per check, or JSON with --json. Exit 0 when it ran"
+run = "bun scripts/doctor.ts"

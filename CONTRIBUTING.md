@@ -30,6 +30,9 @@ what: Runs only the package test, `test/package.test.ts`. It packs the package w
 task: `mise run tbl-md <command>`
 what: Runs the CLI from the source with Bun.
 --
+task: `mise run doctor`
+what: Checks with no model that tbl-md is installed and configured on this machine (section The doctor).
+--
 task: `mise run corpus`
 what: Runs the corpus test (section The corpus test). It needs the network for the files that are not in the cache yet. With `--verbose`, it also lists each conversion error.
 --
@@ -41,6 +44,24 @@ what: Downloads the table feature of Discourse (`features/table.js`, GPL-2.0-onl
 ```
 
 `npm pack` runs the build first (the script `prepack`), so a tarball always has a new build.
+
+## The doctor
+
+`mise run doctor` checks with no model that tbl-md works on this machine as the project expects. Its source is `scripts/doctor.ts`. It prints one line per check, with the status `pass`, `warn`, or `fail`, the check, and for a warning or a failure the fix. With `--json`, it prints the same checks as a JSON array of objects with the keys `check`, `status`, `detail`, and `fix`. It exits 0 when it ran, also with a failed check, and 2 on an unknown flag.
+
+```tbl
+check: Check
+pass: It passes when
+--
+check: `command`
+pass: `tbl-md --version` runs in the workspace, and its version is not older than the version in `package.json`. An older version is a warning, because the release of the checkout can still be open. The workspace is the parent folder of the checkout. The environment variable `TBL_MD_DOCTOR_WORKSPACE` names another folder.
+--
+check: `skill <folder>`
+pass: The skill folder `~/.claude/skills/tbl-md` (Claude Code) and the skill folder `~/.agents/skills/tbl-md` (other agents) each link to `skills/tbl-md` of this checkout.
+--
+check: `hook pre-commit`, `hook pre-push`
+pass: The git hook exists and runs lefthook, so `mise run hooks-install` ran in this checkout.
+```
 
 ## The corpus test
 
