@@ -108,10 +108,11 @@ The attribute mapping, the hook `attributes`, and the single script file for hos
 - [docs/markdown-it.md](docs/markdown-it.md): the markdown-it plugin.
 - [docs/known-gaps.md](docs/known-gaps.md): the known gaps.
 - [docs/spec.md](docs/spec.md): the goal, the principles, and the decisions of each version.
+- [skills/tbl-md/SKILL.md](skills/tbl-md/SKILL.md): an Agent Skill that tells a coding agent to write each table as a `tbl` block. Copy or link the folder `skills/tbl-md` into the skills folder of your agent, for example `~/.claude/skills/`.
 - [CHANGELOG.md](CHANGELOG.md): the changes of each release.
 - [CONTRIBUTING.md](CONTRIBUTING.md): development, the corpus test, and the release.
 
-The package holds the user docs too, in `node_modules/tbl-md/docs/`.
+The package holds the user docs and the skill too, in `node_modules/tbl-md/docs/` and `node_modules/tbl-md/skills/`.
 
 ## Status and license
 

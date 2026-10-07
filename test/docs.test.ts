@@ -11,6 +11,7 @@ const files = [
   "README.md",
   "AGENTS.md",
   "CONTRIBUTING.md",
+  "skills/tbl-md/SKILL.md",
   ...readdirSync(join(root, "docs"))
     .filter((f) => f.endsWith(".md"))
     .map((f) => `docs/${f}`),

@@ -44,6 +44,7 @@
     "docs/markdown-it.md",
     "docs/known-gaps.md",
     "schema/tbl-md.schema.json",
+    "skills/tbl-md/SKILL.md",
     "README.md",
     "LICENSE"
   ],

@@ -72,17 +72,17 @@ afterAll(() => {
 });
 
 describe("the tarball", () => {
-  test("has the build, the docs, the schema, the README, and the license", () => {
+  test("has the build, the docs, the schema, the skill, the README, and the license", () => {
     const names = ["LICENSE", "README.md", "dist/cli.js", "dist/index.d.ts", "dist/index.js", "docs/format.md", "package.json"];
     names.push("docs/api.md", "docs/cli.md", "docs/markdown-it.md", "docs/known-gaps.md");
     names.push("dist/markdown-it.js", "dist/markdown-it.d.ts", "dist/tbl-md-markdown-it.iife.js");
-    for (const name of [...names, "schema/tbl-md.schema.json"]) {
+    for (const name of [...names, "schema/tbl-md.schema.json", "skills/tbl-md/SKILL.md"]) {
       expect(files).toContain(name);
     }
   });
 
   test("has no source, no test, and no config of the project", () => {
-    const allowed = /^(LICENSE|README\.md|package\.json|docs\/(format|api|cli|markdown-it|known-gaps)\.md|schema\/tbl-md\.schema\.json|dist\/[a-z-]+\.(js|d\.ts)|dist\/tbl-md-markdown-it\.iife\.js)$/;
+    const allowed = /^(LICENSE|README\.md|package\.json|docs\/(format|api|cli|markdown-it|known-gaps)\.md|schema\/tbl-md\.schema\.json|skills\/tbl-md\/SKILL\.md|dist\/[a-z-]+\.(js|d\.ts)|dist\/tbl-md-markdown-it\.iife\.js)$/;
     expect(files.filter((name) => !allowed.test(name))).toEqual([]);
   });
 });
