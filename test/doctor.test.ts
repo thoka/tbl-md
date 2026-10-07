@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { compareVersions, format, runChecks, type Check } from "../scripts/doctor.ts";
+import { compareVersions, format, report, runChecks, type Check, type Report } from "../scripts/doctor.ts";
 
 let temp: string;
 let root: string;
@@ -38,7 +38,7 @@ function healthy(): void {
 }
 
 function byName(checks: Check[], name: string): Check {
-  const found = checks.find((c) => c.check.startsWith(name));
+  const found = checks.find((c) => c.name.startsWith(name));
   if (!found) throw new Error(`no check ${name}`);
   return found;
 }
@@ -60,14 +60,14 @@ describe("runChecks", () => {
   test("passes each check on a healthy machine", () => {
     healthy();
     const checks = runChecks({ root, home, workspace: temp, command });
-    expect(checks.map((c) => [c.status, c.check.split(" ")[0]])).toEqual([
+    expect(checks.map((c) => [c.status, c.name.split(" ")[0]])).toEqual([
       ["pass", "command"],
       ["pass", "skill"],
       ["pass", "skill"],
       ["pass", "hook"],
       ["pass", "hook"],
     ]);
-    expect(checks.every((c) => c.fix === undefined)).toBe(true);
+    expect(checks.every((c) => c.fix === null)).toBe(true);
   });
 
   test("fails each check on a new machine, and names each fix", () => {
@@ -88,7 +88,7 @@ describe("runChecks", () => {
     healthy();
     const check = byName(runChecks({ root, home, workspace: temp, command: fakeCommand("0.3.0") }), "command");
     expect(check.status).toBe("warn");
-    expect(check.detail).toContain("0.3.0");
+    expect(check.message).toContain("0.3.0");
     expect(check.fix).toContain("0.4.0");
   });
 
@@ -99,7 +99,7 @@ describe("runChecks", () => {
     symlinkSync(join(temp, "other"), join(home, ".agents/skills/tbl-md"));
     const check = byName(runChecks({ root, home, workspace: temp, command }), `skill ${join(home, ".agents")}`);
     expect(check.status).toBe("fail");
-    expect(check.detail).toContain("other");
+    expect(check.message).toContain("other");
   });
 
   test("fails a hook that does not run lefthook", () => {
@@ -111,6 +111,14 @@ describe("runChecks", () => {
   });
 });
 
+test("report gives the worst status of the checks", () => {
+  const check = (status: Check["status"]): Check => ({ name: status, status, message: "", fix: status === "pass" ? null : "x" });
+  expect(report("1.0.0", [check("pass"), check("pass")]).status).toBe("pass");
+  expect(report("1.0.0", [check("pass"), check("warn")]).status).toBe("warn");
+  expect(report("1.0.0", [check("warn"), check("fail")]).status).toBe("fail");
+  expect(report("1.0.0", []).tool).toBe("tbl-md");
+});
+
 test("compareVersions orders the versions by their numbers", () => {
   expect(compareVersions("0.3.0", "0.4.0")).toBeLessThan(0);
   expect(compareVersions("0.10.0", "0.9.9")).toBeGreaterThan(0);
@@ -119,8 +127,8 @@ test("compareVersions orders the versions by their numbers", () => {
 
 test("format prints one line per check, with the fix", () => {
   const text = format([
-    { check: "command", status: "pass", detail: "tbl-md 0.4.0 runs" },
-    { check: "hook pre-push", status: "fail", detail: "the hook is not installed", fix: "run it" },
+    { name: "command", status: "pass", message: "tbl-md 0.4.0 runs", fix: null },
+    { name: "hook pre-push", status: "fail", message: "the hook is not installed", fix: "run it" },
   ]);
   expect(text).toBe("pass  command: tbl-md 0.4.0 runs\nfail  hook pre-push: the hook is not installed. Fix: run it");
 });
@@ -129,8 +137,9 @@ test("the CLI prints JSON with --json, exits 0, and rejects an unknown flag", ()
   const script = join(import.meta.dir, "..", "scripts", "doctor.ts");
   const run = spawnSync(process.execPath, [script, "--json"], { encoding: "utf8", env: { ...process.env, TBL_MD_DOCTOR_WORKSPACE: temp } });
   expect(run.status).toBe(0);
-  const checks = JSON.parse(run.stdout) as Check[];
-  expect(checks).toHaveLength(5);
-  expect(checks.every((c) => ["pass", "warn", "fail"].includes(c.status))).toBe(true);
+  const out = JSON.parse(run.stdout) as Report;
+  expect(out.tool).toBe("tbl-md");
+  expect(out.checks).toHaveLength(5);
+  expect(out.checks.every((c) => ["pass", "warn", "fail"].includes(c.status) && "fix" in c)).toBe(true);
   expect(spawnSync(process.execPath, [script, "--bad"], { encoding: "utf8" }).status).toBe(2);
 });

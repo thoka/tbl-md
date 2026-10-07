@@ -47,7 +47,7 @@ what: Downloads the table feature of Discourse (`features/table.js`, GPL-2.0-onl
 
 ## The doctor
 
-`mise run doctor` checks with no model that tbl-md works on this machine as the project expects. Its source is `scripts/doctor.ts`. It prints one line per check, with the status `pass`, `warn`, or `fail`, the check, and for a warning or a failure the fix. With `--json`, it prints the same checks as a JSON array of objects with the keys `check`, `status`, `detail`, and `fix`. It exits 0 when it ran, also with a failed check, and 2 on an unknown flag.
+`mise run doctor` checks with no model that tbl-md works on this machine as the project expects. Its source is `scripts/doctor.ts`. It prints one line per check, with the status `pass`, `warn`, or `fail`, the check, and for a warning or a failure the fix. With `--json`, it prints one JSON object with the keys `tool` (`tbl-md`), `version` (the version of the checkout), `status` (the worst status of the checks), and `checks`. Each check has the keys `name`, `status`, `message`, and `fix` (null for a pass). The pre-push hook checks this format with `doctor-lint` when it is on the PATH. It exits 0 when it ran, also with a failed check, and 2 on an unknown flag.
 
 ```tbl
 check: Check
