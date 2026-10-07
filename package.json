@@ -1,6 +1,6 @@
 {
   "name": "tbl-md",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "A readable table format for Markdown: key-based tables in a fenced tbl block, with lossless conversion to and from GFM tables",
   "license": "MIT",
   "author": "Thomas Kalka",
