@@ -38,17 +38,17 @@ The attributes go into the HTML by this mapping. The markdown-it renderer escape
 attr: Attribute
 html: HTML
 --
-attr: `align` of a column
-html: `style="text-align:left"`, `center`, or `right` on the `th` and on each `td` of the column, as in a GFM table of markdown-it.
+a: `align` of a column
+h: `style="text-align:left"`, `center`, or `right` on the `th` and on each `td` of the column, as in a GFM table of markdown-it.
 --
-attr: `#id`
-html: `id`. The ID of a column goes only to its `th`. The ID of a row goes to its `tr`, and the ID of a cell to its `td`.
+a: `#id`
+h: `id`. The ID of a column goes only to its `th`. The ID of a row goes to its `tr`, and the ID of a cell to its `td`.
 --
-attr: `.class`
-html: `class`. A class of a column goes to its `th` and to each `td` of the column, before the classes of the cell. A class comes once.
+a: `.class`
+h: `class`. A class of a column goes to its `th` and to each `td` of the column, before the classes of the cell. A class comes once.
 --
-attr: `key=value`
-html: `data-<key>="value"`, with the key in lower case. The key never becomes a plain attribute, so `onclick=x` gives `data-onclick="x"`. A pair of a column goes only to its `th`.
+a: `key=value`
+h: `data-<key>="value"`, with the key in lower case. The key never becomes a plain attribute, so `onclick=x` gives `data-onclick="x"`. A pair of a column goes only to its `th`.
 ```
 
 Two keys that differ only in case, such as `Note=a note=b` in one block, give the same data attribute. The later pair wins.

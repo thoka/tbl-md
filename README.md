@@ -8,9 +8,9 @@ model: Model
 price: Price
 note: Note
 --
-model: Opus
-price: $15
-note: Good for research.
+m: Opus
+p: $15
+n: Good for research.
 Second line of the same cell.
 --
 m: Haiku
@@ -18,7 +18,7 @@ p: $1
 ```
 ````
 
-The first record is the header. It maps each key to a column title. A line `--` starts the next row. In a row, a key can be any unique prefix of a header key, and a missing key is an empty cell. The full format is in `docs/format.md`.
+The first record is the header. It maps each key to a column title. A line `--` starts the next row. In a row, write the shortest unique prefix of the key, mostly one letter, from the first row on. Then the cell texts of a row start at the same column. The full key is also valid. A missing key is an empty cell. The full format is in `docs/format.md`.
 
 ## Why
 
@@ -93,7 +93,7 @@ The attribute mapping, the hook `attributes`, and the single script file for hos
 
 - The first record is the header. Each line is `key: Title`. A key has lower-case letters, digits, `_`, and `-`. The order of the lines is the column order.
 - A line `--` starts the next row.
-- In a row, a line `key: text` starts a cell. A key can be any unique prefix of a header key, so `m:` is enough for `model:`. A missing key is an empty cell.
+- In a row, a line `key: text` starts a cell. Write the shortest unique prefix of the key, mostly one letter, from the first row on: `m:` for `model:`. The full key is also valid. A missing key is an empty cell.
 - Each other line continues the cell above, so a cell can have many lines.
 - Cell text is inline Markdown, as in a GFM cell. A pipe needs no escape. If a text line looks like a key line or like `--`, add one backslash: `hint\: text`.
 - An attribute block on its own line describes a column, a row, or a cell, for example `{align=right}` after a header key line. The syntax is the one of Pandoc and djot: `#id`, `.class`, and `key=value`.

@@ -2,7 +2,7 @@
 
 A `tbl` block is a table in a fenced code block. It replaces the GFM pipe table, because a pipe table is hard to read as text. The format was decided on 2026-10-05. The format is a variant of the record-jar and Debian control file family, with a header record and short keys.
 
-Status: version 0.2.0 is released, with attributes (rules 13 to 16). This file now describes version 0.3.0. The rules of a `tbl` block (rules 1 to 16) and the canonical form stay as in 0.2.0. Version 0.3.0 changes how tbl-md reads and writes GFM: markdown-it reads each GFM table, a flavor names the target renderer (section Flavors), and the conversion has a new pipe rule, a new trim, and a check of the HTML of each cell. The package follows these rules from version 0.3.0. Version 0.2.0 of the package follows the rules of the section "Rules of version 0.2.0" at the end of the section Conversion to and from GFM. After the first release, a change of these rules that makes a valid block invalid, or that changes its content, needs a new major version. Below 1.0.0, a minor version takes the role of the major version (`bump-minor-pre-major` of release-please).
+Status: version 0.2.0 is released, with attributes (rules 13 to 16). This file now describes version 0.3.0. The rules of a `tbl` block (rules 1 to 16) and the canonical form stay as in 0.2.0. Version 0.3.0 changes how tbl-md reads and writes GFM: markdown-it reads each GFM table, a flavor names the target renderer (section Flavors), and the conversion has a new pipe rule, a new trim, and a check of the HTML of each cell. Version 0.5.0 changes the canonical form to the short keys (section Canonical form), and this file describes that form. Each valid block stays valid with the same content. The package follows these rules from version 0.3.0. Version 0.2.0 of the package follows the rules of the section "Rules of version 0.2.0" at the end of the section Conversion to and from GFM. After the first release, a change of these rules that makes a valid block invalid, or that changes its content, needs a new major version. Below 1.0.0, a minor version takes the role of the major version (`bump-minor-pre-major` of release-please).
 
 ## Example
 
@@ -13,9 +13,9 @@ price: Price
 {align=right}
 note: Note
 --
-model: Opus
-price: $15
-note: Good for research.
+m: Opus
+p: $15
+n: Good for research.
 Second line of the same cell.
 hint\: this line is text, not a key.
 Note: a capital letter is never a key, so this line needs no escape.
@@ -83,72 +83,80 @@ p: $1
     error: Error
     example: Example
     --
-    error: an unexpected character
-    example: `{.hl !}`
+    er: an unexpected character
+    ex: `{.hl !}`
     --
-    error: no space between two parts
-    example: `{#a.b}` or `{.a#b}`
+    er: no space between two parts
+    ex: `{#a.b}` or `{.a#b}`
     --
-    error: an empty block
-    example: `{}` or `{ }`
+    er: an empty block
+    ex: `{}` or `{ }`
     --
-    error: an empty ID, or a bad character in an ID
-    example: `{#}` or `{#a:b}`
+    er: an empty ID, or a bad character in an ID
+    ex: `{#}` or `{#a:b}`
     --
-    error: an empty class, a class with no letter first, or a class with a bad character
-    example: `{.}` or `{.1a}`
+    er: an empty class, a class with no letter first, or a class with a bad character
+    ex: `{.}` or `{.1a}`
     --
-    error: a key with no letter first, or with a bad character
-    example: `{1k=v}`
+    er: a key with no letter first, or with a bad character
+    ex: `{1k=v}`
     --
-    error: more than one ID
-    example: `{#a #b}`
+    er: more than one ID
+    ex: `{#a #b}`
     --
-    error: a repeated class
-    example: `{.a .a}`
+    er: a repeated class
+    ex: `{.a .a}`
     --
-    error: a repeated key
-    example: `{k=1 k=2}`
+    er: a repeated key
+    ex: `{k=1 k=2}`
     --
-    error: the key `id` or `class` (the error names `#x` or `.x`)
-    example: `{id=x}`
+    er: the key `id` or `class` (the error names `#x` or `.x`)
+    ex: `{id=x}`
     --
-    error: a key with no value
-    example: `{k}` or `{k=}`
+    er: a key with no value
+    ex: `{k}` or `{k=}`
     --
-    error: a bare value with a character outside `[A-Za-z0-9_:-]` (the error names the quotes)
-    example: `{k=a.b}`
+    er: a bare value with a character outside `[A-Za-z0-9_:-]` (the error names the quotes)
+    ex: `{k=a.b}`
     --
-    error: single quotes (the error names double quotes)
-    example: `{k='a'}`
+    er: single quotes (the error names double quotes)
+    ex: `{k='a'}`
     --
-    error: a quoted value with no closing quote
-    example: `{k="a}`
+    er: a quoted value with no closing quote
+    ex: `{k="a}`
     --
-    error: a backslash before a character other than `"` or `\` in a quoted value
-    example: `{k="a\b"}`
+    er: a backslash before a character other than `"` or `\` in a quoted value
+    ex: `{k="a\b"}`
     --
-    error: a bad value of a known key (the error lists the values)
-    example: `{align=middle}`
+    er: a bad value of a known key (the error lists the values)
+    ex: `{align=middle}`
     --
-    error: a known key at a place that does not allow it
-    example: `{align=right}` after the last line of a cell
+    er: a known key at a place that does not allow it
+    ex: `{align=right}` after the last line of a cell
     --
-    error: a second attribute line for the same column or cell
-    example: `{.a}` on the line after `{.b}`
+    er: a second attribute line for the same column or cell
+    ex: `{.a}` on the line after `{.b}`
     --
-    error: a line in the attribute form at a place that takes no attributes
-    example: `{.a}` directly after `--`, before the first header key, after an empty line in the header, or in the middle of a cell
+    er: a line in the attribute form at a place that takes no attributes
+    ex: `{.a}` directly after `--`, before the first header key, after an empty line in the header, or in the middle of a cell
     --
-    error: a separator line whose rest is in the attribute form and does not parse
-    example: `-- {.x !}` or `-- {}`
+    er: a separator line whose rest is in the attribute form and does not parse
+    ex: `-- {.x !}` or `-- {}`
     ```
 
 ## Canonical form
 
-The renderer writes the canonical form, so that a parse followed by a render gives the same text:
+The renderer writes the canonical form, so that a parse followed by a render gives the same text. The data records use the shortest key of each column. With the shortest keys, the cell texts of a record start at the same column, so the eye reads them as a column. Mostly the short key is one letter.
 
-- full keys, in header order,
+The short key of a column is the shortest prefix of its header key that is the header key itself, or that is a prefix of no other header key. Rule 5 resolves it to its column. Examples:
+
+- The keys `model`, `price`, `note` give `m`, `p`, `n`.
+- The keys `error`, `example` give `er`, `ex`.
+- The keys `price`, `price-2` give `price` and `price-`. The prefix `p` would be ambiguous, and `price` is the first prefix that resolves to itself, because an exact key wins (rule 5).
+
+The canonical form has:
+
+- the full keys in the header, and the short keys in the data records, in header order,
 - no line for an empty cell,
 - `key:` with no space for a cell whose first line is empty,
 - no indentation, and no empty line directly before or after `--`,
@@ -167,15 +175,15 @@ renderer: Target renderer
 engine: markdown-it engine
 table: Table rule
 --
-flavor: `discourse`
-renderer: Discourse at the commit [eb46cffe81257fd48d3e18c35aaba97488fe19b5](https://github.com/discourse/discourse/tree/eb46cffe81257fd48d3e18c35aaba97488fe19b5) (2026-09-18), as it cooks a post with the default site settings
-engine: markdown-it 15.0.1, preset `default`, options `html: true`, `xhtmlOut: false`, `breaks: true`, `linkify: true`, `typographer: true`, and the extra settings below
-table: the table rule of markdown-it 15.0.1 and the link pipe rule below
+f: `discourse`
+r: Discourse at the commit [eb46cffe81257fd48d3e18c35aaba97488fe19b5](https://github.com/discourse/discourse/tree/eb46cffe81257fd48d3e18c35aaba97488fe19b5) (2026-09-18), as it cooks a post with the default site settings
+e: markdown-it 15.0.1, preset `default`, options `html: true`, `xhtmlOut: false`, `breaks: true`, `linkify: true`, `typographer: true`, and the extra settings below
+t: the table rule of markdown-it 15.0.1 and the link pipe rule below
 --
-flavor: `markdown-it`
-renderer: markdown-it 15.0.1 as `markdownit()` makes it
-engine: markdown-it 15.0.1, preset `default`, with its default options: `html: false`, `xhtmlOut: false`, `breaks: false`, `linkify: false`, `typographer: false`
-table: the table rule of markdown-it 15.0.1
+f: `markdown-it`
+r: markdown-it 15.0.1 as `markdownit()` makes it
+e: markdown-it 15.0.1, preset `default`, with its default options: `html: false`, `xhtmlOut: false`, `breaks: false`, `linkify: false`, `typographer: false`
+t: the table rule of markdown-it 15.0.1
 ```
 
 The extra settings of `discourse` come from the default site settings of Discourse at the pinned commit:
@@ -229,179 +237,179 @@ discourse: `discourse`
 markdown-it: `markdown-it`
 old: 0.2.0 (micromark)
 --
-case: leading and trailing pipe
-source: `| a | b |`
-discourse: `a`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: leading and trailing pipe
+s: `| a | b |`
+d: `a`, `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: no leading and no trailing pipe
-source: `a | b`
-discourse: `a`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: no leading and no trailing pipe
+s: `a | b`
+d: `a`, `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: an empty cell
-source: `|  | b |`
-discourse: (empty), `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: an empty cell
+s: `|  | b |`
+d: (empty), `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a missing cell
-source: `| a |`
-discourse: `a`, (empty) (1 source cell)
-markdown-it: as `discourse`
-old: as `discourse`
+c: a missing cell
+s: `| a |`
+d: `a`, (empty) (1 source cell)
+m: as `discourse`
+o: as `discourse`
 --
-case: an excess cell with text
-source: `| a | b | c |`
-discourse: `a`, `b` (3 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: an excess cell with text
+s: `| a | b | c |`
+d: `a`, `b` (3 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: an escaped pipe
-source: `| x\|y | b |`
-discourse: `x|y`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: an escaped pipe
+s: `| x\|y | b |`
+d: `x|y`, `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a pipe after two backslashes
-source: `| x\\|y | b |`
-discourse: `x|y`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: `x\`, `y` (3 source cells)
+c: a pipe after two backslashes
+s: `| x\\|y | b |`
+d: `x|y`, `b` (2 source cells)
+m: as `discourse`
+o: `x\`, `y` (3 source cells)
 --
-case: a pipe after three backslashes
-source: `| x\\\|y | b |`
-discourse: `x\|y`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: a pipe after three backslashes
+s: `| x\\\|y | b |`
+d: `x\|y`, `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a pipe in a code span
-source: ``| `x|y` | b |``
-discourse: `` `x ``, `` y` `` (3 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: a pipe in a code span
+s: ``| `x|y` | b |``
+d: `` `x ``, `` y` `` (3 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: an escaped pipe in a code span
-source: ``| `x\|y` | b |``
-discourse: `<code>x|y</code>`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: an escaped pipe in a code span
+s: ``| `x\|y` | b |``
+d: `<code>x|y</code>`, `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a pipe after two backslashes in a code span
-source: ``| `x\\|y` | b |``
-discourse: `<code>x\|y</code>`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: `` `x\ ``, `` y` `` (3 source cells)
+c: a pipe after two backslashes in a code span
+s: ``| `x\\|y` | b |``
+d: `<code>x\|y</code>`, `b` (2 source cells)
+m: as `discourse`
+o: `` `x\ ``, `` y` `` (3 source cells)
 --
-case: a pipe in a link text
-source: `| [x|y](https://example.com) | b |`
-discourse: `<a href="https://example.com">x|y</a>`, `b` (2 source cells)
-markdown-it: `[x`, `y](https://example.com)` (3 source cells)
-old: as `markdown-it`
+c: a pipe in a link text
+s: `| [x|y](https://example.com) | b |`
+d: `<a href="https://example.com">x|y</a>`, `b` (2 source cells)
+m: `[x`, `y](https://example.com)` (3 source cells)
+o: as `markdown-it`
 --
-case: an escaped pipe in a link text
-source: `| [x\|y](https://example.com) | b |`
-discourse: `<a href="https://example.com">x|y</a>`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: an escaped pipe in a link text
+s: `| [x\|y](https://example.com) | b |`
+d: `<a href="https://example.com">x|y</a>`, `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a pipe in a link destination
-source: `| [x](https://example.com/a|b) | b |`
-discourse: `<a href="https://example.com/a%7Cb">x</a>`, `b` (2 source cells)
-markdown-it: `[x](https://example.com/a`, `b)` (3 source cells)
-old: as `markdown-it`
+c: a pipe in a link destination
+s: `| [x](https://example.com/a|b) | b |`
+d: `<a href="https://example.com/a%7Cb">x</a>`, `b` (2 source cells)
+m: `[x](https://example.com/a`, `b)` (3 source cells)
+o: as `markdown-it`
 --
-case: a pipe in a full reference link with no definition
-source: `| [x|y][r] | b |`
-discourse: `[x|y][r]`, `b` (2 source cells)
-markdown-it: `[x`, `y][r]` (3 source cells)
-old: as `markdown-it`
+c: a pipe in a full reference link with no definition
+s: `| [x|y][r] | b |`
+d: `[x|y][r]`, `b` (2 source cells)
+m: `[x`, `y][r]` (3 source cells)
+o: as `markdown-it`
 --
-case: a pipe in a shortcut reference link
-source: `| [x|y] | b |`
-discourse: `[x`, `y]` (3 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: a pipe in a shortcut reference link
+s: `| [x|y] | b |`
+d: `[x`, `y]` (3 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a pipe in an image text (Discourse image size)
-source: `| ![x|100x50](https://example.com/a.png) | b |`
-discourse: `<img src="https://example.com/a.png" alt="x|100x50">`, `b` (2 source cells)
-markdown-it: `![x`, `100x50](https://example.com/a.png)` (3 source cells)
-old: as `markdown-it`
+c: a pipe in an image text (Discourse image size)
+s: `| ![x|100x50](https://example.com/a.png) | b |`
+d: `<img src="https://example.com/a.png" alt="x|100x50">`, `b` (2 source cells)
+m: `![x`, `100x50](https://example.com/a.png)` (3 source cells)
+o: as `markdown-it`
 --
-case: a pipe in a code span in a link text
-source: ``| [`x|y`](https://example.com) | b |``
-discourse: `<a href="https://example.com"><code>x|y</code></a>`, `b` (2 source cells)
-markdown-it: ``[`x``, ``y`](https://example.com)`` (3 source cells)
-old: as `markdown-it`
+c: a pipe in a code span in a link text
+s: ``| [`x|y`](https://example.com) | b |``
+d: `<a href="https://example.com"><code>x|y</code></a>`, `b` (2 source cells)
+m: ``[`x``, ``y`](https://example.com)`` (3 source cells)
+o: as `markdown-it`
 --
-case: an escaped pipe in a code span in a link text
-source: ``| [`x\|y`](https://example.com) | b |``
-discourse: `<a href="https://example.com"><code>x\|y</code></a>`, `b` (2 source cells)
-markdown-it: `<a href="https://example.com"><code>x|y</code></a>`, `b` (2 source cells)
-old: as `markdown-it`
+c: an escaped pipe in a code span in a link text
+s: ``| [`x\|y`](https://example.com) | b |``
+d: `<a href="https://example.com"><code>x\|y</code></a>`, `b` (2 source cells)
+m: `<a href="https://example.com"><code>x|y</code></a>`, `b` (2 source cells)
+o: as `markdown-it`
 --
-case: a pipe in an autolink
-source: `| <https://example.com/a|b> | b |`
-discourse: `&lt;<a href="https://example.com/a">https://example.com/a</a>`, `b&gt;` (3 source cells)
-markdown-it: `&lt;https://example.com/a`, `b&gt;` (3 source cells)
-old: as `markdown-it`
+c: a pipe in an autolink
+s: `| <https://example.com/a|b> | b |`
+d: `&lt;<a href="https://example.com/a">https://example.com/a</a>`, `b&gt;` (3 source cells)
+m: `&lt;https://example.com/a`, `b&gt;` (3 source cells)
+o: as `markdown-it`
 --
-case: a pipe in a raw HTML attribute
-source: `| <span title="x|y">z</span> | b |`
-discourse: `&lt;span title=&quot;x`, `y&quot;&gt;z</span>` (3 source cells)
-markdown-it: `&lt;span title=&quot;x`, `y&quot;&gt;z&lt;/span&gt;` (3 source cells)
-old: as `discourse`
+c: a pipe in a raw HTML attribute
+s: `| <span title="x|y">z</span> | b |`
+d: `&lt;span title=&quot;x`, `y&quot;&gt;z</span>` (3 source cells)
+m: `&lt;span title=&quot;x`, `y&quot;&gt;z&lt;/span&gt;` (3 source cells)
+o: as `discourse`
 --
-case: the last cell ends with an escaped pipe
-source: `| a | b \|`
-discourse: `a`, `b |` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: the last cell ends with an escaped pipe
+s: `| a | b \|`
+d: `a`, `b |` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a no-break space at the end of a cell
-source: `| a`, U+00A0, `| b |`
-discourse: `a`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: `a` and U+00A0, `b` (2 source cells)
+c: a no-break space at the end of a cell
+s: `| a`, U+00A0, `| b |`
+d: `a`, `b` (2 source cells)
+m: as `discourse`
+o: `a` and U+00A0, `b` (2 source cells)
 --
-case: a tab at the edges of a cell
-source: `|`, tab, `a`, tab, `| b |`
-discourse: `a`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: as `discourse`
+c: a tab at the edges of a cell
+s: `|`, tab, `a`, tab, `| b |`
+d: `a`, `b` (2 source cells)
+m: as `discourse`
+o: as `discourse`
 --
-case: a body line of only one pipe
-source: `|`
-discourse: (empty), (empty) (0 source cells)
-markdown-it: as `discourse`
-old: (empty), (empty) (1 source cell)
+c: a body line of only one pipe
+s: `|`
+d: (empty), (empty) (0 source cells)
+m: as `discourse`
+o: (empty), (empty) (1 source cell)
 --
-case: a header line with no pipe
-source: `h1⏎| --- |⏎| a |`
-discourse: no table
-markdown-it: as `discourse`
-old: `a` (1 source cell)
+c: a header line with no pipe
+s: `h1⏎| --- |⏎| a |`
+d: no table
+m: as `discourse`
+o: `a` (1 source cell)
 --
-case: a header row that starts with a number sign
-source: `# | h2⏎--|--⏎a | b`
-discourse: `a`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: no table
+c: a header row that starts with a number sign
+s: `# | h2⏎--|--⏎a | b`
+d: `a`, `b` (2 source cells)
+m: as `discourse`
+o: no table
 --
-case: a header row that starts with a list marker
-source: `-   h1|h2⏎---|---⏎a|b`
-discourse: `a`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: no table
+c: a header row that starts with a list marker
+s: `-   h1|h2⏎---|---⏎a|b`
+d: `a`, `b` (2 source cells)
+m: as `discourse`
+o: no table
 --
-case: a header cell with a pipe after two backslashes
-source: `| h1 | x\\|y |⏎| --- | --- |⏎| a | b |`
-discourse: `a`, `b` (2 source cells)
-markdown-it: as `discourse`
-old: no table
+c: a header cell with a pipe after two backslashes
+s: `| h1 | x\\|y |⏎| --- | --- |⏎| a | b |`
+d: `a`, `b` (2 source cells)
+m: as `discourse`
+o: no table
 ```
 
 What follows:
@@ -442,29 +450,29 @@ A GFM table has no end marker. It ends at an empty line or at the start of anoth
 case: The tbl block is directly
 result: Result of the conversion to GFM
 --
-case: after a paragraph line
-result: It converts. A GFM table can interrupt a paragraph, so the line stays a paragraph.
+c: after a paragraph line
+r: It converts. A GFM table can interrupt a paragraph, so the line stays a paragraph.
 --
-case: after a paragraph line of a list item or a block quote, and the tbl block is outside of it
-result: It fails. The lines of the table are lazy lines of that paragraph, so they are no table.
+c: after a paragraph line of a list item or a block quote, and the tbl block is outside of it
+r: It fails. The lines of the table are lazy lines of that paragraph, so they are no table.
 --
-case: before a paragraph line
-result: It fails. markdown-it reads the line as a row of the table.
+c: before a paragraph line
+r: It fails. markdown-it reads the line as a row of the table.
 --
-case: before a line of the same list item or block quote
-result: It fails. markdown-it reads the line as a row of the table.
+c: before a line of the same list item or block quote
+r: It fails. markdown-it reads the line as a row of the table.
 --
-case: before a lazy line after a list item or a block quote
-result: It converts. A table row is never a lazy line, so the line stays outside the table.
+c: before a lazy line after a list item or a block quote
+r: It converts. A table row is never a lazy line, so the line stays outside the table.
 --
-case: before a heading, a list item, a block quote, a fence, a thematic break, or an indented code line
-result: It converts. Another block ends the table.
+c: before a heading, a list item, a block quote, a fence, a thematic break, or an indented code line
+r: It converts. Another block ends the table.
 --
-case: before an HTML block, for example `<div>`
-result: With `discourse`, it converts. With `markdown-it`, it fails, because the option `html: false` makes the line a paragraph line, and markdown-it reads it as a row.
+c: before an HTML block, for example `<div>`
+r: With `discourse`, it converts. With `markdown-it`, it fails, because the option `html: false` makes the line a paragraph line, and markdown-it reads it as a row.
 --
-case: before another tbl block or a GFM table
-result: It fails. markdown-it reads the lines of the next table as rows. Only the first table gets an error.
+c: before another tbl block or a GFM table
+r: It fails. markdown-it reads the lines of the next table as rows. Only the first table gets an error.
 ```
 
 The error tells the writer to add an empty line before or after the `tbl` block. A conversion to tbl has no such case, because a fence ends at its closing fence line.
