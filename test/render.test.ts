@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { escapeLine, parse, render, renderBlock, unescapeLine, validate, type Table } from "../src/index.ts";
+import { escapeLine, parse, render, renderBlock, shortKeys, unescapeLine, validate, type Column, type Table } from "../src/index.ts";
 
 function table(text: string): Table {
   const result = parse(text);
@@ -26,7 +26,7 @@ describe("the example of docs/format.md", () => {
       "p: $1",
       "{.cheap}",
     );
-    const canonical = source.replace("m: Haiku\np: $1", "model: Haiku\nprice: $1");
+    const canonical = source.replace("model: Opus\nprice: $15\nnote: Good", "m: Opus\np: $15\nn: Good");
     expect(render(table(source))).toBe(canonical);
   });
 
@@ -51,24 +51,45 @@ describe("the example of docs/format.md", () => {
       "price: Price",
       "note: Note",
       "--",
-      "model: Opus",
-      "price: $15",
-      "note: Good for research.",
+      "m: Opus",
+      "p: $15",
+      "n: Good for research.",
       "Second line of the same cell.",
       "hint\\: this line is text, not a key.",
       "Note: a capital letter is never a key, so this line needs no escape.",
       "-- {#a1b2c3d4}",
-      "model: Haiku",
-      "price: $1",
+      "m: Haiku",
+      "p: $1",
     );
     expect(render(table(source))).toBe(canonical);
   });
 });
 
 describe("the canonical form", () => {
-  test("full keys in header order, no empty lines, no empty cells", () => {
-    const source = lines("", "a: A", "bb: B", "", "--", "", "b: 2", "", "a: 1", "", "--", "a:", "", "b: x", "");
-    expect(render(table(source))).toBe(lines("a: A", "bb: B", "--", "a: 1", "bb: 2", "--", "bb: x"));
+  test("short keys in header order, no empty lines, no empty cells", () => {
+    const source = lines("", "a: A", "bb: B", "", "--", "", "bb: 2", "", "a: 1", "", "--", "a:", "", "bb: x", "");
+    expect(render(table(source))).toBe(lines("a: A", "bb: B", "--", "a: 1", "b: 2", "--", "b: x"));
+  });
+
+  const headers: [string, string[], string[]][] = [
+    ["model, price, note", ["model", "price", "note"], ["m", "p", "n"]],
+    ["error, example", ["error", "example"], ["er", "ex"]],
+    ["price, price-2", ["price", "price-2"], ["price", "price-"]],
+    ["a, ab", ["a", "ab"], ["a", "ab"]],
+  ];
+  const columnsOf = (keys: string[]): Column[] => keys.map((key) => ({ key, title: key }));
+
+  test.each(headers)("shortKeys: %s", (_, keys, short) => {
+    expect(shortKeys(columnsOf(keys))).toEqual(Object.fromEntries(keys.map((k, i) => [k, short[i]!])));
+  });
+
+  test.each(headers)("parse resolves each short key to its column: %s", (_, keys) => {
+    const columns = columnsOf(keys);
+    const short = shortKeys(columns);
+    const text = lines(...keys.map((k) => `${k}: ${k}`), "--", ...keys.map((k) => `${short[k]}: cell ${k}`));
+    const cells = Object.fromEntries(keys.map((k) => [k, `cell ${k}`]));
+    expect(parse(text)).toEqual({ ok: true, table: { columns, rows: [{ cells }] } });
+    expect(render(table(text))).toBe(text);
   });
 
   test("an empty cell text gives no line", () => {

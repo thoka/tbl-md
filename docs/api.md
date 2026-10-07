@@ -36,83 +36,83 @@ These are the error codes:
 code: Code
 when: When
 --
-code: `no-header`
-when: The block is empty, or it starts with `--`.
+c: `no-header`
+w: The block is empty, or it starts with `--`.
 --
-code: `header-not-key`
-when: A header line is no key line. This includes an empty line and an escaped line inside the header.
+c: `header-not-key`
+w: A header line is no key line. This includes an empty line and an escaped line inside the header.
 --
-code: `header-duplicate-key`
-when: The header has the same key two times.
+c: `header-duplicate-key`
+w: The header has the same key two times.
 --
-code: `unknown-key`
-when: A key in a data record matches no header key. The message lists the header keys.
+c: `unknown-key`
+w: A key in a data record matches no header key. The message lists the header keys.
 --
-code: `ambiguous-key`
-when: A key is a prefix of more than one header key. The message lists these keys.
+c: `ambiguous-key`
+w: A key is a prefix of more than one header key. The message lists these keys.
 --
-code: `duplicate-key`
-when: A record has the same key two times, also as two different prefixes of one key.
+c: `duplicate-key`
+w: A record has the same key two times, also as two different prefixes of one key.
 --
-code: `orphan-line`
-when: A line comes before the first key line of a data record.
+c: `orphan-line`
+w: A line comes before the first key line of a data record.
 --
-code: `attr-unexpected-char`
-when: An attribute block has an unexpected character, for example `{.hl !}`.
+c: `attr-unexpected-char`
+w: An attribute block has an unexpected character, for example `{.hl !}`.
 --
-code: `attr-no-space`
-when: Two parts of an attribute block have no space between them, for example `{#a.b}`.
+c: `attr-no-space`
+w: Two parts of an attribute block have no space between them, for example `{#a.b}`.
 --
-code: `attr-empty`
-when: An attribute block is empty: `{}` or `{ }`.
+c: `attr-empty`
+w: An attribute block is empty: `{}` or `{ }`.
 --
-code: `attr-bad-id`
-when: An ID is empty or has a bad character, for example `{#}` or `{#a:b}`.
+c: `attr-bad-id`
+w: An ID is empty or has a bad character, for example `{#}` or `{#a:b}`.
 --
-code: `attr-bad-class`
-when: A class is empty, has no letter first, or has a bad character, for example `{.}` or `{.1a}`.
+c: `attr-bad-class`
+w: A class is empty, has no letter first, or has a bad character, for example `{.}` or `{.1a}`.
 --
-code: `attr-bad-key`
-when: A key has no letter first or has a bad character, for example `{1k=v}`.
+c: `attr-bad-key`
+w: A key has no letter first or has a bad character, for example `{1k=v}`.
 --
-code: `attr-duplicate-id`
-when: A block has more than one ID.
+c: `attr-duplicate-id`
+w: A block has more than one ID.
 --
-code: `attr-duplicate-class`
-when: A block has the same class two times.
+c: `attr-duplicate-class`
+w: A block has the same class two times.
 --
-code: `attr-duplicate-key`
-when: A block has the same key two times.
+c: `attr-duplicate-key`
+w: A block has the same key two times.
 --
-code: `attr-reserved-key`
-when: A block has the key `id` or `class`. The message names `#x` or `.x`.
+c: `attr-reserved-key`
+w: A block has the key `id` or `class`. The message names `#x` or `.x`.
 --
-code: `attr-no-value`
-when: A key has no value, for example `{k}` or `{k=}`.
+c: `attr-no-value`
+w: A key has no value, for example `{k}` or `{k=}`.
 --
-code: `attr-bad-bare-value`
-when: A value with no quotes has a character other than `[A-Za-z0-9_:-]`. The message shows the value in quotes.
+c: `attr-bad-bare-value`
+w: A value with no quotes has a character other than `[A-Za-z0-9_:-]`. The message shows the value in quotes.
 --
-code: `attr-single-quotes`
-when: A value has single quotes. The message names double quotes.
+c: `attr-single-quotes`
+w: A value has single quotes. The message names double quotes.
 --
-code: `attr-unclosed-quote`
-when: A quoted value has no closing quote.
+c: `attr-unclosed-quote`
+w: A quoted value has no closing quote.
 --
-code: `attr-bad-escape`
-when: A quoted value has a backslash before a character other than `"` or `\`.
+c: `attr-bad-escape`
+w: A quoted value has a backslash before a character other than `"` or `\`.
 --
-code: `attr-bad-value`
-when: A known key has a bad value, for example `{align=middle}`. The message lists the values.
+c: `attr-bad-value`
+w: A known key has a bad value, for example `{align=middle}`. The message lists the values.
 --
-code: `attr-key-place`
-when: A known key is at a place that does not allow it: `align` on a row or a cell.
+c: `attr-key-place`
+w: A known key is at a place that does not allow it: `align` on a row or a cell.
 --
-code: `attr-second-line`
-when: A column or a cell has a second attribute line.
+c: `attr-second-line`
+w: A column or a cell has a second attribute line.
 --
-code: `attr-misplaced`
-when: A line in the attribute form is at a place that takes no attributes: before the first header key, after an empty line or a text line in the header, before the first key of a record (also directly after `--`), or in the middle of a cell.
+c: `attr-misplaced`
+w: A line in the attribute form is at a place that takes no attributes: before the first header key, after an empty line or a text line in the header, before the first key of a record (also directly after `--`), or in the middle of a cell.
 ```
 
 An error in the attribute block of a `--` line has the code of the grammar error, at its column in the line. A place error wins over a grammar error, because the parser does not read a block at a wrong place.
@@ -128,15 +128,19 @@ renderAttributes({ id: "r1", classes: ["x"], pairs: [{ key: "note", value: "a b"
 // '{#r1 .x note="a b"}'
 ```
 
-`render(table)` writes the canonical text of a table, by the section Canonical form of `docs/format.md`. The text has the lines joined with `\n` and no final newline. `renderBlock(table)` writes the whole block: the opening fence with the info string `tbl`, the text, and the closing fence, also with no final newline. The fence has three backticks, or more if a line of the text would close it.
+`render(table)` writes the canonical text of a table, by the section Canonical form of `docs/format.md`. The header has the full keys, and the data records have the short keys. The text has the lines joined with `\n` and no final newline. `renderBlock(table)` writes the whole block: the opening fence with the info string `tbl`, the text, and the closing fence, also with no final newline. The fence has three backticks, or more if a line of the text would close it.
+
+`shortKeys(columns)` maps each header key to its short key: the shortest prefix of the key that is the key itself, or that is a prefix of no other header key. For example, the keys `model` and `note` give `m` and `n`, and the keys `price` and `price-2` give `price` and `price-`.
 
 ```ts
-import { parse, render, renderBlock } from "tbl-md";
+import { parse, render, renderBlock, shortKeys } from "tbl-md";
 
-render({ columns: [{ key: "a", title: "A" }], rows: [{ cells: { a: "x\nb: y" } }] });
-// "a: A\n--\na: x\nb\\: y"
+render({ columns: [{ key: "model", title: "Model" }], rows: [{ cells: { model: "Opus\nb: y" } }] });
+// "model: Model\n--\nm: Opus\nb\\: y"
 renderBlock({ columns: [{ key: "a", title: "A" }], rows: [] });
 // "```tbl\na: A\n```"
+shortKeys([{ key: "error", title: "Error" }, { key: "example", title: "Example" }]);
+// { error: "er", example: "ex" }
 ```
 
 Two laws hold for each valid table `T`, and the property test `test/laws.test.ts` checks them on random tables:
@@ -149,33 +153,33 @@ Two laws hold for each valid table `T`, and the property test `test/laws.test.ts
 ```tbl
 problem: Problem
 --
-problem: The table has no columns.
+p: The table has no columns.
 --
-problem: A column key does not have the form `[a-z0-9_-]+`.
+p: A column key does not have the form `[a-z0-9_-]+`.
 --
-problem: Two columns have the same key.
+p: Two columns have the same key.
 --
-problem: A title has a line break or a CR.
+p: A title has a line break or a CR.
 --
-problem: A cell key is no column key.
+p: A cell key is no column key.
 --
-problem: An attribute block of a column, a row, or a cell is empty: no ID, no class, and no pair.
+p: An attribute block of a column, a row, or a cell is empty: no ID, no class, and no pair.
 --
-problem: An ID does not have the form `[A-Za-z0-9_-]+`.
+p: An ID does not have the form `[A-Za-z0-9_-]+`.
 --
-problem: A class does not have the form `[A-Za-z][A-Za-z0-9_-]*`, or a block has the same class two times.
+p: A class does not have the form `[A-Za-z][A-Za-z0-9_-]*`, or a block has the same class two times.
 --
-problem: An attribute key does not have the form `[A-Za-z][A-Za-z0-9_-]*`, is `id` or `class`, or comes two times in a block.
+p: An attribute key does not have the form `[A-Za-z][A-Za-z0-9_-]*`, is `id` or `class`, or comes two times in a block.
 --
-problem: An attribute value has a line break or a CR.
+p: An attribute value has a line break or a CR.
 --
-problem: The value of `align` is not `left`, `center`, or `right`, or `align` is on a row or a cell.
+p: The value of `align` is not `left`, `center`, or `right`, or `align` is on a row or a cell.
 --
-problem: `cellAttributes` has a key that is no column key.
+p: `cellAttributes` has a key that is no column key.
 --
-problem: A cell text ends with a line break.
+p: A cell text ends with a line break.
 --
-problem: A cell text has a CR.
+p: A cell text has a CR.
 ```
 
 An empty cell text gives no line, as a missing cell does. Thus `parse(render(T))` has no entry for it. A cell with attributes and no text gives the key line `key:` and the attribute line.
@@ -219,17 +223,17 @@ These are the problem codes:
 code: Code
 when: When
 --
-code: `gfm-table`
-when: The text has a GFM pipe table. The message tells the reader to write it as a `tbl` block.
+c: `gfm-table`
+w: The text has a GFM pipe table. The message tells the reader to write it as a `tbl` block.
 --
-code: `info-text`
-when: The info string has text after `tbl` (rule 1 of `docs/format.md`). The problem is at the fence line.
+c: `info-text`
+w: The info string has text after `tbl` (rule 1 of `docs/format.md`). The problem is at the fence line.
 --
-code: each error code of `parse`
-when: A `tbl` block has this error. The problem is at the line of the error in the file.
+c: each error code of `parse`
+w: A `tbl` block has this error. The problem is at the line of the error in the file.
 --
-code: `unknown-attribute-key`
-when: A warning. A pair of a valid `tbl` block has a key that is not `align` and not in `attributeKeys` (rule 15 of `docs/format.md`). The problem is at the key.
+c: `unknown-attribute-key`
+w: A warning. A pair of a valid `tbl` block has a key that is not `align` and not in `attributeKeys` (rule 15 of `docs/format.md`). The problem is at the key.
 ```
 
 Each code other than `unknown-attribute-key` is an error.
@@ -268,23 +272,23 @@ The GFM text has the lines joined with `\n` and no final newline. Each row has a
 tbl: In the tbl cell
 gfm: In the GFM cell
 --
-tbl: a line break
-gfm: `<br>`
+t: a line break
+g: `<br>`
 --
-tbl: `<br>`, or `<br>` after backslashes
-gfm: one backslash more: `\<br>`, `\\<br>`
+t: `<br>`, or `<br>` after backslashes
+g: one backslash more: `\<br>`, `\\<br>`
 --
-tbl: `|`, also after backslashes
-gfm: one backslash more: `|` becomes `\|`, and `\|` becomes `\\|`
+t: `|`, also after backslashes
+g: one backslash more: `|` becomes `\|`, and `\|` becomes `\\|`
 --
-tbl: the row ID `r1`
-gfm: ` {#r1}` at the end of the first cell, or `{#r1}` in an empty first cell
+t: the row ID `r1`
+g: ` {#r1}` at the end of the first cell, or `{#r1}` in an empty first cell
 --
-tbl: a first cell with no ID that ends with `{#x}`, at the start or after a space
-gfm: one backslash more before the `{`: `\{#x}`
+t: a first cell with no ID that ends with `{#x}`, at the start or after a space
+g: one backslash more before the `{`: `\{#x}`
 --
-tbl: `{align=left}`, `{align=center}`, or `{align=right}` of a column
-gfm: `:---`, `:---:`, or `---:` in the delimiter row. A column with no `align` is `---`.
+t: `{align=left}`, `{align=center}`, or `{align=right}` of a column
+g: `:---`, `:---:`, or `---:` in the delimiter row. A column with no `align` is `---`.
 ```
 
 A title keeps `<br>` as it is. `fromGfm` gives a column with an alignment the attributes `{ classes: [], pairs: [{ key: "align", value }] }`, and a column with no alignment gets no `attributes`. It gives a row with an ID the attributes `{ id, classes: [], pairs: [] }`. Each other attribute has no GFM form: a class or a pair of a row, any attribute of a cell, and any attribute of a column other than `align`. `toGfm` gives one error for each attribute block with such a part, unless `options.dropAttributes` is true. With `dropAttributes`, it keeps the `align` of the columns and the ID of the rows, and drops the rest with no error.
@@ -295,26 +299,26 @@ Both functions collect all errors. An error of `toGfm` has an optional `row` (fr
 fn: Function
 when: When
 --
-fn: `toGfm`
-when: `validate` finds a problem. The error has only the message of `validate`.
+f: `toGfm`
+w: `validate` finds a problem. The error has only the message of `validate`.
 --
-fn: `toGfm`
-when: A title or a cell starts or ends with a space, a tab, or another character that markdown-it trims, such as a no-break space (U+00A0). GFM removes it.
+f: `toGfm`
+w: A title or a cell starts or ends with a space, a tab, or another character that markdown-it trims, such as a no-break space (U+00A0). GFM removes it.
 --
-fn: `toGfm`
-when: A cell line ends with a backslash and has a next line. The backslash would escape the `<br>` of the line break.
+f: `toGfm`
+w: A cell line ends with a backslash and has a next line. The backslash would escape the `<br>` of the line break.
 --
-fn: `toGfm`
-when: An attribute block has a part with no GFM form, and `dropAttributes` is not true. The message names the parts and the two fixes: remove them, or convert with `--drop-attributes`.
+f: `toGfm`
+w: An attribute block has a part with no GFM form, and `dropAttributes` is not true. The message names the parts and the two fixes: remove them, or convert with `--drop-attributes`.
 --
-fn: `fromGfm`
-when: A cell ends with `<br>`. A tbl cell never ends with a line break.
+f: `fromGfm`
+w: A cell ends with `<br>`. A tbl cell never ends with a line break.
 --
-fn: `fromGfm`
-when: A row has an excess cell with text, after the last column of the header. GFM drops it. The error names the first such cell of the row. An excess cell with no text, or with only spaces and tabs, is dropped with no error.
+f: `fromGfm`
+w: A row has an excess cell with text, after the last column of the header. GFM drops it. The error names the first such cell of the row. An excess cell with no text, or with only spaces and tabs, is dropped with no error.
 --
-fn: `fromGfm`
-when: The text before the ID marker of a first cell ends with a space or a tab. The cell could not convert back.
+f: `fromGfm`
+w: The text before the ID marker of a first cell ends with a space or a tab. The cell could not convert back.
 ```
 
 Three laws hold for each valid table `T` whose keys are `keysFromTitles` of its titles and that `toGfm` accepts. The property test `test/laws.test.ts` checks them on random tables:

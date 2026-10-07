@@ -18,29 +18,29 @@ These are the tasks of `mise.toml`:
 task: Task
 what: What it does
 --
-task: `mise run test`
-what: Runs the type check and all tests, also the package test.
+t: `mise run test`
+w: Runs the type check and all tests, also the package test.
 --
-task: `mise run build`
-what: Builds the package: ESM JavaScript and type declarations from `src/` to `dist/`, by `tsconfig.build.json`. Then `scripts/bundle.ts` builds the single file `dist/tbl-md-markdown-it.iife.js` of the markdown-it plugin with esbuild.
+t: `mise run build`
+w: Builds the package: ESM JavaScript and type declarations from `src/` to `dist/`, by `tsconfig.build.json`. Then `scripts/bundle.ts` builds the single file `dist/tbl-md-markdown-it.iife.js` of the markdown-it plugin with esbuild.
 --
-task: `mise run test-package`
-what: Runs only the package test, `test/package.test.ts`. It packs the package with `npm pack`, installs the tarball in a temp project, and runs the CLI and the library with Node 24, Node 22, and Bun. It also checks the files of the tarball and type checks a consumer file against the type declarations.
+t: `mise run test-package`
+w: Runs only the package test, `test/package.test.ts`. It packs the package with `npm pack`, installs the tarball in a temp project, and runs the CLI and the library with Node 24, Node 22, and Bun. It also checks the files of the tarball and type checks a consumer file against the type declarations.
 --
-task: `mise run tbl-md <command>`
-what: Runs the CLI from the source with Bun.
+t: `mise run tbl-md <command>`
+w: Runs the CLI from the source with Bun.
 --
-task: `mise run doctor`
-what: Checks with no model that tbl-md is installed and configured on this machine (section The doctor).
+t: `mise run doctor`
+w: Checks with no model that tbl-md is installed and configured on this machine (section The doctor).
 --
-task: `mise run corpus`
-what: Runs the corpus test (section The corpus test). It needs the network for the files that are not in the cache yet. With `--verbose`, it also lists each conversion error.
+t: `mise run corpus`
+w: Runs the corpus test (section The corpus test). It needs the network for the files that are not in the cache yet. With `--verbose`, it also lists each conversion error.
 --
-task: `mise run corpus-pin <owner/repo> <commit> <path>...`
-what: Gets each file and writes its size and SHA-256 into `corpus/sources.json`. A new source needs `--license <SPDX id>`. `--kind <kind>` sets the kind of the files (default `markdown`).
+t: `mise run corpus-pin <owner/repo> <commit> <path>...`
+w: Gets each file and writes its size and SHA-256 into `corpus/sources.json`. A new source needs `--license <SPDX id>`. `--kind <kind>` sets the kind of the files (default `markdown`).
 --
-task: `mise run corpus-discourse`
-what: Downloads the table feature of Discourse (`features/table.js`, GPL-2.0-only) at the pinned commit into the corpus cache, with a hash check, once. With it, `mise run test` also compares the link pipe rule of the flavor `discourse` with Discourse. Without it, these tests skip. The file never goes into the repository or the package.
+t: `mise run corpus-discourse`
+w: Downloads the table feature of Discourse (`features/table.js`, GPL-2.0-only) at the pinned commit into the corpus cache, with a hash check, once. With it, `mise run test` also compares the link pipe rule of the flavor `discourse` with Discourse. Without it, these tests skip. The file never goes into the repository or the package.
 ```
 
 `npm pack` runs the build first (the script `prepack`), so a tarball always has a new build.
@@ -53,14 +53,14 @@ what: Downloads the table feature of Discourse (`features/table.js`, GPL-2.0-onl
 check: Check
 pass: It passes when
 --
-check: `command`
-pass: `tbl-md --version` runs in the workspace, and its version is not older than the version in `package.json`. An older version is a warning, because the release of the checkout can still be open. The workspace is the parent folder of the checkout. The environment variable `TBL_MD_DOCTOR_WORKSPACE` names another folder.
+c: `command`
+p: `tbl-md --version` runs in the workspace, and its version is not older than the version in `package.json`. An older version is a warning, because the release of the checkout can still be open. The workspace is the parent folder of the checkout. The environment variable `TBL_MD_DOCTOR_WORKSPACE` names another folder.
 --
-check: `skill <folder>`
-pass: The skill folder `~/.claude/skills/tbl-md` (Claude Code) and the skill folder `~/.agents/skills/tbl-md` (other agents) each link to `skills/tbl-md` of this checkout.
+c: `skill <folder>`
+p: The skill folder `~/.claude/skills/tbl-md` (Claude Code) and the skill folder `~/.agents/skills/tbl-md` (other agents) each link to `skills/tbl-md` of this checkout.
 --
-check: `hook pre-commit`, `hook pre-push`
-pass: The git hook exists and runs lefthook, so `mise run hooks-install` ran in this checkout.
+c: `hook pre-commit`, `hook pre-push`
+p: The git hook exists and runs lefthook, so `mise run hooks-install` ran in this checkout.
 ```
 
 ## The corpus test
@@ -84,14 +84,14 @@ The counts:
 count: Count
 meaning: Meaning
 --
-count: same
-meaning: The HTML of the table after the round trip is the same.
+c: same
+m: The HTML of the table after the round trip is the same.
 --
-count: error
-meaning: The conversion of the table to `tbl` fails with an error by `docs/format.md`, for example for an excess cell with text. This is not a failure: tbl-md loses no content in silence. The check of the other tables of the document goes on.
+c: error
+m: The conversion of the table to `tbl` fails with an error by `docs/format.md`, for example for an excess cell with text. This is not a failure: tbl-md loses no content in silence. The check of the other tables of the document goes on.
 --
-count: different
-meaning: The HTML of the table differs, also only in the column alignment, or the HTML of the text outside the tables differs. The run fails.
+c: different
+m: The HTML of the table differs, also only in the column alignment, or the HTML of the text outside the tables differs. The run fails.
 ```
 
 A crash also fails the run. Neither `mise run test` nor the pre-push hook runs the corpus test. `test/corpus.test.ts` tests the parts that need no network.
@@ -102,17 +102,17 @@ The kinds of a file:
 kind: Kind
 documents: Documents
 --
-kind: `markdown`
-documents: The whole file.
+k: `markdown`
+d: The whole file.
 --
-kind: `spec`
-documents: The spec format of cmark-gfm and pulldown-cmark. Each example starts with a line of 32 backticks and the word `example`, and its Markdown ends at a line `.`. The character `→` stands for a tab.
+k: `spec`
+d: The spec format of cmark-gfm and pulldown-cmark. Each example starts with a line of 32 backticks and the word `example`, and its Markdown ends at a line `.`. The character `→` stands for a tab.
 --
-kind: `markdown-it`
-documents: The fixture format of markdown-it. The Markdown is between the first and the second line `.` of a case.
+k: `markdown-it`
+d: The fixture format of markdown-it. The Markdown is between the first and the second line `.` of a case.
 --
-kind: `goldmark`
-documents: The fixture format of goldmark. The Markdown is between the first and the second line `//- - - - - - - - -//` of a case.
+k: `goldmark`
+d: The fixture format of goldmark. The Markdown is between the first and the second line `//- - - - - - - - -//` of a case.
 ```
 
 The cache is `$XDG_CACHE_HOME/tbl-md/corpus/<owner>/<repo>/<commit>/<path>`, by default `~/.cache/tbl-md/corpus/`. A file that the cache has with the correct hash never downloads again. A commit never changes, so the cache never gets old. Delete the folder to get all files again.

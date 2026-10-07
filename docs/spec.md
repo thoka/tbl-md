@@ -24,27 +24,27 @@ tbl-md is a public open source project: an npm package and a GitHub repository w
 part: Part
 what: What it does
 --
-part: parse
-what: A `tbl` block to a table, or a list of errors, each with its line.
+p: parse
+w: A `tbl` block to a table, or a list of errors, each with its line.
 --
-part: render
-what: A table to its canonical `tbl` block. A parse followed by a render gives the same text.
+p: render
+w: A table to its canonical `tbl` block. A parse followed by a render gives the same text.
 --
-part: convert
-what: A GFM pipe table to a `tbl` block and back, with no loss of content. A conversion that would lose content fails with an error at the line.
+p: convert
+w: A GFM pipe table to a `tbl` block and back, with no loss of content. A conversion that would lose content fails with an error at the line.
 --
-part: tbl-md convert
-what: Converts the GFM tables in files in place, or with `--to gfm` the `tbl` blocks to GFM tables. Each other byte of the file stays the same.
+p: tbl-md convert
+w: Converts the GFM tables in files in place, or with `--to gfm` the `tbl` blocks to GFM tables. Each other byte of the file stays the same.
 --
-part: tbl-md lint
-what: Fails on a GFM pipe table and on an invalid `tbl` block. Each error names the file and the line.
+p: tbl-md lint
+w: Fails on a GFM pipe table and on an invalid `tbl` block. Each error names the file and the line.
 ```
 
 ## Principles
 
 0. Human editing first. The goal of the project is that humans change tables in Markdown with no frustration. For a machine, the form of a table does not matter. If a rule makes the text easier for a human to read or change, it wins over a rule that only makes parsing easier. Decided on 2026-10-06.
 1. Lossless. A round trip from `tbl` to GFM and back gives the same titles, cells, and row IDs. A GFM table has no keys, so the keys come back from the titles. A round trip from GFM to `tbl` and back gives the same canonical GFM text. A conversion never drops content silently. Reversible: a switch to tbl-md must be reversible. A conversion of a file to `tbl` and back to GFM gives a file that renders the same with the reference flavor (principle 5): the same HTML for each table and for the text outside the tables. Layout of the GFM text, such as padding, column widths, and the escapes of pipes, can change. A corpus of real tables from other projects tests this (section Scope of version 0.2.0). Decided on 2026-10-06.
-2. Canonical. Each table has one canonical `tbl` text. The parse accepts more forms (prefix keys, any key order), and the render writes one.
+2. Canonical. Each table has one canonical `tbl` text. The parse accepts more forms (prefix keys, any key order), and the render writes one. The canonical form uses the shortest key of each column, so that the cell texts of a record start at the same column. Decided on 2026-10-08.
 3. Precise errors. Each error names the file, the line, and, where it helps, the column and the possible keys.
 4. Small surface. The library has one runtime dependency for Markdown: markdown-it. The library and the CLI run on Node and on Bun. The markdown-it plugin of tbl-md also runs in a browser and in a server JavaScript engine, with no `node:` module. Decided on 2026-10-06.
 5. One established parser for Markdown. markdown-it finds the code blocks and the GFM tables. tbl-md parses only the text inside a `tbl` block. A flavor is the set of markdown-it settings of one target renderer. `docs/format.md` defines each flavor, pins it to a version of its renderer, and gives its rules for the conversion to and from GFM. The configuration of the project or the flag `--flavor` picks the flavor, and the default is `discourse`. Inside a renderer, the settings of that renderer apply. Decided on 2026-10-06.

@@ -49,14 +49,14 @@ These are the exit codes:
 code: Exit code
 when: When
 --
-code: 0
-when: For `lint`: no file has an error, and the warnings are not more than `--max-warnings`. For `convert`: each file converted, or it had no table to convert. Also `--help` and `--version`.
+c: 0
+w: For `lint`: no file has an error, and the warnings are not more than `--max-warnings`. For `convert`: each file converted, or it had no table to convert. Also `--help` and `--version`.
 --
-code: 1
-when: For `lint`: a file has an error, or the warnings are more than `--max-warnings`. For `convert`: the conversion of a file failed.
+c: 1
+w: For `lint`: a file has an error, or the warnings are more than `--max-warnings`. For `convert`: the conversion of a file failed.
 --
-code: 2
-when: A usage error: no command, an unknown command, an unknown option, a bad value of `--to`, `--flavor`, or `--max-warnings`, `--to` or `--drop-attributes` for the wrong command, `--max-warnings` for `convert`, no files, `-` more than once, or a file that cannot be read. Or a configuration error (section Configuration). The CLI prints one line to stderr that names the problem.
+c: 2
+w: A usage error: no command, an unknown command, an unknown option, a bad value of `--to`, `--flavor`, or `--max-warnings`, `--to` or `--drop-attributes` for the wrong command, `--max-warnings` for `convert`, no files, `-` more than once, or a file that cannot be read. Or a configuration error (section Configuration). The CLI prints one line to stderr that names the problem.
 ```
 
 ## Configuration

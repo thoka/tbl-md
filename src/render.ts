@@ -1,7 +1,7 @@
 // The renderer of a tbl block (docs/format.md, section Canonical form).
 // It writes the canonical form, so that parse(render(table)) gives the table back.
 import { renderAttributes, validateAttributes } from "./attributes.ts";
-import type { Table } from "./parse.ts";
+import type { Column, Table } from "./parse.ts";
 import { escapeLine } from "./syntax.ts";
 
 const keyForm = /^[a-z0-9_-]+$/;
@@ -62,6 +62,7 @@ export function render(table: Table): string {
     lines.push(keyLine(column.key, column.title));
     if (column.attributes !== undefined) lines.push(renderAttributes(column.attributes));
   }
+  const short = shortKeys(table.columns);
   for (const row of table.rows) {
     lines.push(row.attributes === undefined ? "--" : `-- ${renderAttributes(row.attributes)}`);
     for (const { key } of table.columns) {
@@ -69,12 +70,33 @@ export function render(table: Table): string {
       const attributes = row.cellAttributes?.[key];
       if (text === "" && attributes === undefined) continue;
       const [first, ...rest] = text.split("\n");
-      lines.push(keyLine(key, first!), ...rest.map(escapeLine));
+      lines.push(keyLine(short[key]!, first!), ...rest.map(escapeLine));
       // The attribute line of a cell is its last line. A cell with attributes and no text has the key line `key:`.
       if (attributes !== undefined) lines.push(renderAttributes(attributes));
     }
   }
   return lines.join("\n");
+}
+
+/**
+ * Maps each header key to its short key (docs/format.md, section Canonical form).
+ * The short key is the shortest prefix of the header key that is the header key itself, or that is a prefix of no other header key.
+ * Rule 5 resolves it to its column: a unique prefix resolves to its key, and an exact key wins over a longer key.
+ * Examples: `model`, `price`, `note` give `m`, `p`, `n`. `price`, `price-2` give `price` and `price-`.
+ */
+export function shortKeys(columns: Column[]): Record<string, string> {
+  const keys = columns.map((c) => c.key);
+  const result: Record<string, string> = {};
+  for (const key of keys) {
+    for (let length = 1; length <= key.length; length++) {
+      const prefix = key.slice(0, length);
+      if (prefix === key || !keys.some((other) => other !== key && other.startsWith(prefix))) {
+        result[key] = prefix;
+        break;
+      }
+    }
+  }
+  return result;
 }
 
 /** Writes the whole block: the opening fence with the info string `tbl`, the text, and the closing fence. No final newline. */

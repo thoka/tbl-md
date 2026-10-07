@@ -16,9 +16,9 @@ price: Price
 {align=right}
 note: Note
 --
-model: Opus
-price: $15
-note: Good for research.
+m: Opus
+p: $15
+n: Good for research.
 A second line of the same cell.
 --
 m: Haiku
@@ -29,7 +29,7 @@ p: $1
 1. The first record is the header: one line `key: Title` per column, in column order. A key has the form `[a-z0-9_-]+`.
 2. A line `--` starts each row.
 3. In a row, `key: text` starts a cell. Each later line that is not a key line continues the cell. The cell text is inline Markdown.
-4. A row can leave out a key (an empty cell) and use any order. A key in a row can be any unique prefix of a header key, but write the full key unless the table is long.
+4. A row can leave out a key (an empty cell) and use any order. In a row, write the shortest unique prefix of the header key, mostly one letter, from the first row on. Then the cell texts start at the same column. The full key is valid, but it is not the canonical form.
 5. Write a pipe `|` in a cell as it is. It needs no escape.
 
 ## Escapes and attributes
