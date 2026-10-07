@@ -22,3 +22,7 @@ pre-push:
     - name: test
       # The tests run locally before each push, not as CI runs on GitHub.
       run: mise run test
+    - name: doctor format
+      # The JSON of `mise run doctor --json` must have the shared doctor format. A contributor without doctor-lint on
+      # the PATH gets a note, and the hook passes.
+      run: if command -v doctor-lint >/dev/null 2>&1; then doctor-lint --run; else echo "doctor-lint not found, skipped"; fi

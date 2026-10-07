@@ -11,12 +11,20 @@ import { fileURLToPath } from "node:url";
 
 export type Status = "pass" | "warn" | "fail";
 
-/** The result of one check. `fix` is set for a warning and a failure. */
+/** The result of one check. `fix` is set for a warning and a failure, else null. */
 export interface Check {
-  check: string;
+  name: string;
   status: Status;
-  detail: string;
-  fix?: string;
+  message: string;
+  fix: string | null;
+}
+
+/** The JSON output of the doctor: the tool, the worst status of the checks, and the checks. */
+export interface Report {
+  tool: "tbl-md";
+  version: string;
+  status: Status;
+  checks: Check[];
 }
 
 export interface DoctorOptions {
@@ -51,14 +59,14 @@ function commandCheck({ root, workspace, command = "tbl-md" }: DoctorOptions): C
   const result = spawnSync(command, ["--version"], { cwd: workspace, encoding: "utf8" });
   if (result.error || result.status !== 0) {
     const reason = result.error ? result.error.message : (result.stderr.trim().split("\n")[0] ?? `exit code ${result.status}`);
-    return { check, status: "fail", detail: `\`${command} --version\` fails in ${workspace}: ${reason}`, fix: `pin npm:tbl-md in the mise.toml of ${workspace} and run \`mise install\`` };
+    return { name: check, status: "fail", message: `\`${command} --version\` fails in ${workspace}: ${reason}`, fix: `pin npm:tbl-md in the mise.toml of ${workspace} and run \`mise install\`` };
   }
   const installed = result.stdout.trim();
   const own = (JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string }).version;
   if (compareVersions(installed, own) < 0) {
-    return { check, status: "warn", detail: `${command} ${installed} runs in ${workspace}, and the checkout has ${own}`, fix: `after the release of ${own}, pin npm:tbl-md ${own} in the mise.toml of ${workspace}` };
+    return { name: check, status: "warn", message: `${command} ${installed} runs in ${workspace}, and the checkout has ${own}`, fix: `after the release of ${own}, pin npm:tbl-md ${own} in the mise.toml of ${workspace}` };
   }
-  return { check, status: "pass", detail: `${command} ${installed} runs in ${workspace}` };
+  return { name: check, status: "pass", message: `${command} ${installed} runs in ${workspace}`, fix: null };
 }
 
 /** The skill folder of an agent links to skills/tbl-md of the checkout. */
@@ -67,9 +75,9 @@ function skillCheck({ root, home }: DoctorOptions, folder: string): Check {
   const target = join(root, "skills", "tbl-md");
   const check = `skill ${link}`;
   const fix = `link ${link} to ${target}`;
-  if (!existsSync(link)) return { check, status: "fail", detail: "the skill is missing", fix };
-  if (realpathSync(link) !== realpathSync(target)) return { check, status: "fail", detail: `points to ${realpathSync(link)}, not to ${target}`, fix };
-  return { check, status: "pass", detail: `points to ${target}` };
+  if (!existsSync(link)) return { name: check, status: "fail", message: "the skill is missing", fix };
+  if (realpathSync(link) !== realpathSync(target)) return { name: check, status: "fail", message: `points to ${realpathSync(link)}, not to ${target}`, fix };
+  return { name: check, status: "pass", message: `points to ${target}`, fix: null };
 }
 
 /** The git hook is installed and runs lefthook. */
@@ -77,9 +85,9 @@ function hookCheck(root: string, hook: string): Check {
   const check = `hook ${hook}`;
   const fix = "run `mise run hooks-install` in the checkout";
   const path = resolve(root, git(root, ["rev-parse", "--git-path", `hooks/${hook}`]).trim());
-  if (!existsSync(path)) return { check, status: "fail", detail: "the hook is not installed", fix };
-  if (!readFileSync(path, "utf8").includes("lefthook")) return { check, status: "fail", detail: `${path} does not run lefthook`, fix };
-  return { check, status: "pass", detail: "lefthook runs it" };
+  if (!existsSync(path)) return { name: check, status: "fail", message: "the hook is not installed", fix };
+  if (!readFileSync(path, "utf8").includes("lefthook")) return { name: check, status: "fail", message: `${path} does not run lefthook`, fix };
+  return { name: check, status: "pass", message: "lefthook runs it", fix: null };
 }
 
 /**
@@ -106,9 +114,15 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-/** One line per check: `pass  <check>: <detail>`, with the fix after a warning or a failure. */
+/** The report of the checks: `fail` if a check failed, else `warn` if a check warned, else `pass`. */
+export function report(version: string, checks: Check[]): Report {
+  const status = checks.some((c) => c.status === "fail") ? "fail" : checks.some((c) => c.status === "warn") ? "warn" : "pass";
+  return { tool: "tbl-md", version, status, checks };
+}
+
+/** One line per check: `pass  <name>: <message>`, with the fix after a warning or a failure. */
 export function format(checks: Check[]): string {
-  return checks.map((c) => `${c.status.padEnd(5)} ${c.check}: ${c.detail}${c.fix ? `. Fix: ${c.fix}` : ""}`).join("\n");
+  return checks.map((c) => `${c.status.padEnd(5)} ${c.name}: ${c.message}${c.fix ? `. Fix: ${c.fix}` : ""}`).join("\n");
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -121,5 +135,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   // The workspace is the parent folder of the checkout, unless TBL_MD_DOCTOR_WORKSPACE names another folder.
   const workspace = process.env.TBL_MD_DOCTOR_WORKSPACE ?? dirname(realpathSync(root));
   const checks = runChecks({ root, home: homedir(), workspace });
-  console.log(args.includes("--json") ? JSON.stringify(checks, null, 2) : format(checks));
+  const version = (JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string }).version;
+  console.log(args.includes("--json") ? JSON.stringify(report(version, checks), null, 2) : format(checks));
 }
