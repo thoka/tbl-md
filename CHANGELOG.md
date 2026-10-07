@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/thoka/tbl-md/compare/v0.4.0...v0.4.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* print the doctor JSON in the shared doctor format, and check it in the pre-push hook (step 24) ([d9511c3](https://github.com/thoka/tbl-md/commit/d9511c3b7791f87b5aa65878e18102914b4c64c4))
+
 ## [0.4.0](https://github.com/thoka/tbl-md/compare/v0.3.0...v0.4.0) (2026-10-07)
 
 
