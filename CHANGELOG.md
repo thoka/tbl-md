@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/thoka/tbl-md/compare/v0.3.0...v0.4.0) (2026-10-07)
+
+
+### Features
+
+* add mise run doctor for the command, the skill links, and the git hooks (step 23) ([84487bc](https://github.com/thoka/tbl-md/commit/84487bc670cbc25691214de1c2a1b1d7c06899a2))
+* ship an Agent Skill that tells agents to write tables as tbl blocks (step 22) ([bae1956](https://github.com/thoka/tbl-md/commit/bae1956bbfae43d8e72e1f2f39aa2117d1f3a626))
+
 ## [0.3.0](https://github.com/thoka/tbl-md/compare/v0.2.0...v0.3.0) (2026-10-06)
 
 
