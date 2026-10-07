@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/thoka/tbl-md/compare/v0.4.1...v0.5.0) (2026-10-07)
+
+
+### Features
+
+* the shortest key of each column is the canonical form (step 25) ([018102b](https://github.com/thoka/tbl-md/commit/018102b4929534c5cb8ad64234921b4cd210a280))
+* write the shortest key of each column in the canonical form (step 25) ([9f9ed8c](https://github.com/thoka/tbl-md/commit/9f9ed8c063ac6aea0a38f60d558ec4c7f4caa873))
+
 ## [0.4.1](https://github.com/thoka/tbl-md/compare/v0.4.0...v0.4.1) (2026-10-07)
 
 
