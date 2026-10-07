@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { lint } from "../src/index.ts";
+import { findTables, lint, parse, render } from "../src/index.ts";
 
 const root = join(import.meta.dir, "..");
 const files = [
@@ -22,6 +22,26 @@ const README_LIMIT = 200;
 
 test.each(files)("%s has no lint problem", (file) => {
   const problems = lint(readFileSync(join(root, file), "utf8")).map((p) => `${file}:${p.line}:${p.column}: ${p.message} (${p.code})`);
+  expect(problems).toEqual([]);
+});
+
+/**
+ * The tbl blocks that show a form other than the canonical form on purpose. `firstLine` is the line of the opening fence.
+ * Add a block here only if the example teaches a non-canonical form, and name the reason.
+ */
+const NOT_CANONICAL: { file: string; firstLine: number; reason: string }[] = [];
+
+test.each(files)("each tbl block of %s is in its canonical form", (file) => {
+  const problems: string[] = [];
+  for (const found of findTables(readFileSync(join(root, file), "utf8"))) {
+    if (found.kind !== "tbl") continue;
+    if (NOT_CANONICAL.some((e) => e.file === file && e.firstLine === found.line)) continue;
+    const result = parse(found.text);
+    const canonical = result.ok ? render(result.table) : null;
+    if (canonical !== found.text) {
+      problems.push(`${file}:${found.line}: the tbl block is not in its canonical form. Write it as:\n${canonical}`);
+    }
+  }
   expect(problems).toEqual([]);
 });
 

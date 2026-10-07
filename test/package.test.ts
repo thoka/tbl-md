@@ -96,7 +96,7 @@ function docFolder(name: string): string {
 }
 
 const IMPORT_SCRIPT = `import { convert, parse, render } from "tbl-md";
-const result = parse("model: Model\\n--\\nm: Opus");
+const result = parse("model: Model\\n--\\nmodel: Opus");
 if (!result.ok) throw new Error("parse failed");
 const converted = convert(${JSON.stringify(GFM)}, { to: "tbl" });
 console.log(JSON.stringify({ render: render(result.table), converted }));
@@ -138,7 +138,7 @@ for (const node of NODES) {
       const convert = exec([bin, "convert", "a.md"], folder);
       expect(convert).toEqual({ status: 0, stdout: "a.md: converted 1 table\n", stderr: "" });
       expect(readFileSync(join(folder, "a.md"), "utf8")).toBe(
-        "# Doc\n\n```tbl\nmodel: Model\nprice: Price\n--\nmodel: Opus\nprice: $15\n```\n",
+        "# Doc\n\n```tbl\nmodel: Model\nprice: Price\n--\nm: Opus\np: $15\n```\n",
       );
       expect(exec([bin, "lint", "a.md"], folder).status).toBe(0);
     });
@@ -165,7 +165,7 @@ for (const node of NODES) {
       const result = exec(["node", script], consumer);
       expect(result.stderr).toBe("");
       const output = JSON.parse(result.stdout) as { render: string; converted: { ok: boolean; count: number } };
-      expect(output.render).toBe("model: Model\n--\nmodel: Opus");
+      expect(output.render).toBe("model: Model\n--\nm: Opus");
       expect(output.converted).toMatchObject({ ok: true, count: 1 });
     });
 
@@ -185,7 +185,7 @@ describe("the installed package on Bun", () => {
     expect(run("bun", [join(consumer, "node_modules", "tbl-md", "dist", "cli.js"), "lint", "a.md"], folder).status).toBe(1);
     writeFileSync(join(consumer, "import-bun.mjs"), IMPORT_SCRIPT);
     const result = run("bun", [join(consumer, "import-bun.mjs")], consumer);
-    expect(JSON.parse(result.stdout)).toMatchObject({ render: "model: Model\n--\nmodel: Opus", converted: { ok: true } });
+    expect(JSON.parse(result.stdout)).toMatchObject({ render: "model: Model\n--\nm: Opus", converted: { ok: true } });
   });
 });
 

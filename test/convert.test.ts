@@ -27,7 +27,7 @@ function keepsFrame(source: string, out: string) {
 }
 
 const gfm = "| Model | Price |\n| --- | --- |\n| Opus | $15 |";
-const tbl = "```tbl\nmodel: Model\nprice: Price\n--\nmodel: Opus\nprice: $15\n```";
+const tbl = "```tbl\nmodel: Model\nprice: Price\n--\nm: Opus\np: $15\n```";
 /** Writes each line after the first with the prefix. */
 const indent = (text: string, prefix: string) => text.replaceAll("\n", `\n${prefix}`);
 
@@ -340,8 +340,8 @@ describe("convert: round trips", () => {
   });
 
   test("to gfm and back to tbl gives the canonical tbl when the keys come from the titles", () => {
-    const source = "```tbl\nprice: Price ($)\nnote: Note\n--\nn: a\nb\np: 1\n-- {#r1}\nnote: x | y\n```\n";
-    const canonical = "```tbl\nprice: Price ($)\nnote: Note\n--\nprice: 1\nnote: a\nb\n-- {#r1}\nnote: x | y\n```\n";
+    const source = "```tbl\nprice: Price ($)\nnote: Note\n--\nnote: a\nb\nprice: 1\n-- {#r1}\nnote: x | y\n```\n";
+    const canonical = "```tbl\nprice: Price ($)\nnote: Note\n--\np: 1\nn: a\nb\n-- {#r1}\nn: x | y\n```\n";
     const there = output(convert(source, { to: "gfm" }));
     expect(output(convert(there, { to: "tbl" }))).toBe(canonical);
   });
@@ -359,7 +359,7 @@ describe("convert: attributes", () => {
 
   test("a GFM alignment becomes the attribute line of the column", () => {
     const source = "> | Price ($) | Note |\n> |--:|:-:|\n> | 1 | x |\n";
-    expect(output(convert(source, { to: "tbl" }))).toBe("> ```tbl\n> price: Price ($)\n> {align=right}\n> note: Note\n> {align=center}\n> --\n> price: 1\n> note: x\n> ```\n");
+    expect(output(convert(source, { to: "tbl" }))).toBe("> ```tbl\n> price: Price ($)\n> {align=right}\n> note: Note\n> {align=center}\n> --\n> p: 1\n> n: x\n> ```\n");
   });
 
   test("a row ID alone converts, as in 0.1", () => {
