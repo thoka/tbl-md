@@ -12,7 +12,7 @@ mise run hooks-install
 mise run test
 ```
 
-The pre-commit hook also runs `.plan/hooks/pre-commit` when it exists. That script holds the checks of the maintainers that use private tools. A contributor without it skips the job.
+The pre-commit hook also runs `.plan/hooks/pre-commit` when it exists. That script holds the checks of the maintainers that use private tools. A contributor without it skips the job. The pre-push hook runs `mise run test` through `git-autopush tests` when it is on the PATH, so that it waits for a free test slot and skips a tree that passed before.
 
 These are the tasks of `mise.toml`:
 
