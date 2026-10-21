@@ -17,6 +17,10 @@ pre-commit:
       # --max-warnings 0 also fails on an attribute key that .tbl-md.json does not list, because a warning is no check.
       glob: "*.md"
       run: mise exec -- bun src/cli.ts lint --max-warnings 0 {staged_files}
+    - name: plan hook
+      # The checks of the maintainers that name private tools live in the private plan folder, not here (AGENTS.md).
+      # A checkout without .plan/hooks/pre-commit skips this job.
+      run: if [ -x .plan/hooks/pre-commit ]; then .plan/hooks/pre-commit; else echo "no plan hook, skipped"; fi
 pre-push:
   jobs:
     - name: test
