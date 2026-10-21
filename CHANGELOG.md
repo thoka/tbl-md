@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/thoka/tbl-md/compare/v0.5.0...v0.5.1) (2026-10-21)
+
+
+### Bug Fixes
+
+* the lint skips YAML front matter (step 27) ([6f94a0d](https://github.com/thoka/tbl-md/commit/6f94a0d8a21fbc7d2555a52bc731e82d1fb62250))
+* the lint skips YAML front matter (step 27) ([3354dfe](https://github.com/thoka/tbl-md/commit/3354dfe0110deb8a2073adf23e40fa00229e6e4b))
+
 ## [0.5.0](https://github.com/thoka/tbl-md/compare/v0.4.1...v0.5.0) (2026-10-07)
 
 
