@@ -15,3 +15,4 @@
 - `.tbl-md.json` has no comments. A syntax error in it names its line only where `JSON.parse` gives a position, so on Node but not on Bun.
 - A `tbl` block with an error gives no warning for an unknown attribute key. The warnings come after the errors are fixed.
 
+- `findTables`, `lint`, and `convert` skip only YAML front matter (`---`). TOML front matter (`+++`) is Markdown for them. The markdown-it rendering plugin does not skip front matter. That is the job of the host.

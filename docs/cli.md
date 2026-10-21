@@ -29,6 +29,8 @@ The file name `-` reads stdin. `lint -` names the file `-` in its messages. `con
 
 A file that starts with a UTF-8 BOM keeps its BOM. The lines and the columns do not count it. A conversion keeps the line ends of the file.
 
+A file can start with YAML front matter: a first line `---`, up to the next line `---` or `...` at column 0. `lint` and `convert` do not read the front matter as Markdown, so a table or a `---` line in it gives no problem, and a conversion does not change it. The lines after it keep their numbers. With no closing line, the first `---` is Markdown.
+
 The CLI reads all files before it changes one. If a file cannot be read, the run stops with a usage error, and no file changes.
 
 Each file has one flavor. `--flavor` gives it for all files. Without `--flavor`, the flavor is the `flavor` of the configuration file of the file. If that file has no `flavor`, or the file has no configuration file, the flavor is `discourse`. The CLI reads the configuration files also with `--flavor`, so that `lint` gets the attribute keys, and so that an error in a configuration file always stops the run.

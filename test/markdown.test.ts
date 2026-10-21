@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { findTables, type Found, type FoundGfm } from "../src/index.ts";
-import { escapedSplit, lineStarts, splitRow } from "../src/markdown.ts";
+import { escapedSplit, lineStarts, splitRow, withoutFrontMatter } from "../src/markdown.ts";
 
 const find = (source: string) => findTables(source);
 
@@ -306,5 +306,30 @@ describe("splitRow", () => {
 describe("lineStarts", () => {
   test("knows LF, CRLF, and CR", () => {
     expect(lineStarts("a\nb\r\nc\rd")).toEqual([0, 2, 5, 7]);
+  });
+});
+
+describe("findTables: YAML front matter", () => {
+  test("a table in the front matter is no table, and the lines after it stay right", () => {
+    const source = "---\nt: |\n  | a |\n  | - |\n---\n\n```tbl\na: A\n```\n\n| b |\n| - |\n";
+    const found = find(source);
+    expect(found.map((f) => [f.kind, f.line, f.column])).toEqual([
+      ["tbl", 7, 1],
+      ["gfm", 11, 1],
+    ]);
+    expect(source.slice(found[0]!.start, found[0]!.start + 6)).toBe("```tbl");
+    expect(source.slice(found[1]!.start, found[1]!.start + 5)).toBe("| b |");
+  });
+
+  test("CRLF line ends keep their offsets", () => {
+    const source = "---\r\na: 1\r\n---\r\n\r\n| b |\r\n| - |\r\n";
+    const [found] = find(source);
+    expect(found).toMatchObject({ kind: "gfm", line: 5, start: source.indexOf("| b |") });
+  });
+
+  test("a text with no front matter is unchanged", () => {
+    expect(withoutFrontMatter("# T\n\n---\na\n---\n")).toBe("# T\n\n---\na\n---\n");
+    expect(withoutFrontMatter("---\na\n")).toBe("---\na\n");
+    expect(withoutFrontMatter("---\r\na\r\n...\r\nb")).toBe("\r\n\r\n\r\nb");
   });
 });
