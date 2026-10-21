@@ -218,3 +218,29 @@ describe("unknown attribute keys", () => {
     ]);
   });
 });
+
+describe("lint: YAML front matter", () => {
+  test("a `---` line in a block scalar of the front matter gives no problem", () => {
+    expect(lint("---\nkind: x\nfooter: |\n  ---\n  y\n---\n\n# T\n")).toEqual([]);
+  });
+
+  test("a front matter that ends with `...` is no Markdown", () => {
+    expect(lint("---\na: |\n  | a |\n  | - |\n...\n\n# T\n")).toEqual([]);
+  });
+
+  test("a tbl block and a GFM table after the front matter keep their lines", () => {
+    const source = "---\nkind: x\nfooter: |\n  ---\n---\n\n```tbl\na: A\n--\nx: 1\n```\n\n| a |\n| - |\n";
+    expect(where(source)).toEqual([
+      [10, 1, "unknown-key"],
+      [13, 1, "gfm-table"],
+    ]);
+  });
+
+  test("with no closing line, the first `---` is Markdown", () => {
+    expect(where("---\n\n| a |\n| - |\n")).toEqual([[3, 1, "gfm-table"]]);
+  });
+
+  test("a `---` that is not the first line starts no front matter", () => {
+    expect(where("\n---\na\n---\n| a |\n| - |\n")).toEqual([[5, 1, "gfm-table"]]);
+  });
+});

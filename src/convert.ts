@@ -8,7 +8,7 @@ import type { Attributes } from "./attributes.ts";
 import { locate, parse, type Row, type Table, type TblLocation } from "./parse.ts";
 import { renderBlock } from "./render.ts";
 import { htmlDifferences, parseText, type HtmlDifference, type Parsed } from "./html.ts";
-import { lineStarts } from "./markdown.ts";
+import { lineStarts, withoutFrontMatter } from "./markdown.ts";
 
 /** A problem of a conversion, at a 1-based line and column of the file. */
 export interface FileError {
@@ -248,7 +248,7 @@ function htmlCheck(
   const outputStarts = lineStarts(output);
   // The GFM tables are in the source for a conversion to tbl, and in the output for a conversion to GFM.
   let parsed: Parsed | undefined;
-  const gfmText = () => (parsed ??= parseText(md, options.to === "tbl" ? source : output));
+  const gfmText = () => (parsed ??= parseText(md, withoutFrontMatter(options.to === "tbl" ? source : output)));
   replacements.forEach((r, i) => {
     const found = r.found;
     let differences: HtmlDifference[];

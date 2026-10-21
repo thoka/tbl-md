@@ -75,7 +75,7 @@ export function findTables(source: string, options: FindOptions = {}): Found[] {
   const md = engineOf(flavor);
   // The flavor `discourse` keeps the pipes of the link pipe rule (src/discourse.ts).
   const kept = flavor === "discourse" ? (line: string) => linkPipes(md, line) : undefined;
-  const tokens = md.parse(source, {});
+  const tokens = md.parse(withoutFrontMatter(source), {});
   const starts = lineStarts(source);
   const at = (line: number, column: number) => starts[line]! + column;
   const found: Found[] = [];
@@ -131,6 +131,23 @@ export function findTables(source: string, options: FindOptions = {}): Found[] {
     }
   }
   return found;
+}
+
+/**
+ * The text with each line of its YAML front matter made empty, so that Markdown does not read it and each line keeps its
+ * number. Front matter starts with a first line `---` and ends with the next line `---` or `...` at column 0. Spaces
+ * and tabs may follow each marker. A text with no closing line has no front matter and stays as it is.
+ */
+export function withoutFrontMatter(source: string): string {
+  const starts = lineStarts(source);
+  const lineAt = (i: number) => source.slice(starts[i]!, lineEnd(source, starts, i));
+  if (!/^(\uFEFF)?---[ \t]*$/.test(lineAt(0))) return source;
+  for (let i = 1; i < starts.length; i++) {
+    if (!/^(---|\.\.\.)[ \t]*$/.test(lineAt(i))) continue;
+    const ends = source.slice(0, starts[i + 1] ?? source.length).match(/\r\n|\r|\n/g) ?? [];
+    return ends.join("") + source.slice(starts[i + 1] ?? source.length);
+  }
+  return source;
 }
 
 function alignOf(style: string): GfmAlign {

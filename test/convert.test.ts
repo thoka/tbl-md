@@ -424,3 +424,12 @@ describe("convert: attributes", () => {
     ]);
   });
 });
+
+describe("convert: YAML front matter", () => {
+  test("a table after the front matter converts, and the front matter stays", () => {
+    const front = "---\nkind: x\nfooter: |\n  | a |\n  | - |\n  ---\n---\n\n";
+    const out = output(convert(`${front}${gfm}\n`, { to: "tbl" }));
+    expect(out).toBe(`${front}${tbl}\n`);
+    expect(output(convert(out, { to: "gfm" }))).toBe(`${front}${gfm}\n`);
+  });
+});
