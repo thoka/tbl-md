@@ -12,6 +12,8 @@ mise run hooks-install
 mise run test
 ```
 
+The pre-commit hook also runs `.plan/hooks/pre-commit` when it exists. That script holds the checks of the maintainers that use private tools. A contributor without it skips the job.
+
 These are the tasks of `mise.toml`:
 
 ```tbl
