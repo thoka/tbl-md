@@ -4,6 +4,11 @@ pre-commit:
   # Run the jobs in order, and stop at the first failure.
   piped: true
   jobs:
+    - name: lease
+      # A session commits only to a repository that is free, whose lease it holds, or on which it
+      # has a sub-lease. On a deny, lease-gate names the holder and the way. A commit with no agent
+      # session passes, and without lease-gate on the PATH the job passes too.
+      run: command -v lease-gate >/dev/null 2>&1 || exit 0; lease-gate
     - name: install
       # Install the dependencies from bun.lock, as mise run test does, so that the lint finds its libraries
       # in a new checkout.
