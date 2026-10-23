@@ -1,5 +1,6 @@
 # Git hooks for every writer: humans and agents.
 # Install: mise run hooks-install
+rc: .lefthook.rc
 pre-commit:
   # Run the jobs in order, and stop at the first failure.
   piped: true
