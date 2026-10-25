@@ -63,7 +63,7 @@ tbl-md convert docs/*.md
 tbl-md convert --to gfm docs/*.md
 ```
 
-The options, the configuration file `.tbl-md.json`, and a pre-commit hook are in [docs/cli.md](docs/cli.md).
+`tbl-md help` lists the commands, and `tbl-md help <command>` gives the options of one command. The configuration file `.tbl-md.json` and a pre-commit hook are in [docs/cli.md](docs/cli.md).
 
 ### Library
 
