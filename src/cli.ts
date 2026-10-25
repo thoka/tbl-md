@@ -1,43 +1,31 @@
 #!/usr/bin/env node
-// The command line of tbl-md: `tbl-md lint [--flavor <flavor>] [--config <file>] [--max-warnings <n>] <files...>`
-// and `tbl-md convert [--to tbl|gfm] [--drop-attributes] [--flavor <flavor>] [--config <file>] <files...>`.
+// The command line of tbl-md: `tbl-md lint`, `tbl-md convert`, and `tbl-md help`. Its commands, options, and help texts
+// come from the one command definition in commands.ts.
 // It uses only `node:` modules and the library, so that it runs on Node and on Bun.
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { BIN, command, commandHelp, helpJson, parseOptions, shortHelp, TOP_USAGE, usageLine } from "./commands.ts";
 import { convert, type ConvertOptions } from "./convert.ts";
 import { CONFIG_FILE, findConfig, readConfig, type Config, type ConfigError } from "./config.ts";
 import { DEFAULT_FLAVOR, FLAVORS, type Flavor } from "./flavor.ts";
 import { lint } from "./lint.ts";
 
-export const USAGE = `Usage: tbl-md <command> [options] <files...>
-
-Commands:
-  lint <files...>                    Report each GFM pipe table and each error of a tbl block as an error,
-                                     and each attribute key that .tbl-md.json does not list as a warning.
-  convert [--to tbl|gfm] <files...>  Convert the tables of each file in place. --to defaults to tbl:
-                                     each GFM table becomes a tbl block. --to gfm converts back.
-
-The file name - reads stdin. convert then writes the result to stdout.
-
-Options:
-  -h, --help         Print this usage.
-  --version          Print the version.
-  --drop-attributes  Only with convert --to gfm. Drop each attribute that GFM cannot hold,
-                     with no error. The align of the columns and the IDs of the rows stay.
-  --flavor <flavor>  The target renderer of GFM: discourse or markdown-it. It overrides the flavor
-                     of .tbl-md.json. The default is discourse.
-  --config <file>    Use this configuration file, and do not search for .tbl-md.json.
-                     convert uses only its flavor.
-  --max-warnings <n> Only with lint. Fail if there are more than n warnings. No limit by default.
-
-Exit codes: 0 no error, and not more warnings than --max-warnings. 1 an error in a file, or more
-warnings than --max-warnings. 2 a usage error or an error in the configuration file.`;
-
-const HINT = "Run `tbl-md --help` for the usage.";
 const BOM = "﻿";
+
+/** The option values that parseArgs gives for the options of commands.ts. */
+interface Values {
+  help?: boolean;
+  version?: boolean;
+  json?: boolean;
+  to?: string;
+  "drop-attributes"?: boolean;
+  config?: string;
+  flavor?: string;
+  "max-warnings"?: string;
+}
 
 /** The streams of one run. Tests pass their own, the entry passes the process streams. */
 export interface Io {
@@ -47,7 +35,14 @@ export interface Io {
   stdin?: () => Promise<string>;
 }
 
-class UsageError extends Error {}
+/** A usage error. `command` names the command whose usage line and help the message points to. */
+class UsageError extends Error {
+  command: string | undefined;
+  constructor(message: string, command?: string) {
+    super(message);
+    this.command = command;
+  }
+}
 
 /** A configuration file that cannot be read or is not valid. The run stops with exit code 2. */
 class ConfigFailure extends Error {
@@ -65,79 +60,121 @@ interface Input {
 
 /** Runs the CLI with the arguments after the program name and gives the exit code: 0, 1, or 2. */
 export async function main(argv: string[], io: Io): Promise<number> {
+  const options = beforeDashDash(argv);
+  // With --json, an error is one JSON object on stderr.
+  const json = options.includes("--json");
   try {
     return await run(argv, io);
   } catch (error) {
     if (error instanceof UsageError) {
-      io.stderr(`tbl-md: ${error.message} ${HINT}\n`);
+      const name = error.command ?? guessCommand(argv);
+      const fix = `Run '${BIN} help${name === undefined ? "" : ` ${name}`}' for the details.`;
+      if (json) {
+        io.stderr(`${JSON.stringify({ error: { type: "usage", message: error.message, fix } })}\n`);
+      } else {
+        const def = name === undefined ? undefined : command(name);
+        io.stderr(`${BIN}: ${error.message}\nusage: ${def === undefined ? TOP_USAGE : usageLine(def)}\n${fix}\n`);
+      }
       return 2;
     }
     if (error instanceof ConfigFailure) {
       const { file, line, message } = error.error;
-      io.stderr(`tbl-md: ${file}${line === undefined ? "" : `:${line}`}: ${message}\n`);
+      const where = `${file}${line === undefined ? "" : `:${line}`}`;
+      if (json) {
+        io.stderr(`${JSON.stringify({ error: { type: "config", message: `${where}: ${message}`, fix: `Fix the configuration file ${file}.` } })}\n`);
+      } else {
+        io.stderr(`${BIN}: ${where}: ${message}\n`);
+      }
       return 2;
     }
     throw error;
   }
 }
 
+/** The arguments before `--`: only they can be options. */
+function beforeDashDash(argv: string[]): string[] {
+  const end = argv.indexOf("--");
+  return end === -1 ? argv : argv.slice(0, end);
+}
+
+/** The first argument that is a command name, if any. */
+function guessCommand(argv: string[]): string | undefined {
+  return beforeDashDash(argv).find((a) => command(a) !== undefined);
+}
+
 async function run(argv: string[], io: Io): Promise<number> {
+  // -h and --help win over all other arguments.
+  const options = beforeDashDash(argv);
+  if (options.includes("-h") || options.includes("--help")) {
+    const name = guessCommand(argv);
+    const def = name === undefined ? undefined : command(name);
+    io.stdout(`${def === undefined ? shortHelp(version()) : commandHelp(def)}\n`);
+    return 0;
+  }
+  if (argv.length === 0) {
+    io.stdout(`${shortHelp(version())}\n`);
+    return 0;
+  }
   let parsed;
   try {
-    parsed = parseArgs({
-      args: argv,
-      allowPositionals: true,
-      strict: true,
-      options: {
-        help: { type: "boolean", short: "h" },
-        version: { type: "boolean" },
-        to: { type: "string" },
-        "drop-attributes": { type: "boolean" },
-        config: { type: "string" },
-        flavor: { type: "string" },
-        "max-warnings": { type: "string" },
-      },
-    });
+    parsed = parseArgs({ args: argv, allowPositionals: true, strict: true, options: parseOptions() });
   } catch (error) {
     // parseArgs names the bad option in its message, for example "Unknown option '--x'".
     throw new UsageError(`${firstSentence((error as Error).message)}.`);
   }
-  const { values, positionals } = parsed;
-  if (values.help) {
-    io.stdout(`${USAGE}\n`);
-    return 0;
-  }
+  const positionals = parsed.positionals;
+  const values = parsed.values as Values;
   if (values.version) {
     io.stdout(`${version()}\n`);
     return 0;
   }
-  const [command, ...files] = positionals;
-  if (command === undefined) throw new UsageError("No command. Give lint or convert.");
-  if (command !== "lint" && command !== "convert") throw new UsageError(`Unknown command "${command}". Give lint or convert.`);
-  if (command === "lint" && values.to !== undefined) throw new UsageError("The option --to is only for convert.");
+  const [name, ...files] = positionals;
+  if (name === undefined) throw new UsageError("No command. Give lint, convert, or help.");
+  if (name === "help") return runHelp(files, values.json === true, io);
+  if (name !== "lint" && name !== "convert") throw new UsageError(`Unknown command "${name}". Give lint, convert, or help.`);
+  if (name === "lint" && values.to !== undefined) throw new UsageError("The option --to is only for convert.");
+  if (name === "convert" && values.json !== undefined) throw new UsageError("The option --json is only for lint and help.");
   const to = values.to ?? "tbl";
   if (to !== "tbl" && to !== "gfm") throw new UsageError(`Bad value "${to}" for --to. Give tbl or gfm.`);
   const dropAttributes = values["drop-attributes"] === true;
-  if (dropAttributes && (command === "lint" || to === "tbl")) {
-    throw new UsageError("The option --drop-attributes is only for convert --to gfm.");
+  if (dropAttributes && (name === "lint" || to === "tbl")) {
+    throw new UsageError("The option --drop-attributes is only for convert --to gfm.", "convert");
   }
   const flavor = values.flavor === undefined ? undefined : flavorOf(values.flavor);
-  if (command === "convert" && values["max-warnings"] !== undefined) throw new UsageError("The option --max-warnings is only for lint.");
+  if (name === "convert" && values["max-warnings"] !== undefined) throw new UsageError("The option --max-warnings is only for lint.");
   const maxWarnings = values["max-warnings"] === undefined ? undefined : count(values["max-warnings"]);
-  if (files.length === 0) throw new UsageError(`No files. Give one or more Markdown files after ${command}.`);
+  if (files.length === 0) throw new UsageError(`No files. Give one or more Markdown files after ${name}.`);
   if (files.filter((f) => f === "-").length > 1) throw new UsageError("The file name - can come only once.");
 
   // Read all inputs first, so that a file that cannot be read stops the run before any file changes.
   const inputs: Input[] = [];
-  for (const name of files) inputs.push(await read(name, io));
+  for (const file of files) inputs.push(await read(file, io));
 
   // Read the configuration of all inputs first, so that an error in a configuration file stops the run before any output
   // and before any file changes. This also happens with --flavor: lint needs the attribute keys, and convert behaves the same.
   const configs = configurations(inputs, values.config);
   // --flavor wins over the flavor of the configuration, and that wins over the default.
   const flavors = configs.map(({ config }) => flavor ?? config.flavor ?? DEFAULT_FLAVOR);
-  if (command === "convert") return runConvert(inputs, flavors, { to, dropAttributes }, io);
-  return runLint(inputs, configs, flavors, maxWarnings, io);
+  if (name === "convert") return runConvert(inputs, flavors, { to, dropAttributes }, io);
+  return runLint(inputs, configs, flavors, maxWarnings, values.json === true, io);
+}
+
+/** `tbl-md help [--json] [<command>]`. */
+function runHelp(topics: string[], json: boolean, io: Io): number {
+  if (topics.length > 1) throw new UsageError("Give at most one command after help.", "help");
+  if (json) {
+    io.stdout(`${JSON.stringify(helpJson(version()), null, 2)}\n`);
+    return 0;
+  }
+  const [topic] = topics;
+  if (topic === undefined) {
+    io.stdout(`${shortHelp(version())}\n`);
+    return 0;
+  }
+  const def = command(topic);
+  if (def === undefined) throw new UsageError(`Unknown command "${topic}". Give lint, convert, or help.`, "help");
+  io.stdout(`${commandHelp(def)}\n`);
+  return 0;
 }
 
 /** The value of --max-warnings: a whole number, 0 or more. */
@@ -194,28 +231,41 @@ function show(file: string): string {
   return path === "" || path.startsWith("..") || isAbsolute(path) ? file : path;
 }
 
-function runLint(inputs: Input[], configs: Configured[], flavors: Flavor[], maxWarnings: number | undefined, io: Io): number {
-  let errors = 0;
-  let warnings = 0;
+/** One problem of the lint, as the JSON output gives it. */
+interface Problem {
+  file: string;
+  line: number;
+  column: number;
+  severity: "error" | "warning";
+  code: string;
+  message: string;
+}
+
+function runLint(inputs: Input[], configs: Configured[], flavors: Flavor[], maxWarnings: number | undefined, json: boolean, io: Io): number {
+  const problems: Problem[] = [];
   inputs.forEach((input, i) => {
     const { file, config } = configs[i]!;
     for (const p of lint(input.text, { attributeKeys: config.attributeKeys, flavor: flavors[i]! })) {
-      if (p.severity === "error") {
-        errors++;
-        io.stdout(`${input.name}:${p.line}:${p.column}: ${p.message} (${p.code})\n`);
-        continue;
-      }
-      warnings++;
       const where =
-        p.code !== "unknown-attribute-key"
+        p.severity === "error" || p.code !== "unknown-attribute-key"
           ? ""
           : file === null
             ? ` No ${CONFIG_FILE} was found, so only "align" is known.`
             : ` The configuration file is ${file}.`;
-      io.stdout(`${input.name}:${p.line}:${p.column}: warning: ${p.message}${where} (${p.code})\n`);
+      problems.push({ file: input.name, line: p.line, column: p.column, severity: p.severity, code: p.code, message: p.message + where });
     }
   });
+  const errors = problems.filter((p) => p.severity === "error").length;
+  const warnings = problems.length - errors;
   const tooMany = maxWarnings !== undefined && warnings > maxWarnings;
+  if (json) {
+    io.stdout(`${JSON.stringify({ errors, warnings, maxWarnings: maxWarnings ?? null, problems }, null, 2)}\n`);
+    return errors > 0 || tooMany ? 1 : 0;
+  }
+  for (const p of problems) {
+    const warning = p.severity === "warning" ? "warning: " : "";
+    io.stdout(`${p.file}:${p.line}:${p.column}: ${warning}${p.message} (${p.code})\n`);
+  }
   if (errors + warnings > 0) {
     const limit = tooMany ? ` The warnings are more than --max-warnings ${maxWarnings}.` : "";
     io.stdout(`${plural(errors, "error")} and ${plural(warnings, "warning")}.${limit}\n`);

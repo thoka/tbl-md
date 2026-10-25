@@ -3,9 +3,18 @@
 The package installs the CLI as `tbl-md`. Its source is `src/cli.ts`. In this checkout, run it with `mise run tbl-md <command> ...` or `bun src/cli.ts <command> ...`.
 
 ```sh
-tbl-md lint [--flavor discourse|markdown-it] [--config <file>] [--max-warnings <n>] <files...>
+tbl-md lint [--flavor discourse|markdown-it] [--config <file>] [--max-warnings <n>] [--json] <files...>
 tbl-md convert [--to tbl|gfm] [--drop-attributes] [--flavor discourse|markdown-it] [--config <file>] <files...>
+tbl-md help [--json] [<command>]
 ```
+
+The help has three levels, and each level names the next one:
+
+- `tbl-md`, `tbl-md help`, `tbl-md -h`, and `tbl-md --help` print the short help: what the tool does, one line per command, and the global options.
+- `tbl-md help <command>`, `tbl-md <command> --help`, and `tbl-md <command> -h` print the help of one command: its usage, its options with their defaults, its exit codes, and examples.
+- `tbl-md help --json` prints all commands as one JSON object in the shape of `usage generate json`. Each command also has `effect` (`read` or `write`), `examples`, and `exit_codes`. A program reads the commands from it, never from the help text.
+
+`-h` and `--help` win over all other arguments before `--`. Each help exits 0. The commands, the options, and the help texts come from one command definition, `src/commands.ts`.
 
 A GFM table has no single meaning, because each renderer splits a row in its own way. So a flavor names the target renderer of GFM. The flavor `discourse` (the default) is Discourse with its default site settings, and the flavor `markdown-it` is `markdownit()`. Pick the flavor with `--flavor` or with the key `flavor` of `.tbl-md.json` (section Configuration). `docs/format.md`, section Flavors, has the exact settings of each flavor.
 
@@ -37,8 +46,9 @@ Each file has one flavor. `--flavor` gives it for all files. Without `--flavor`,
 
 These are the other options:
 
-- `-h`, `--help`: print the usage to stdout.
+- `-h`, `--help`: print the short help, or with a command the help of that command, to stdout.
 - `--version`: print the version of the package.
+- `--json`: only for `lint` and `help`. `lint --json` prints one JSON object to stdout, with the keys `errors`, `warnings`, `maxWarnings`, and `problems`. `maxWarnings` is a number or `null`. Each problem has `file`, `line`, `column`, `severity`, `code`, and `message`. The exit code stays the same. With `--json`, an error goes to stderr as one JSON object `{"error": {"type", "message", "fix"}}`. Its `type` is `usage` or `config`. Then stdout stays empty.
 - `--drop-attributes`: only for `convert --to gfm`. Drop each attribute that GFM cannot hold, with no error.
 - `--flavor <flavor>`: `discourse` or `markdown-it`. The target renderer of GFM for all files. It wins over the `flavor` of the configuration file. The default is `discourse`.
 - `--config <file>`: use this configuration file for all files, and do not search for `.tbl-md.json`. `convert` uses only its `flavor`.
@@ -52,13 +62,13 @@ code: Exit code
 when: When
 --
 c: 0
-w: For `lint`: no file has an error, and the warnings are not more than `--max-warnings`. For `convert`: each file converted, or it had no table to convert. Also `--help` and `--version`.
+w: For `lint`: no file has an error, and the warnings are not more than `--max-warnings`. For `convert`: each file converted, or it had no table to convert. Also each help and `--version`.
 --
 c: 1
 w: For `lint`: a file has an error, or the warnings are more than `--max-warnings`. For `convert`: the conversion of a file failed.
 --
 c: 2
-w: A usage error: no command, an unknown command, an unknown option, a bad value of `--to`, `--flavor`, or `--max-warnings`, `--to` or `--drop-attributes` for the wrong command, `--max-warnings` for `convert`, no files, `-` more than once, or a file that cannot be read. Or a configuration error (section Configuration). The CLI prints one line to stderr that names the problem.
+w: A usage error: options but no command, an unknown command, an unknown option, `--json` for `convert`, a bad value of `--to`, `--flavor`, or `--max-warnings`, `--to` or `--drop-attributes` for the wrong command, `--max-warnings` for `convert`, no files, `-` more than once, or a file that cannot be read. Or a configuration error (section Configuration). For a usage error, the CLI prints three lines to stderr: the problem, the usage line of the command, and the help command to run. For a configuration error, it prints one line.
 ```
 
 ## Configuration

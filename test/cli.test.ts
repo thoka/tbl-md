@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { main, USAGE } from "../src/cli.ts";
+import { main } from "../src/cli.ts";
+import { command, commandHelp, shortHelp } from "../src/commands.ts";
 import { tempDir } from "./helpers.ts";
 
 const root = join(import.meta.dir, "..");
@@ -382,19 +383,59 @@ describe("flavor", () => {
 });
 
 describe("help and version", () => {
-  test.each(["--help", "-h", "lint --help"])("%s prints the usage to stdout and exits 0", async (args) => {
-    expect(await cli(args.split(" "))).toEqual({ code: 0, out: `${USAGE}\n`, err: "" });
+  const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string };
+
+  test.each(["", "--help", "-h", "help", "--fix --help", "zz -h"])("'%s' prints the short help to stdout and exits 0", async (args) => {
+    const run = await cli(args === "" ? [] : args.split(" "));
+    expect(run).toEqual({ code: 0, out: `${shortHelp(version)}\n`, err: "" });
+    const lines = run.out.trimEnd().split("\n");
+    expect(lines.length).toBeLessThanOrEqual(40);
+    expect(lines[0]).toBe(`tbl-md ${version}`);
+    expect(run.out).toContain("tbl-md help <command>");
+    for (const name of ["lint", "convert", "help"]) expect(lines).toContainEqual(expect.stringMatching(new RegExp(`^  ${name} +\\S`)));
+  });
+
+  test.each(["help lint", "lint --help", "lint -h a.md", "lint --fix --help", "help convert", "convert --help", "help help", "help --help"])(
+    "'%s' prints the help of one command and exits 0",
+    async (args) => {
+      const words = args.split(" ");
+      const name = words[0] === "help" && words[1] !== "--help" ? words[1]! : words[0]!;
+      const run = await cli(words);
+      expect(run).toEqual({ code: 0, out: `${commandHelp(command(name)!)}\n`, err: "" });
+      expect(run.out).toContain(`usage: tbl-md ${name}`);
+      expect(run.out).toContain("Exit codes:");
+      expect(run.out).toMatch(/Examples?:/);
+    },
+  );
+
+  test("help --json prints one JSON object in the shape of usage generate json", async () => {
+    const run = await cli(["help", "--json"]);
+    expect(run.code).toBe(0);
+    expect(run.err).toBe("");
+    const spec = JSON.parse(run.out) as { name: string; bin: string; version: string; cmd: { subcommands: Record<string, { name: string; hide: boolean; args: unknown[]; flags: { name: string }[]; subcommands: object; examples: unknown[]; effect: string }> } };
+    expect([spec.name, spec.bin, spec.version]).toEqual(["tbl-md", "tbl-md", version]);
+    expect(Object.keys(spec.cmd.subcommands)).toEqual(["lint", "convert", "help"]);
+    const lint = spec.cmd.subcommands.lint!;
+    expect(lint.flags.map((f) => f.name)).toEqual(["flavor", "config", "max-warnings", "json"]);
+    expect(lint.effect).toBe("read");
+    expect(spec.cmd.subcommands.convert!.effect).toBe("write");
+    for (const c of Object.values(spec.cmd.subcommands)) expect(c.examples.length).toBeGreaterThan(0);
+  });
+
+  test("help with an unknown command is a usage error", async () => {
+    const run = await cli(["help", "fmt"]);
+    expect([run.code, run.out]).toEqual([2, ""]);
+    expect(run.err).toStartWith('tbl-md: Unknown command "fmt".');
   });
 
   test("--version prints the version of package.json", async () => {
-    const { version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as { version: string };
     expect(await cli(["--version"])).toEqual({ code: 0, out: `${version}\n`, err: "" });
   });
 });
 
 describe("usage errors exit 2 with one line on stderr", () => {
   const cases: [string, string[], RegExp][] = [
-    ["no command", [], /No command/],
+    ["no command", ["--flavor", "discourse"], /No command/],
     ["an unknown command", ["fmt", "a.md"], /Unknown command "fmt"/],
     ["an unknown option", ["lint", "--fix", "a.md"], /Unknown option '--fix'/],
     ["--to with no value", ["convert", "--to"], /--to/],
@@ -419,7 +460,7 @@ describe("usage errors exit 2 with one line on stderr", () => {
     expect(run.code).toBe(2);
     expect(run.out).toBe("");
     expect(run.err).toMatch(message);
-    expect(run.err).toMatch(/^tbl-md: .*Run `tbl-md --help` for the usage\.\n$/);
+    expect(run.err).toMatch(/^tbl-md: [^\n]*\nusage: tbl-md [^\n]*\nRun 'tbl-md help( [a-z]+)?' for the details\.\n$/);
   });
 
   test("a file that cannot be read stops the run before any file changes", async () => {
@@ -428,7 +469,9 @@ describe("usage errors exit 2 with one line on stderr", () => {
     const run = await cli(["convert", a!, missing]);
     expect(run.code).toBe(2);
     expect(run.out).toBe("");
-    expect(run.err).toBe(`tbl-md: Cannot read the file "${missing}": no such file. Run \`tbl-md --help\` for the usage.\n`);
+    expect(run.err).toBe(
+      `tbl-md: Cannot read the file "${missing}": no such file.\nusage: tbl-md convert [--to <tbl|gfm>] [--drop-attributes] [--flavor <flavor>] [--config <file>] <files>...\nRun 'tbl-md help convert' for the details.\n`,
+    );
     expect(readFileSync(a!, "utf8")).toBe(GFM);
   });
 
@@ -450,6 +493,47 @@ describe("usage errors exit 2 with one line on stderr", () => {
     const run = await cli(["lint", "-"]);
     expect(run.code).toBe(2);
     expect(run.err).toContain("needs stdin");
+  });
+});
+
+describe("--json", () => {
+  test("lint --json prints one JSON object with the problems and keeps the exit code", async () => {
+    const [a] = files({ "a.md": GFM });
+    const run = await cli(["lint", "--json", a!]);
+    expect([run.code, run.err]).toEqual([1, ""]);
+    const result = JSON.parse(run.out) as { errors: number; warnings: number; maxWarnings: null; problems: { file: string; line: number; severity: string; code: string }[] };
+    expect([result.errors, result.warnings, result.maxWarnings]).toEqual([1, 0, null]);
+    expect(result.problems.map((p) => [p.file, p.line, p.severity, p.code])).toEqual([[a!, 3, "error", "gfm-table"]]);
+  });
+
+  test("lint --json of a clean file prints an empty list and exits 0", async () => {
+    const [a] = files({ "a.md": PLAIN });
+    const run = await cli(["lint", "--json", a!]);
+    expect(run.code).toBe(0);
+    expect(JSON.parse(run.out)).toEqual({ errors: 0, warnings: 0, maxWarnings: null, problems: [] });
+  });
+
+  test.each([
+    ["an unknown command", ["zz-unknown", "--json"]],
+    ["an unknown option", ["lint", "--json", "--fix", "a.md"]],
+    ["--json for convert", ["convert", "--json", "a.md"]],
+  ])("%s with --json prints one error object on stderr and nothing on stdout", async (_, args) => {
+    const run = await cli(args);
+    expect([run.code, run.out]).toEqual([2, ""]);
+    const { error } = JSON.parse(run.err) as { error: { type: string; message: string; fix: string } };
+    expect(error.type).toBe("usage");
+    expect(error.message.length).toBeGreaterThan(0);
+    expect(error.fix).toMatch(/^Run 'tbl-md help( [a-z]+)?' for the details\.$/);
+  });
+
+  test("a configuration error with --json is one error object on stderr", async () => {
+    const dir = tempDir("cli");
+    writeFileSync(join(dir, "a.md"), PLAIN);
+    const run = await cli(["lint", "--json", "--config", join(dir, "missing.json"), join(dir, "a.md")]);
+    expect([run.code, run.out]).toEqual([2, ""]);
+    const { error } = JSON.parse(run.err) as { error: { type: string; message: string } };
+    expect(error.type).toBe("config");
+    expect(error.message).toContain("missing.json");
   });
 });
 
