@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/thoka/tbl-md/compare/v0.5.2...v0.6.0) (2026-10-25)
+
+
+### Features
+
+* **cli:** follow the CLI convention of cli-lint ([3f928c5](https://github.com/thoka/tbl-md/commit/3f928c50740a170328360804a12f0f19a2e80d22))
+* tbl-md passes cli-lint (step m5LvwCno) ([deb9d49](https://github.com/thoka/tbl-md/commit/deb9d49c39270414a2f97be399198c81d352c44d))
+
 ## [0.5.2](https://github.com/thoka/tbl-md/compare/v0.5.1...v0.5.2) (2026-10-25)
 
 
