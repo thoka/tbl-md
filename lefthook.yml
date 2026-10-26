@@ -10,6 +10,11 @@ pre-commit:
       # has a sub-lease. On a deny, lease-gate names the holder and the way. A commit with no agent
       # session passes, and without lease-gate on the PATH the job passes too.
       run: command -v lease-gate >/dev/null 2>&1 || exit 0; lease-gate
+    - name: needs conditions
+      # Meta step Jj83J1aS (check of meta step cw9krRTw): a Needs line that the commit adds or changes must hold a
+      # reference {>id}, a node ID, or an ISO date, or say none. A missing needs-condition-check passes.
+      # No glob: the script reads only the staged *.md files itself.
+      run: command -v needs-condition-check >/dev/null 2>&1 || exit 0; needs-condition-check --staged
     - name: install
       # Install the dependencies from bun.lock, as mise run test does, so that the lint finds its libraries
       # in a new checkout.
