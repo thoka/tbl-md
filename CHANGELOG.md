@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/thoka/tbl-md/compare/v0.6.0...v0.7.0) (2026-10-29)
+
+
+### Features
+
+* the test suite of tbl-md prints a verdict card last (step 1HyzcbDT) ([cd66a21](https://github.com/thoka/tbl-md/commit/cd66a21b56b1038cfe6ea522ee85443bcb88af3b))
+
 ## [0.6.0](https://github.com/thoka/tbl-md/compare/v0.5.2...v0.6.0) (2026-10-25)
 
 
