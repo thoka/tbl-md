@@ -32,6 +32,11 @@ pre-commit:
       # The checks of the maintainers that name private tools live in the private plan folder, not here (AGENTS.md).
       # A checkout without .plan/hooks/pre-commit skips this job.
       run: if [ -x .plan/hooks/pre-commit ]; then .plan/hooks/pre-commit; else echo "no plan hook, skipped"; fi
+    - name: wait while a close moves HEAD
+      # Step G5XloMgj of the factory: git reads HEAD before this hook, so a commit in a main checkout marks itself in flight
+      # (a close waits for it) or waits while a close of another process moves HEAD; a commit of the close itself
+      # passes. A missing commit-gate passes, and so does exit code 2 (an old gate).
+      run: command -v commit-gate >/dev/null 2>&1 || exit 0; commit-gate; s=$?; [ "$s" -eq 2 ] && exit 0; exit $s
 pre-push:
   jobs:
     - name: test
