@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.0](https://github.com/thoka/tbl-md/compare/v0.8.0...v0.9.0) (2026-10-30)
+
+
+### Features
+
+* **help:** a first help document of tbl-md lint, checked as a graph in the pre-commit ([70c8f14](https://github.com/thoka/tbl-md/commit/70c8f148abc28926fa4bae4f2fd80534302f89dc))
+* tbl-md has a first help document, checked as a graph in the pre-commit (step 644eU9tb) ([4b4ea04](https://github.com/thoka/tbl-md/commit/4b4ea04ab44ad19a722e34ca2fdd09467bd75a14))
+
 ## [0.8.0](https://github.com/thoka/tbl-md/compare/v0.7.0...v0.8.0) (2026-10-30)
 
 
