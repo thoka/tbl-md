@@ -5,6 +5,9 @@ pre-commit:
   # Run the jobs in order, and stop at the first failure.
   piped: true
   jobs:
+    - name: fill-ids
+      # Step qBw0fgZN: fills the temporary ids ({#new-name}) of the staged watched Markdown files, so no temporary id reaches a commit.
+      run: mg fill-ids --staged
     - name: lease
       # A session commits only to a repository that is free, whose lease it holds, or on which it
       # has a sub-lease. On a deny, lease-gate names the holder and the way. A commit with no agent
@@ -47,6 +50,12 @@ pre-push:
       # The JSON of `mise run doctor --json` must have the shared doctor format. A contributor without doctor-lint on
       # the PATH gets a note, and the hook passes.
       run: if command -v doctor-lint >/dev/null 2>&1; then doctor-lint --run; else echo "doctor-lint not found, skipped"; fi
+
+commit-msg:
+  jobs:
+    - name: fill-ids trailer
+      # Step qBw0fgZN: fills the temporary ids of the commit message trailers.
+      run: mg fill-ids --trailer {1}
 
 post-commit:
   jobs:
