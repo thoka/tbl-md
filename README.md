@@ -56,6 +56,8 @@ docs/a.md:12:1: This is a GFM pipe table. Write it as a tbl block, for example w
 1 error and 0 warnings.
 ```
 
+The help document of `tbl-md lint` is {>6hYdD6E2}: `mg get 6hYdD6E2` prints it, and `tbl-md help lint` names it.
+
 `tbl-md convert` converts the GFM tables of each file to `tbl` blocks, in place. With `--to gfm`, it converts back:
 
 ```sh

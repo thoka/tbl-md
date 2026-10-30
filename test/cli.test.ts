@@ -559,3 +559,17 @@ describe("the process", () => {
 function escape(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// Step 644eU9tb: the help of lint points to its help document by its id, and the document has its head.
+describe("help document of lint", () => {
+  test("the help of lint names the document by its id", () => {
+    expect(commandHelp(command("lint")!)).toContain("More: mg get 6hYdD6E2");
+  });
+
+  test("the document has the H1, Summary, and Example", () => {
+    const lines = readFileSync(join(root, "src", "help", "lint.md"), "utf8").split("\n");
+    expect(lines[0]).toBe("# Help 6hYdD6E2: tbl-md lint");
+    expect(lines[1]).toStartWith("Summary: ");
+    expect(lines[2]).toStartWith("Example: ");
+  });
+});

@@ -11,7 +11,7 @@ tbl-md help [--json] [<command>]
 The help has three levels, and each level names the next one:
 
 - `tbl-md`, `tbl-md help`, `tbl-md -h`, and `tbl-md --help` print the short help: what the tool does, one line per command, and the global options.
-- `tbl-md help <command>`, `tbl-md <command> --help`, and `tbl-md <command> -h` print the help of one command: its usage, its options with their defaults, its exit codes, and examples.
+- `tbl-md help <command>`, `tbl-md <command> --help`, and `tbl-md <command> -h` print the help of one command: its usage, its options with their defaults, its exit codes, and examples. The help of `lint` also names its help document {>6hYdD6E2}, a document of the repository that `mg get 6hYdD6E2` prints.
 - `tbl-md help --json` prints all commands as one JSON object in the shape of `usage generate json`. Each command also has `effect` (`read` or `write`), `examples`, and `exit_codes`. A program reads the commands from it, never from the help text.
 
 `-h` and `--help` win over all other arguments before `--`. Each help exits 0. The commands, the options, and the help texts come from one command definition, `src/commands.ts`.

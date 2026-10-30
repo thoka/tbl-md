@@ -34,6 +34,8 @@ export interface CommandDef {
   /** One sentence per exit code. */
   exitCodes: [number, string][];
   examples: string[];
+  /** The id of the help document of the command, a document in src/help/ of the repository that `mg get <id>` prints. */
+  helpDocument?: string;
 }
 
 export const BIN = "tbl-md";
@@ -80,6 +82,7 @@ export const COMMANDS: CommandDef[] = [
       [2, "a usage error, a file that cannot be read, or an error in the configuration file"],
     ],
     examples: ["tbl-md lint --max-warnings 0 /tmp/notes/README.md /tmp/notes/docs/cli.md"],
+    helpDocument: "6hYdD6E2",
   },
   {
     name: "convert",
@@ -199,6 +202,9 @@ export function commandHelp(def: CommandDef): string {
     ...def.examples.map((e) => `  ${e}`),
     "",
     "The full reference is docs/cli.md of the package.",
+    ...(def.helpDocument === undefined
+      ? []
+      : [`More: mg get ${def.helpDocument} (the help document of ${BIN} ${def.name}, in the repository of ${BIN}).`]),
   ].join("\n");
 }
 
