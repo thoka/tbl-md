@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/thoka/tbl-md/compare/v0.7.0...v0.8.0) (2026-10-30)
+
+
+### Features
+
+* the lefthook runs the fill-ids jobs of markgraf (step L8OUQQ3N) ([54d523d](https://github.com/thoka/tbl-md/commit/54d523dad9bb4f2f3bc0b9887b174d09c8dc8d71))
+
 ## [0.7.0](https://github.com/thoka/tbl-md/compare/v0.6.0...v0.7.0) (2026-10-29)
 
 
