@@ -18,6 +18,17 @@ pre-commit:
       # reference {>id}, a node ID, or an ISO date, or say none. A missing needs-condition-check passes.
       # No glob: the script reads only the staged *.md files itself.
       run: command -v needs-condition-check >/dev/null 2>&1 || exit 0; needs-condition-check --staged
+    - name: mg commit-check
+      # Step 644eU9tb: the help documents src/help/*.md (kind help in the config of mg) are checked as a graph: each
+      # unit must be reachable from the head for each reader profile. The job checks each staged file that mg watches
+      # and ignores other files. Fix: correct the file, run `mg check <file>`, and stage it again. It passes with a
+      # message when mg is not on the PATH.
+      run: |
+        if ! command -v mg >/dev/null 2>&1; then
+          echo "mg is not on the PATH: skip the check of the help documents"
+          exit 0
+        fi
+        mg commit-check {staged_files}
     - name: install
       # Install the dependencies from bun.lock, as mise run test does, so that the lint finds its libraries
       # in a new checkout.
