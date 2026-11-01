@@ -37,11 +37,11 @@ pre-commit:
       # The repository is public (AGENTS.md): no local path and no private project name in a staged file.
       # A contributor without public-check on the PATH gets a note, and the hook passes.
       run: if command -v public-check >/dev/null 2>&1; then public-check {staged_files}; else echo "public-check not found, skipped"; fi
-    - name: tbl-md lint
-      # Fails on a GFM pipe table and on an invalid tbl block in a staged Markdown file (AGENTS.md).
-      # --max-warnings 0 also fails on an attribute key that .tbl-md.json does not list, because a warning is no check.
+    - name: tbl-md fix
+      # Rule tables-as-tbl: meta dv/bin/tbl-md-gate converts each GFM pipe table of the staged Markdown files to a tbl
+      # block in the index, then lints and only warns (meta step FZal4ll6; log ~/.local/state/meta/tbl-md-gate.jsonl).
       glob: "*.md"
-      run: mise exec -- bun src/cli.ts lint --max-warnings 0 {staged_files}
+      run: 'command -v tbl-md-gate >/dev/null 2>&1 || exit 0; tbl-md-gate --tbl-md "mise exec -- bun src/cli.ts" {staged_files}'
     - name: plan hook
       # The checks of the maintainers that name private tools live in the private plan folder, not here (AGENTS.md).
       # A checkout without .plan/hooks/pre-commit skips this job.
