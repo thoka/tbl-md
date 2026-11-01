@@ -8,11 +8,10 @@ pre-commit:
     - name: fill-ids
       # Step qBw0fgZN: fills the temporary ids ({#new-name}) of the staged watched Markdown files, so no temporary id reaches a commit.
       run: mg fill-ids --staged
-    - name: lease
-      # A session commits only to a repository that is free, whose lease it holds, or on which it
-      # has a sub-lease. On a deny, lease-gate names the holder and the way. A commit with no agent
-      # session passes, and without lease-gate on the PATH the job passes too.
-      run: command -v lease-gate >/dev/null 2>&1 || exit 0; lease-gate
+    - name: core writer
+      # Only one writer commits to this repository; core-writer-gate on the PATH decides. A commit with no
+      # Claude Code session passes, and without core-writer-gate on the PATH the job passes too.
+      run: command -v core-writer-gate >/dev/null 2>&1 || exit 0; core-writer-gate
     - name: needs conditions
       # Meta step Jj83J1aS (check of meta step cw9krRTw): a Needs line that the commit adds or changes must hold a
       # reference {>id}, a node ID, or an ISO date, or say none. A missing needs-condition-check passes.
