@@ -45,6 +45,10 @@ pre-commit:
       # The checks of the maintainers that name private tools live in the private plan folder, not here (AGENTS.md).
       # A checkout without .plan/hooks/pre-commit skips this job.
       run: if [ -x .plan/hooks/pre-commit ]; then .plan/hooks/pre-commit; else echo "no plan hook, skipped"; fi
+    - name: step-done lock
+      # Step WI44luCc of meta: a live step-done lock of another close of this checkout refuses the commit, unless the
+      # commit frees what the close waits on (phase mark-wait, or phase push with a staged plan file). A missing gate passes.
+      run: command -v step-done-lock-gate >/dev/null 2>&1 || exit 0; step-done-lock-gate
     - name: wait while a close moves HEAD
       # Step G5XloMgj of the factory: git reads HEAD before this hook, so a commit in a main checkout marks itself in flight
       # (a close waits for it) or waits while a close of another process moves HEAD; a commit of the close itself
