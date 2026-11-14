@@ -7,3 +7,4 @@ watch = ["docs/**/*.md", "README.md", "AGENTS.md", "src/help/*.md"]
 file-link = 40
 term-marker = 0
 direct-access = 0
+color-word = 2
