@@ -59,7 +59,10 @@ pre-push:
     - name: test
       # The tests run locally before each push, not as CI runs on GitHub.
       # With git-autopush on the PATH, the job waits for a free test slot and skips a tree that passed before.
-      run: if command -v git-autopush >/dev/null 2>&1; then git-autopush tests -- mise run test; else mise run test; fi
+      # With --snapshot (step 1yrEprSO) the suite runs in a temporary detached worktree of the pushed tree, so a dirty
+      # file of another session in the live checkout cannot change the result. The task test installs its own
+      # dependencies there. Without git-autopush on the PATH, the plain command runs in the checkout.
+      run: if command -v git-autopush >/dev/null 2>&1; then git-autopush tests --snapshot -- mise run test; else mise run test; fi
     - name: doctor format
       # The JSON of `mise run doctor --json` must have the shared doctor format. A contributor without doctor-lint on
       # the PATH gets a note, and the hook passes.
