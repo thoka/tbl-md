@@ -1,4 +1,5 @@
 watch = ["docs/**/*.md", "README.md", "AGENTS.md", "src/help/*.md"]
+generated = ["CHANGELOG.md"]
 
 [kinds]
 "src/help/*.md" = ["help"]
