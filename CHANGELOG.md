@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0](https://github.com/thoka/tbl-md/compare/v0.9.0...v0.10.0) (2026-11-20)
+
+
+### Features
+
+* The count of the agreements with no check of this repository is pinned and never rises (step J7tuR1q3) ([aa9196d](https://github.com/thoka/tbl-md/commit/aa9196d716d26e5d145d373f7126185ea2f5c864))
+* The count of the color words of this repository is pinned and never rises (step rKhRC1Sz) ([000f5f1](https://github.com/thoka/tbl-md/commit/000f5f158e6fe1f24952c038d88a10af2dcba7fb))
+* The pre-push suite of this repository runs in a snapshot, not in the live checkout (step 1yrEprSO) ([5e3978d](https://github.com/thoka/tbl-md/commit/5e3978d40e8651e6d495ca1f2bab8962e0fa739a))
+
 ## [0.9.0](https://github.com/thoka/tbl-md/compare/v0.8.0...v0.9.0) (2026-10-30)
 
 
